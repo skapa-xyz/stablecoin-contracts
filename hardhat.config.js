@@ -18,13 +18,6 @@ const getSecret = (secretKey, defaultValue='') => {
 
     return secret
 }
-const alchemyUrl = () => {
-    return `https://eth-mainnet.alchemyapi.io/v2/${getSecret('alchemyAPIKey')}`
-}
-
-const alchemyUrlRinkeby = () => {
-    return `https://eth-rinkeby.alchemyapi.io/v2/${getSecret('alchemyAPIKeyRinkeby')}`
-}
 
 module.exports = {
     paths: {
@@ -65,23 +58,29 @@ module.exports = {
     networks: {
         hardhat: {
             accounts: accountsList,
-            gas: 10000000,  // tx gas limit
             blockGasLimit: 15000000,
             gasPrice: 20000000000,
             initialBaseFeePerGas: 0,
+            forking: {
+                url: getSecret('TESTNET_RPC_ENDPOINT'),
+            },
+        },
+        localhost: {
+            url: 'http://127.0.0.1:8545',
+            chainId: 31337,
+            accounts: [getSecret('TESTNET_DEPLOYER_PRIVATEKEY', '0x60ddfe7f579ab6867cbe7a2dc03853dc141d7a4ab6dbefc0dae2d2b1bd4e487f')],
         },
         mainnet: {
-            url: alchemyUrl(),
+            url: getSecret('RPC_ENDPOINT'),
             gasPrice: process.env.GAS_PRICE ? parseInt(process.env.GAS_PRICE) : 20000000000,
             accounts: [
                 getSecret('DEPLOYER_PRIVATEKEY', '0x60ddfe7f579ab6867cbe7a2dc03853dc141d7a4ab6dbefc0dae2d2b1bd4e487f'),
                 getSecret('ACCOUNT2_PRIVATEKEY', '0x3ec7cedbafd0cb9ec05bf9f7ccfa1e8b42b3e3a02c75addfccbfeb328d1b383b')
             ]
         },
-        rinkeby: {
-            url: alchemyUrlRinkeby(),
-            gas: 10000000,  // tx gas limit
-            accounts: [getSecret('RINKEBY_DEPLOYER_PRIVATEKEY', '0x60ddfe7f579ab6867cbe7a2dc03853dc141d7a4ab6dbefc0dae2d2b1bd4e487f')]
+        testnet: {
+            url: getSecret('TESTNET_RPC_ENDPOINT'),
+            accounts: [getSecret('TESTNET_DEPLOYER_PRIVATEKEY', '0x60ddfe7f579ab6867cbe7a2dc03853dc141d7a4ab6dbefc0dae2d2b1bd4e487f')]
         },
     },
     etherscan: {

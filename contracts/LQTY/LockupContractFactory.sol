@@ -34,6 +34,7 @@ contract LockupContractFactory is ILockupContractFactory, Ownable, CheckContract
     address public lqtyTokenAddress;
     
     mapping (address => address) public lockupContractToDeployer;
+    mapping (address => address) public beneficiaryToLockupContract;
 
     // --- Events ---
 
@@ -60,6 +61,7 @@ contract LockupContractFactory is ILockupContractFactory, Ownable, CheckContract
                                                         _unlockTime);
 
         lockupContractToDeployer[address(lockupContract)] = msg.sender;
+        beneficiaryToLockupContract[_beneficiary] = address(lockupContract);
         emit LockupContractDeployedThroughFactory(address(lockupContract), _beneficiary, _unlockTime, msg.sender);
     }
 

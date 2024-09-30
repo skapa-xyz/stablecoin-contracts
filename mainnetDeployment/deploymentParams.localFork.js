@@ -32,15 +32,10 @@ const waitFunction = async () => {
   ethers.provider.send("evm_mine") 
 }
 
-const GAS_PRICE = 1000
-const TX_CONFIRMATIONS = 1 // for local fork test
-
 module.exports = {
   externalAddrs,
   liquityAddrs,
   beneficiaries,
   OUTPUT_FILE,
-  waitFunction,
-  GAS_PRICE,
-  TX_CONFIRMATIONS,
+  waitFunction
 };

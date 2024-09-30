@@ -13,7 +13,6 @@ async function mainnetDeploy(configParams) {
   const deployerWallet = (await ethers.getSigners())[0]
   // const account2Wallet = (await ethers.getSigners())[1]
   const mdh = new MainnetDeploymentHelper(configParams, deployerWallet)
-  const gasPrice = configParams.GAS_PRICE
 
   const deploymentState = mdh.loadPreviousDeployment()
 
@@ -24,35 +23,46 @@ async function mainnetDeploy(configParams) {
   console.log(`deployerETHBalance before: ${deployerETHBalance}`)
 
   // Get UniswapV2Factory instance at its deployed address
-  const uniswapV2Factory = new ethers.Contract(
-    configParams.externalAddrs.UNISWAP_V2_FACTORY,
-    UniswapV2Factory.abi,
-    deployerWallet
-  )
+  const uniswapExits = !!configParams.externalAddrs.UNISWAP_V2_FACTORY;
+  const uniswapV2Factory = uniswapExits ? new ethers.Contract(
+      configParams.externalAddrs.UNISWAP_V2_FACTORY,
+      UniswapV2Factory.abi,
+      deployerWallet
+    ): undefined
 
-  console.log(`Uniswp addr: ${uniswapV2Factory.address}`)
-  const uniAllPairsLength = await uniswapV2Factory.allPairsLength()
-  console.log(`Uniswap Factory number of pairs: ${uniAllPairsLength}`)
+  if (uniswapExits) {
+    console.log(`Uniswp addr: ${uniswapV2Factory.address}`)
+    const uniAllPairsLength = await uniswapV2Factory.allPairsLength()
+    console.log(`Uniswap Factory number of pairs: ${uniAllPairsLength}`)
+  }
 
   deployerETHBalance = await ethers.provider.getBalance(deployerWallet.address)
   console.log(`deployer's ETH balance before deployments: ${deployerETHBalance}`)
 
   // Deploy core logic contracts
-  const liquityCore = await mdh.deployLiquityCoreMainnet(configParams.externalAddrs.TELLOR_MASTER, deploymentState)
+  const liquityCore = await mdh.deployLiquityCoreMainnet(
+    configParams.externalAddrs.TELLOR_MASTER,
+    configParams.externalAddrs.PYTH_PRICE_FEED,
+    configParams.externalAddrs.PYTH_PRICE_ID,
+    deploymentState
+  )
   await mdh.logContractObjects(liquityCore)
 
-  // Check Uniswap Pair LUSD-ETH pair before pair creation
-  let LUSDWETHPairAddr = await uniswapV2Factory.getPair(liquityCore.lusdToken.address, configParams.externalAddrs.WETH_ERC20)
-  let WETHLUSDPairAddr = await uniswapV2Factory.getPair(configParams.externalAddrs.WETH_ERC20, liquityCore.lusdToken.address)
+  // // Check Uniswap Pair LUSD-ETH pair before pair creation
+  // let LUSDWETHPairAddr = await uniswapV2Factory.getPair(liquityCore.lusdToken.address, configParams.externalAddrs.WETH_ERC20)
+  // let WETHLUSDPairAddr = await uniswapV2Factory.getPair(configParams.externalAddrs.WETH_ERC20, liquityCore.lusdToken.address)
+  // assert.equal(LUSDWETHPairAddr, WETHLUSDPairAddr)
+  let [LUSDWETHPairAddr, WETHLUSDPairAddr] = uniswapExits ? await Promise.all([
+    uniswapV2Factory.getPair(liquityCore.lusdToken.address, configParams.externalAddrs.WETH_ERC20),
+    uniswapV2Factory.getPair(configParams.externalAddrs.WETH_ERC20, liquityCore.lusdToken.address)
+  ]) : [undefined, undefined]
   assert.equal(LUSDWETHPairAddr, WETHLUSDPairAddr)
-
 
   if (LUSDWETHPairAddr == th.ZERO_ADDRESS) {
     // Deploy Unipool for LUSD-WETH
     await mdh.sendAndWaitForTransaction(uniswapV2Factory.createPair(
       configParams.externalAddrs.WETH_ERC20,
-      liquityCore.lusdToken.address,
-      { gasPrice }
+      liquityCore.lusdToken.address
     ))
 
     // Check Uniswap Pair LUSD-WETH pair after pair creation (forwards and backwards should have same address)
@@ -75,7 +85,7 @@ async function mainnetDeploy(configParams) {
   )
 
   // Connect all core contracts up
-  await mdh.connectCoreContractsMainnet(liquityCore, LQTYContracts, configParams.externalAddrs.CHAINLINK_ETHUSD_PROXY)
+  await mdh.connectCoreContractsMainnet(liquityCore, LQTYContracts)
   await mdh.connectLQTYContractsMainnet(LQTYContracts)
   await mdh.connectLQTYContractsToCoreMainnet(LQTYContracts, liquityCore)
 
@@ -83,8 +93,10 @@ async function mainnetDeploy(configParams) {
   const multiTroveGetter = await mdh.deployMultiTroveGetterMainnet(liquityCore, deploymentState)
 
   // Connect Unipool to LQTYToken and the LUSD-WETH pair address, with a 6 week duration
-  const LPRewardsDuration = timeVals.SECONDS_IN_SIX_WEEKS
-  await mdh.connectUnipoolMainnet(unipool, LQTYContracts, LUSDWETHPairAddr, LPRewardsDuration)
+  if (uniswapExits) {
+    const LPRewardsDuration = timeVals.SECONDS_IN_SIX_WEEKS
+    await mdh.connectUnipoolMainnet(unipool, LQTYContracts, LUSDWETHPairAddr, LPRewardsDuration)
+  }
 
   // Log LQTY and Unipool addresses
   await mdh.logContractObjects(LQTYContracts)
@@ -110,9 +122,18 @@ async function mainnetDeploy(configParams) {
         deployerWallet
       )
     } else {
-      const txReceipt = await mdh.sendAndWaitForTransaction(LQTYContracts.lockupContractFactory.deployLockupContract(investorAddr, oneYearFromDeployment, { gasPrice }))
+      const txReceipt = await mdh.sendAndWaitForTransaction(LQTYContracts.lockupContractFactory.deployLockupContract(investorAddr, oneYearFromDeployment))
 
-      const address = await txReceipt.logs[0].address // The deployment event emitted from the LC itself is is the first of two events, so this is its address 
+      // There is no `logs` in the txReceipt object for a Filecoin deployment. Instead, `queryFilter` is used to get the events
+      // const filter = LQTYContracts.lockupContractFactory.filters.LockupContractDeployedThroughFactory()
+      // const events = await LQTYContracts.lockupContractFactory.queryFilter(filter, txReceipt.blockNumber)
+      // console.log('events:', events)
+
+      const address2 = await txReceipt.logs[0].address // The deployment event emitted from the LC itself is is the first of two events, so this is its address 
+      console.log(`address2: ${address2}`);
+      // const address = events[0].args._lockupContractAddress
+      const address = await LQTYContracts.lockupContractFactory.beneficiaryToLockupContract(investorAddr)
+      console.log(`address: ${address}`)
       lockupContracts[investor] = new ethers.Contract(
         address,
         lockupContractEthersFactory.interface,
@@ -146,20 +167,15 @@ async function mainnetDeploy(configParams) {
   // await mdh.sendAndWaitForTransaction(liquityCore.borrowerOperations.addColl(th.ZERO_ADDRESS, th.ZERO_ADDRESS, {value: dec(2, 'ether'), gasPrice, gasLimit: 1000000}))
   // console.log(`deployer trove coll after addingColl: ${await liquityCore.troveManager.getTroveColl(deployerWallet.address)}`)
   
-  // Check chainlink proxy price ---
-
-  const chainlinkProxy = new ethers.Contract(
-    configParams.externalAddrs.CHAINLINK_ETHUSD_PROXY,
-    ChainlinkAggregatorV3Interface,
-    deployerWallet
-  )
+  // Check oracle proxy prices ---
 
   // Get latest price
-  let chainlinkPrice = await chainlinkProxy.latestAnswer()
-  console.log(`current Chainlink price: ${chainlinkPrice}`)
+  let pythPriceResponse = await liquityCore.pythCaller.latestRoundData();
+  console.log(`current Pyth price: ${pythPriceResponse[1]}`)
+  console.log(`current Pyth timestamp: ${pythPriceResponse[3]}`)
 
   // Check Tellor price directly (through our TellorCaller)
-  let tellorPriceResponse = await liquityCore.tellorCaller.getTellorCurrentValue(1) // id == 1: the ETH-USD request ID
+  let tellorPriceResponse = await liquityCore.tellorCaller.getTellorCurrentValue() // id == 1: the ETH-USD request ID
   console.log(`current Tellor price: ${tellorPriceResponse[1]}`)
   console.log(`current Tellor timestamp: ${tellorPriceResponse[2]}`)
 
@@ -292,11 +308,11 @@ async function mainnetDeploy(configParams) {
   // th.logBN("deployer's LUSD balance", deployerLUSDBal)
 
   // // Check Uniswap pool has LUSD and WETH tokens
-  const LUSDETHPair = await new ethers.Contract(
+  const LUSDETHPair = uniswapExits ? await new ethers.Contract(
     LUSDWETHPairAddr,
     UniswapV2Pair.abi,
     deployerWallet
-  )
+  ) : undefined
 
   // const token0Addr = await LUSDETHPair.token0()
   // const token1Addr = await LUSDETHPair.token1()
@@ -529,9 +545,11 @@ async function mainnetDeploy(configParams) {
   // // --- System stats  ---
 
   // Uniswap LUSD-ETH pool size
-  reserves = await LUSDETHPair.getReserves()
-  th.logBN("LUSD-ETH Pair's current LUSD reserves", reserves[0])
-  th.logBN("LUSD-ETH Pair's current ETH reserves", reserves[1])
+  if (uniswapExits) {
+    let reserves = await LUSDETHPair.getReserves()
+    th.logBN("LUSD-ETH Pair's current LUSD reserves", reserves[0])
+    th.logBN("LUSD-ETH Pair's current ETH reserves", reserves[1])
+  }
 
   // Number of troves
   const numTroves = await liquityCore.troveManager.getTroveOwnersCount()
@@ -548,7 +566,7 @@ async function mainnetDeploy(configParams) {
   th.logBN("Entire system coll", entireSystemColl)
   
   // TCR
-  const TCR = await liquityCore.troveManager.getTCR(chainlinkPrice)
+  const TCR = await liquityCore.troveManager.getTCR(pythPriceResponse[1])
   console.log(`TCR: ${TCR}`)
 
   // current borrowing rate

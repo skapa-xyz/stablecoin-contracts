@@ -18,36 +18,51 @@ import "./SafeMath.sol";
 contract TellorCaller is ITellorCaller {
     using SafeMath for uint256;
 
+    bytes32 public immutable btcQueryId;
+    uint256 public constant DISPUTE_BUFFER = 20 minutes;
+    uint256 public constant STALENESS_AGE = 12 hours;
+
     ITellor public tellor;
+    
 
     constructor (address _tellorMasterAddress) public {
         tellor = ITellor(_tellorMasterAddress);
+        bytes memory _queryData = abi.encode("SpotPrice", abi.encode("fil", "usd"));
+        btcQueryId = keccak256(_queryData);
     }
 
-    /*
-    * getTellorCurrentValue(): identical to getCurrentValue() in UsingTellor.sol
-    *
-    * @dev Allows the user to get the latest value for the requestId specified
-    * @param _requestId is the requestId to look up the value for
-    * @return ifRetrieve bool true if it is able to retrieve a value, the value, and the value's timestamp
-    * @return value the value retrieved
-    * @return _timestampRetrieved the value's timestamp
-    */
-    function getTellorCurrentValue(uint256 _requestId)
-        external
+    /** 
+     * @dev Allows a user contract to read the price from Tellor and perform some best practice checks
+     * on the retrieved data
+     * @return ifRetrieve bool true if it is able to retrieve a value, the value, and the value's timestamp
+     * @return _value the value retrieved
+     * @return timestamp the value's timestamp
+     */
+    function getTellorCurrentValue()
+        public
         view
         override
         returns (
             bool ifRetrieve,
-            uint256 value,
-            uint256 _timestampRetrieved
+            uint256 _value,
+            uint256 timestamp
         )
     {
-        uint256 _count = tellor.getNewValueCountbyRequestId(_requestId);
-        uint256 _time =
-            tellor.getTimestampbyRequestIDandIndex(_requestId, _count.sub(1));
-        uint256 _value = tellor.retrieveData(_requestId, _time);
-        if (_value > 0) return (true, _value, _time);
-        return (false, 0, _time);
+        // retrieve the most recent 20+ minute old btc price. 
+        // the buffer allows time for a bad value to be disputed
+        (bool _ifRetrieve, bytes memory _data, uint256 _timestamp) = tellor.getDataBefore(btcQueryId, block.timestamp.sub(DISPUTE_BUFFER));
+
+        if (!_ifRetrieve || _timestamp == 0 || _data.length == 0) {
+            return (false, 0, _timestamp);
+        }
+
+        // decode the value from bytes to uint256
+        _value = abi.decode(_data, (uint256));
+
+        // check whether value is too old
+        require(block.timestamp.sub(_timestamp) <= STALENESS_AGE, "TellorCaller: StalePrice");
+
+        // return the value and timestamp
+        return (true, _value, _timestamp);
     }
 }

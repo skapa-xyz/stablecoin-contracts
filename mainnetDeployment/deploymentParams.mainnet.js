@@ -61,9 +61,6 @@ const waitFunction = async () => {
   return delay(90000) // wait 90s
 }
 
-const GAS_PRICE = 25000000000
-const TX_CONFIRMATIONS = 3 // for mainnet
-
 const ETHERSCAN_BASE_URL = 'https://etherscan.io/address'
 
 module.exports = {
@@ -72,7 +69,5 @@ module.exports = {
   beneficiaries,
   OUTPUT_FILE,
   waitFunction,
-  GAS_PRICE,
-  TX_CONFIRMATIONS,
   ETHERSCAN_BASE_URL,
 };
