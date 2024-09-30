@@ -1,10 +1,15 @@
 {
   "name": "@secured-finance/stablecoin-contracts",
-  "version": "0.0.2-beta.0",
+  "version": "0.0.2-beta.1",
   "description": "",
   "directories": {
     "test": "test"
   },
+  "files": [
+    "artifacts/**/*",
+    "contracts/**/*",
+    "mainnetDeployment/**/*Output.json"
+  ],
   "scripts": {
     "hardhat": "hardhat",
     "prepare": "run-s 'prepare:*'",
