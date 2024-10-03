@@ -1,6 +1,6 @@
 {
   "name": "@secured-finance/stablecoin-contracts",
-  "version": "0.0.2-beta.3",
+  "version": "0.0.2-beta.4",
   "description": "",
   "directories": {
     "test": "test"
