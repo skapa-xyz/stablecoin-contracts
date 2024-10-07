@@ -4,7 +4,7 @@
 
 ```sh
 # localhost
-$ npx hardhat node --network hardhat
+$ npx hardhat node --fork <NODE_URL>
 $ npx hardhat run --network localhost mainnetDeployment/testnetDeployment.js
 
 # testnet

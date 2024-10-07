@@ -58,12 +58,10 @@ module.exports = {
     networks: {
         hardhat: {
             accounts: accountsList,
+            gas: 10000000,  // tx gas limit
             blockGasLimit: 15000000,
             gasPrice: 20000000000,
             initialBaseFeePerGas: 0,
-            forking: {
-                url: getSecret('TESTNET_RPC_ENDPOINT'),
-            },
         },
         localhost: {
             url: 'http://127.0.0.1:8545',

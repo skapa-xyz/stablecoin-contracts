@@ -60,6 +60,13 @@ contract('After the initial lockup period has passed', async accounts => {
   let justOverOneYearFromSystemDeployment
   let _18monthsFromSystemDeployment
 
+  before(async () => {
+    await network.provider.request({
+      method: "hardhat_reset",
+      params: [],
+    });
+  });
+
   beforeEach(async () => {
     // Deploy all contracts from the first account
     LQTYContracts = await deploymentHelper.deployLQTYTesterContractsHardhat(bountyAddress, lpRewardsAddress, multisig)

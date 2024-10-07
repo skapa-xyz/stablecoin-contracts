@@ -331,6 +331,11 @@ contract('Fee arithmetic tests', async accounts => {
   ]
 
   before(async () => {
+    await network.provider.request({
+      method: "hardhat_reset",
+      params: [],
+    });
+
     troveManagerTester = await TroveManagerTester.new()
     TroveManagerTester.setAsDeployed(troveManagerTester)
 
@@ -366,6 +371,8 @@ contract('Fee arithmetic tests', async accounts => {
       const minutesPassed = await troveManagerTester.minutesPassedSinceLastFeeOp()
 
       assert.equal(expectedHoursPassed.toString(), minutesPassed.toString())
+
+      await th.fastForwardTime(-seconds, web3.currentProvider)
     }
   })
 
