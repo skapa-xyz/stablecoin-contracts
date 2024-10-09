@@ -9,9 +9,9 @@ import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
 /*
- * The Active Pool holds the ETH collateral and debt (but not debt tokens) for all active troves.
+ * The Active Pool holds the FIL collateral and debt (but not debt tokens) for all active troves.
  *
- * When a trove is liquidated, it's ETH and debt are transferred from the Active Pool, to either the
+ * When a trove is liquidated, it's FIL and debt are transferred from the Active Pool, to either the
  * Stability Pool, the Default Pool, or both, depending on the liquidation conditions.
  *
  */
@@ -24,7 +24,7 @@ contract ActivePool is Ownable, CheckContract, IActivePool {
     address public troveManagerAddress;
     address public stabilityPoolAddress;
     address public defaultPoolAddress;
-    uint256 internal ETH;  // deposited ether tracker
+    uint256 internal FIL;  // deposited filecoin tracker
     uint256 internal debt;
 
     // --- Events ---
@@ -32,7 +32,7 @@ contract ActivePool is Ownable, CheckContract, IActivePool {
     event BorrowerOperationsAddressChanged(address _newBorrowerOperationsAddress);
     event TroveManagerAddressChanged(address _newTroveManagerAddress);
     event ActivePoolDebtUpdated(uint _debt);
-    event ActivePoolETHBalanceUpdated(uint _ETH);
+    event ActivePoolFILBalanceUpdated(uint _FIL);
 
     // --- Contract setters ---
 
@@ -66,12 +66,12 @@ contract ActivePool is Ownable, CheckContract, IActivePool {
     // --- Getters for public variables. Required by IPool interface ---
 
     /*
-    * Returns the ETH state variable.
+    * Returns the FIL state variable.
     *
-    *Not necessarily equal to the the contract's raw ETH balance - ether can be forcibly sent to contracts.
+    * Not necessarily equal to the the contract's raw FIL balance - filecoin can be forcibly sent to contracts.
     */
-    function getETH() external view override returns (uint) {
-        return ETH;
+    function getFIL() external view override returns (uint) {
+        return FIL;
     }
 
     function getDebt() external view override returns (uint) {
@@ -80,14 +80,14 @@ contract ActivePool is Ownable, CheckContract, IActivePool {
 
     // --- Pool functionality ---
 
-    function sendETH(address _account, uint _amount) external override {
+    function sendFIL(address _account, uint _amount) external override {
         _requireCallerIsBOorTroveMorSP();
-        ETH = ETH.sub(_amount);
-        emit ActivePoolETHBalanceUpdated(ETH);
+        FIL = FIL.sub(_amount);
+        emit ActivePoolFILBalanceUpdated(FIL);
         emit EtherSent(_account, _amount);
 
         (bool success, ) = _account.call{ value: _amount }("");
-        require(success, "ActivePool: sending ETH failed");
+        require(success, "ActivePool: sending FIL failed");
     }
 
     function increaseDebt(uint _amount) external override {
@@ -130,7 +130,7 @@ contract ActivePool is Ownable, CheckContract, IActivePool {
 
     receive() external payable {
         _requireCallerIsBorrowerOperationsOrDefaultPool();
-        ETH = ETH.add(msg.value);
-        emit ActivePoolETHBalanceUpdated(ETH);
+        FIL = FIL.add(msg.value);
+        emit ActivePoolFILBalanceUpdated(FIL);
     }
 }

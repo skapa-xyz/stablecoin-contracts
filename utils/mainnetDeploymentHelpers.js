@@ -331,9 +331,9 @@ class MainnetDeploymentHelper {
       ))
   }
 
-  async connectUnipoolMainnet(uniPool, LQTYContracts, DebtTokenWETHPairAddr, duration) {
+  async connectUnipoolMainnet(uniPool, LQTYContracts, DebtTokenWFILPairAddr, duration) {
     await this.isOwnershipRenounced(uniPool) ||
-      await this.sendAndWaitForTransaction(uniPool.setParams(LQTYContracts.lqtyToken.address, DebtTokenWETHPairAddr, duration))
+      await this.sendAndWaitForTransaction(uniPool.setParams(LQTYContracts.lqtyToken.address, DebtTokenWFILPairAddr, duration))
   }
 
   // --- Verify on Ethrescan ---

@@ -1,6 +1,4 @@
 const externalAddrs = {
-  // https://data.chain.link/eth-usd
-  CHAINLINK_ETHUSD_PROXY: undefined, 
   // https://docs.tellor.io/tellor/the-basics/contracts-reference#calibration
   TELLOR_MASTER: "0xb2CB696fE5244fB9004877e58dcB680cB86Ba444",
   // Pyth
@@ -10,7 +8,7 @@ const externalAddrs = {
   UNISWAP_V2_FACTORY: undefined,
   UNISWAP_V2_ROUTER02: undefined,
   // https://calibration.filfox.info/en/address/0xaC26a4Ab9cF2A8c5DBaB6fb4351ec0F4b07356c4
-  WETH_ERC20: "0xaC26a4Ab9cF2A8c5DBaB6fb4351ec0F4b07356c4", // WFIL
+  WRAPPED_NATIVE_TOKEN: "0xaC26a4Ab9cF2A8c5DBaB6fb4351ec0F4b07356c4",
 }
 
 const liquityAddrs = {

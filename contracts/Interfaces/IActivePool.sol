@@ -10,8 +10,8 @@ interface IActivePool is IPool {
     event BorrowerOperationsAddressChanged(address _newBorrowerOperationsAddress);
     event TroveManagerAddressChanged(address _newTroveManagerAddress);
     event ActivePoolDebtUpdated(uint _debt);
-    event ActivePoolETHBalanceUpdated(uint _ETH);
+    event ActivePoolFILBalanceUpdated(uint _FIL);
 
     // --- Functions ---
-    function sendETH(address _account, uint _amount) external;
+    function sendFIL(address _account, uint _amount) external;
 }

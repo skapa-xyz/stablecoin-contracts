@@ -43,7 +43,7 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
     const randomDefaulter = remainingDefaulters[randomDefaulterIndex]
 
     const liquidatedDebt = (await troveManager.Troves(randomDefaulter))[0]
-    const liquidatedETH = (await troveManager.Troves(randomDefaulter))[1]
+    const liquidatedFIL = (await troveManager.Troves(randomDefaulter))[1]
 
     const price = await priceFeed.getPrice()
     const ICR = (await troveManager.getCurrentICR(randomDefaulter, price)).toString()
@@ -62,7 +62,7 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
     }
     if (await troveManager.checkRecoveryMode(price)) { console.log("recovery mode: TRUE") }
 
-    console.log(`Liquidation. addr: ${th.squeezeAddr(randomDefaulter)} ICR: ${ICRPercent}% coll: ${liquidatedETH} debt: ${liquidatedDebt} SP debt token before: ${debtTokenInPoolBefore} SP debt token after: ${debtTokenInPoolAfter} tx success: ${liquidatedTx.receipt.status}`)
+    console.log(`Liquidation. addr: ${th.squeezeAddr(randomDefaulter)} ICR: ${ICRPercent}% coll: ${liquidatedFIL} debt: ${liquidatedDebt} SP debt token before: ${debtTokenInPoolBefore} SP debt token after: ${debtTokenInPoolAfter} tx success: ${liquidatedTx.receipt.status}`)
   }
 
   const performSPDeposit = async (depositorAccounts, currentDepositors, currentDepositorsDict) => {
@@ -174,14 +174,14 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
     for (depositor of currentDepositors) {
       const initialDeposit = (await stabilityPool.deposits(depositor))[0]
       const finalDeposit = await stabilityPool.getCompoundedDebtTokenDeposit(depositor)
-      const ETHGain = await stabilityPool.getDepositorETHGain(depositor)
-      const ETHinSP = (await stabilityPool.getETH()).toString()
+      const FILGain = await stabilityPool.getDepositorFILGain(depositor)
+      const FILinSP = (await stabilityPool.getFIL()).toString()
       const DebtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString()
 
       // Attempt to withdraw
       const withdrawalTx = await stabilityPool.withdrawFromSP(dec(1, 36), { from: depositor })
 
-      const ETHinSPAfter = (await stabilityPool.getETH()).toString()
+      const FILinSPAfter = (await stabilityPool.getFIL()).toString()
       const DebtTokenInSPAfter = (await stabilityPool.getTotalDebtTokenDeposits()).toString()
       const debtTokenBalanceSPAfter = (await debtToken.balanceOf(stabilityPool.address))
       const depositAfter = await stabilityPool.getCompoundedDebtTokenDeposit(depositor)
@@ -189,15 +189,15 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
       console.log(`--Before withdrawal--
                     withdrawer addr: ${th.squeezeAddr(depositor)}
                      initial deposit: ${initialDeposit}
-                     ETH gain: ${ETHGain}
-                     ETH in SP: ${ETHinSP}
+                     FIL gain: ${FILGain}
+                     FIL in SP: ${FILinSP}
                      compounded deposit: ${finalDeposit} 
                      Debt token in SP: ${DebtTokenInSP}
                     
                     --After withdrawal--
                      Withdrawal tx success: ${withdrawalTx.receipt.status} 
                      Deposit after: ${depositAfter}
-                     ETH remaining in SP: ${ETHinSPAfter}
+                     FIL remaining in SP: ${FILinSPAfter}
                      SP debt token deposits tracker after: ${DebtTokenInSPAfter}
                      SP debt token balance after: ${debtTokenBalanceSPAfter}
                      `)
@@ -238,7 +238,7 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
     // ensure full offset with whale2 in S
     // ensure partial offset with whale 3 in L
 
-    it("Defaulters' Collateral in range [1, 1e8]. SP Deposits in range [100, 1e10]. ETH:USD = 100", async () => {
+    it("Defaulters' Collateral in range [1, 1e8]. SP Deposits in range [100, 1e10]. FIL:USD = 100", async () => {
       // whale adds coll that holds TCR > 150%
       await borrowerOperations.openTrove(0, 0, whale, whale, { from: whale, value: dec(5, 29) })
 
@@ -263,7 +263,7 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
 
       // setup:
       // account set L all add coll and withdraw debt tokens
-      await th.openTrove_allAccounts_randomETH_randomDebtToken(defaulterCollMin,
+      await th.openTrove_allAccounts_randomFIL_randomDebtToken(defaulterCollMin,
         defaulterCollMax,
         defaulterAccounts,
         contracts,
@@ -272,7 +272,7 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
         true)
 
       // account set S all add coll and withdraw debt tokens
-      await th.openTrove_allAccounts_randomETH_randomDebtToken(depositorCollMin,
+      await th.openTrove_allAccounts_randomFIL_randomDebtToken(depositorCollMin,
         depositorCollMax,
         depositorAccounts,
         contracts,
@@ -295,24 +295,24 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
       await skyrocketPriceAndCheckAllTrovesSafe()
 
       const totalDebtTokenDepositsBeforeWithdrawals = await stabilityPool.getTotalDebtTokenDeposits()
-      const totalETHRewardsBeforeWithdrawals = await stabilityPool.getETH()
+      const totalFILRewardsBeforeWithdrawals = await stabilityPool.getFIL()
 
       await attemptWithdrawAllDeposits(currentDepositors)
 
       const totalDebtTokenDepositsAfterWithdrawals = await stabilityPool.getTotalDebtTokenDeposits()
-      const totalETHRewardsAfterWithdrawals = await stabilityPool.getETH()
+      const totalFILRewardsAfterWithdrawals = await stabilityPool.getFIL()
 
       console.log(`Total debt token deposits before any withdrawals: ${totalDebtTokenDepositsBeforeWithdrawals}`)
-      console.log(`Total ETH rewards before any withdrawals: ${totalETHRewardsBeforeWithdrawals}`)
+      console.log(`Total FIL rewards before any withdrawals: ${totalFILRewardsBeforeWithdrawals}`)
 
       console.log(`Remaining debt token deposits after withdrawals: ${totalDebtTokenDepositsAfterWithdrawals}`)
-      console.log(`Remaining ETH rewards after withdrawals: ${totalETHRewardsAfterWithdrawals}`)
+      console.log(`Remaining FIL rewards after withdrawals: ${totalFILRewardsAfterWithdrawals}`)
 
       console.log(`current depositors length: ${currentDepositors.length}`)
       console.log(`remaining defaulters length: ${remainingDefaulters.length}`)
     })
 
-    it("Defaulters' Collateral in range [1, 10]. SP Deposits in range [1e8, 1e10]. ETH:USD = 100", async () => {
+    it("Defaulters' Collateral in range [1, 10]. SP Deposits in range [1e8, 1e10]. FIL:USD = 100", async () => {
       // whale adds coll that holds TCR > 150%
       await borrowerOperations.openTrove(0, 0, whale, whale, { from: whale, value: dec(5, 29) })
 
@@ -337,7 +337,7 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
 
       // setup:
       // account set L all add coll and withdraw debt tokens
-      await th.openTrove_allAccounts_randomETH_randomDebtToken(defaulterCollMin,
+      await th.openTrove_allAccounts_randomFIL_randomDebtToken(defaulterCollMin,
         defaulterCollMax,
         defaulterAccounts,
         contracts,
@@ -345,7 +345,7 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
         defaulterDebtTokenProportionMax)
 
       // account set S all add coll and withdraw debt tokens
-      await th.openTrove_allAccounts_randomETH_randomDebtToken(depositorCollMin,
+      await th.openTrove_allAccounts_randomFIL_randomDebtToken(depositorCollMin,
         depositorCollMax,
         depositorAccounts,
         contracts,
@@ -367,24 +367,24 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
       await skyrocketPriceAndCheckAllTrovesSafe()
 
       const totalDebtTokenDepositsBeforeWithdrawals = await stabilityPool.getTotalDebtTokenDeposits()
-      const totalETHRewardsBeforeWithdrawals = await stabilityPool.getETH()
+      const totalFILRewardsBeforeWithdrawals = await stabilityPool.getFIL()
 
       await attemptWithdrawAllDeposits(currentDepositors)
 
       const totalDebtTokenDepositsAfterWithdrawals = await stabilityPool.getTotalDebtTokenDeposits()
-      const totalETHRewardsAfterWithdrawals = await stabilityPool.getETH()
+      const totalFILRewardsAfterWithdrawals = await stabilityPool.getFIL()
 
       console.log(`Total debt token deposits before any withdrawals: ${totalDebtTokenDepositsBeforeWithdrawals}`)
-      console.log(`Total ETH rewards before any withdrawals: ${totalETHRewardsBeforeWithdrawals}`)
+      console.log(`Total FIL rewards before any withdrawals: ${totalFILRewardsBeforeWithdrawals}`)
 
       console.log(`Remaining debt token deposits after withdrawals: ${totalDebtTokenDepositsAfterWithdrawals}`)
-      console.log(`Remaining ETH rewards after withdrawals: ${totalETHRewardsAfterWithdrawals}`)
+      console.log(`Remaining FIL rewards after withdrawals: ${totalFILRewardsAfterWithdrawals}`)
 
       console.log(`current depositors length: ${currentDepositors.length}`)
       console.log(`remaining defaulters length: ${remainingDefaulters.length}`)
     })
 
-    it("Defaulters' Collateral in range [1e6, 1e8]. SP Deposits in range [100, 1000]. Every liquidation empties the Pool. ETH:USD = 100", async () => {
+    it("Defaulters' Collateral in range [1e6, 1e8]. SP Deposits in range [100, 1000]. Every liquidation empties the Pool. FIL:USD = 100", async () => {
       // whale adds coll that holds TCR > 150%
       await borrowerOperations.openTrove(0, 0, whale, whale, { from: whale, value: dec(5, 29) })
 
@@ -409,7 +409,7 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
 
       // setup:
       // account set L all add coll and withdraw debt tokens
-      await th.openTrove_allAccounts_randomETH_randomDebtToken(defaulterCollMin,
+      await th.openTrove_allAccounts_randomFIL_randomDebtToken(defaulterCollMin,
         defaulterCollMax,
         defaulterAccounts,
         contracts,
@@ -417,7 +417,7 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
         defaulterDebtTokenProportionMax)
 
       // account set S all add coll and withdraw debt tokens
-      await th.openTrove_allAccounts_randomETH_randomDebtToken(depositorCollMin,
+      await th.openTrove_allAccounts_randomFIL_randomDebtToken(depositorCollMin,
         depositorCollMax,
         depositorAccounts,
         contracts,
@@ -439,24 +439,24 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
       await skyrocketPriceAndCheckAllTrovesSafe()
 
       const totalDebtTokenDepositsBeforeWithdrawals = await stabilityPool.getTotalDebtTokenDeposits()
-      const totalETHRewardsBeforeWithdrawals = await stabilityPool.getETH()
+      const totalFILRewardsBeforeWithdrawals = await stabilityPool.getFIL()
 
       await attemptWithdrawAllDeposits(currentDepositors)
 
       const totalDebtTokenDepositsAfterWithdrawals = await stabilityPool.getTotalDebtTokenDeposits()
-      const totalETHRewardsAfterWithdrawals = await stabilityPool.getETH()
+      const totalFILRewardsAfterWithdrawals = await stabilityPool.getFIL()
 
       console.log(`Total debt token deposits before any withdrawals: ${totalDebtTokenDepositsBeforeWithdrawals}`)
-      console.log(`Total ETH rewards before any withdrawals: ${totalETHRewardsBeforeWithdrawals}`)
+      console.log(`Total FIL rewards before any withdrawals: ${totalFILRewardsBeforeWithdrawals}`)
 
       console.log(`Remaining debt token deposits after withdrawals: ${totalDebtTokenDepositsAfterWithdrawals}`)
-      console.log(`Remaining ETH rewards after withdrawals: ${totalETHRewardsAfterWithdrawals}`)
+      console.log(`Remaining FIL rewards after withdrawals: ${totalFILRewardsAfterWithdrawals}`)
 
       console.log(`current depositors length: ${currentDepositors.length}`)
       console.log(`remaining defaulters length: ${remainingDefaulters.length}`)
     })
 
-    it("Defaulters' Collateral in range [1e6, 1e8]. SP Deposits in range [1e8 1e10]. ETH:USD = 100", async () => {
+    it("Defaulters' Collateral in range [1e6, 1e8]. SP Deposits in range [1e8 1e10]. FIL:USD = 100", async () => {
       // whale adds coll that holds TCR > 150%
       await borrowerOperations.openTrove(0, 0, whale, whale, { from: whale, value: dec(5, 29) })
 
@@ -482,7 +482,7 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
 
       // setup:
       // account set L all add coll and withdraw debt tokens
-      await th.openTrove_allAccounts_randomETH_randomDebtToken(defaulterCollMin,
+      await th.openTrove_allAccounts_randomFIL_randomDebtToken(defaulterCollMin,
         defaulterCollMax,
         defaulterAccounts,
         contracts,
@@ -490,7 +490,7 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
         defaulterDebtTokenProportionMax)
 
       // account set S all add coll and withdraw debt tokens
-      await th.openTrove_allAccounts_randomETH_randomDebtToken(depositorCollMin,
+      await th.openTrove_allAccounts_randomFIL_randomDebtToken(depositorCollMin,
         depositorCollMax,
         depositorAccounts,
         contracts,
@@ -512,18 +512,18 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
       await skyrocketPriceAndCheckAllTrovesSafe()
 
       const totalDebtTokenDepositsBeforeWithdrawals = await stabilityPool.getTotalDebtTokenDeposits()
-      const totalETHRewardsBeforeWithdrawals = await stabilityPool.getETH()
+      const totalFILRewardsBeforeWithdrawals = await stabilityPool.getFIL()
 
       await attemptWithdrawAllDeposits(currentDepositors)
 
       const totalDebtTokenDepositsAfterWithdrawals = await stabilityPool.getTotalDebtTokenDeposits()
-      const totalETHRewardsAfterWithdrawals = await stabilityPool.getETH()
+      const totalFILRewardsAfterWithdrawals = await stabilityPool.getFIL()
 
       console.log(`Total debt token deposits before any withdrawals: ${totalDebtTokenDepositsBeforeWithdrawals}`)
-      console.log(`Total ETH rewards before any withdrawals: ${totalETHRewardsBeforeWithdrawals}`)
+      console.log(`Total FIL rewards before any withdrawals: ${totalFILRewardsBeforeWithdrawals}`)
 
       console.log(`Remaining debt token deposits after withdrawals: ${totalDebtTokenDepositsAfterWithdrawals}`)
-      console.log(`Remaining ETH rewards after withdrawals: ${totalETHRewardsAfterWithdrawals}`)
+      console.log(`Remaining FIL rewards after withdrawals: ${totalFILRewardsAfterWithdrawals}`)
 
       console.log(`current depositors length: ${currentDepositors.length}`)
       console.log(`remaining defaulters length: ${remainingDefaulters.length}`)

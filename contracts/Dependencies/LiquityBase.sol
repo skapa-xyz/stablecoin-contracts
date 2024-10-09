@@ -52,14 +52,14 @@ contract LiquityBase is BaseMath, ILiquityBase {
         return _debt.sub(GAS_COMPENSATION);
     }
 
-    // Return the amount of ETH to be drawn from a trove's collateral and sent as gas compensation.
+    // Return the amount of FIL to be drawn from a trove's collateral and sent as gas compensation.
     function _getCollGasCompensation(uint _entireColl) internal pure returns (uint) {
         return _entireColl / PERCENT_DIVISOR;
     }
 
     function getEntireSystemColl() public view returns (uint entireSystemColl) {
-        uint activeColl = activePool.getETH();
-        uint liquidatedColl = defaultPool.getETH();
+        uint activeColl = activePool.getFIL();
+        uint liquidatedColl = defaultPool.getFIL();
 
         return activeColl.add(liquidatedColl);
     }

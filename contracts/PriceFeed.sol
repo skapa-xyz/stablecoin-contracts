@@ -13,12 +13,12 @@ import "./Dependencies/LiquityMath.sol";
 import "./Dependencies/console.sol";
 
 /*
-* PriceFeed for mainnet deployment, to be connected to Chainlink's live ETH:USD aggregator reference 
-* contract, and a wrapper contract TellorCaller, which connects to TellorMaster contract.
+* PriceFeed for mainnet deployment, to be connected to Pyth's live aggregator reference contract,
+* and a wrapper contract TellorCaller, which connects to TellorMaster contract.
 *
-* The PriceFeed uses Chainlink as primary oracle, and Tellor as fallback. It contains logic for
+* The PriceFeed uses Pyth as primary oracle, and Tellor as fallback. It contains logic for
 * switching oracles based on oracle failures, timeouts, and conditions for returning to the primary
-* Chainlink oracle.
+* Pyth oracle.
 */
 contract PriceFeed is Ownable, CheckContract, BaseMath, IPriceFeed {
     using SafeMath for uint256;
@@ -31,8 +31,6 @@ contract PriceFeed is Ownable, CheckContract, BaseMath, IPriceFeed {
     // Core Liquity contracts
     address borrowerOperationsAddress;
     address troveManagerAddress;
-
-    uint constant public ETHUSD_TELLOR_REQ_ID = 1;
 
     // Use to convert a price answer to an 18-digit precision uint
     uint constant public TARGET_DIGITS = 18;  

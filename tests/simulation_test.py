@@ -217,7 +217,7 @@ def test_run_simulation(add_accounts, contracts, print_expectations):
 
     with open('tests/simulation.csv', 'w', newline='') as csvfile:
         datawriter = csv.writer(csvfile, delimiter=',')
-        datawriter.writerow(['iteration', 'ETH_price', 'price_debt_token', 'price_LQTY', 'num_troves', 'total_coll', 'total_debt', 'TCR', 'recovery_mode', 'last_ICR', 'SP_debt_token', 'SP_ETH', 'total_coll_added', 'total_coll_liquidated', 'total_debt_token_redempted'])
+        datawriter.writerow(['iteration', 'FIL_price', 'price_debt_token', 'price_LQTY', 'num_troves', 'total_coll', 'total_debt', 'TCR', 'recovery_mode', 'last_ICR', 'SP_debt_token', 'SP_FIL', 'total_coll_added', 'total_coll_liquidated', 'total_debt_token_redempted'])
 
         #Simulation Process
         for index in range(1, n_sim):
@@ -262,13 +262,13 @@ def test_run_simulation(add_accounts, contracts, print_expectations):
             #annualized_earning = result_LQTY[1]
             #MC_LQTY_current = result_LQTY[2]
 
-            [ETH_price, num_troves, total_coll, total_debt, TCR, recovery_mode, last_ICR, SP_debt_token, SP_ETH] = logGlobalState(contracts)
+            [FIL_price, num_troves, total_coll, total_debt, TCR, recovery_mode, last_ICR, SP_debt_token, SP_FIL] = logGlobalState(contracts)
             print('Total redempted ', total_debt_token_redempted)
-            print('Total ETH added ', total_coll_added)
-            print('Total ETH liquid', total_coll_liquidated)
-            print(f'Ratio ETH liquid {100 * total_coll_liquidated / total_coll_added}%')
+            print('Total FIL added ', total_coll_added)
+            print('Total FIL liquid', total_coll_liquidated)
+            print(f'Ratio FIL liquid {100 * total_coll_liquidated / total_coll_added}%')
             print(' ----------------------\n')
 
-            datawriter.writerow([index, ETH_price, price_debt_token, price_LQTY_current, num_troves, total_coll, total_debt, TCR, recovery_mode, last_ICR, SP_debt_token, SP_ETH, total_coll_added, total_coll_liquidated, total_debt_token_redempted])
+            datawriter.writerow([index, FIL_price, price_debt_token, price_LQTY_current, num_troves, total_coll, total_debt, TCR, recovery_mode, last_ICR, SP_debt_token, SP_FIL, total_coll_added, total_coll_liquidated, total_debt_token_redempted])
 
             assert price_debt_token > 0

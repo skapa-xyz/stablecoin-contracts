@@ -25,14 +25,14 @@ contract('StabilityPool', async accounts => {
     await stabilityPool.setAddresses(dumbContractAddress, dumbContractAddress, mockActivePoolAddress, dumbContractAddress, dumbContractAddress, dumbContractAddress, dumbContractAddress)
   })
 
-  it('getETH(): gets the recorded ETH balance', async () => {
-    const recordedETHBalance = await stabilityPool.getETH()
-    assert.equal(recordedETHBalance, 0)
+  it('getFIL(): gets the recorded FIL balance', async () => {
+    const recordedFILBalance = await stabilityPool.getFIL()
+    assert.equal(recordedFILBalance, 0)
   })
 
   it('getTotalDebtTokenDeposits(): gets the recorded debt token balance', async () => {
-    const recordedETHBalance = await stabilityPool.getTotalDebtTokenDeposits()
-    assert.equal(recordedETHBalance, 0)
+    const recordedFILBalance = await stabilityPool.getTotalDebtTokenDeposits()
+    assert.equal(recordedFILBalance, 0)
   })
 })
 
@@ -48,14 +48,14 @@ contract('ActivePool', async accounts => {
     await activePool.setAddresses(mockBorrowerOperations.address, dumbContractAddress, dumbContractAddress, dumbContractAddress)
   })
 
-  it('getETH(): gets the recorded ETH balance', async () => {
-    const recordedETHBalance = await activePool.getETH()
-    assert.equal(recordedETHBalance, 0)
+  it('getFIL(): gets the recorded FIL balance', async () => {
+    const recordedFILBalance = await activePool.getFIL()
+    assert.equal(recordedFILBalance, 0)
   })
 
   it('getDebt(): gets the recorded DebtToken balance', async () => {
-    const recordedETHBalance = await activePool.getDebt()
-    assert.equal(recordedETHBalance, 0)
+    const recordedFILBalance = await activePool.getDebt()
+    assert.equal(recordedFILBalance, 0)
   })
  
   it('increaseDebtToken(): increases the recorded DebtToken balance by the correct amount', async () => {
@@ -89,7 +89,7 @@ contract('ActivePool', async accounts => {
   })
 
   // send raw ether
-  it('sendETH(): decreases the recorded ETH balance by the correct amount', async () => {
+  it('sendFIL(): decreases the recorded FIL balance by the correct amount', async () => {
     // setup: give pool 2 ether
     const activePool_initialBalance = web3.utils.toBN(await web3.eth.getBalance(activePool.address))
     assert.equal(activePool_initialBalance, 0)
@@ -104,9 +104,9 @@ contract('ActivePool', async accounts => {
     assert.equal(activePool_BalanceBeforeTx, dec(2, 'ether'))
 
     // send ether from pool to alice
-    //await activePool.sendETH(alice, dec(1, 'ether'), { from: mockBorrowerOperationsAddress })
-    const sendETHData = th.getTransactionData('sendETH(address,uint256)', [alice, web3.utils.toHex(dec(1, 'ether'))])
-    const tx2 = await mockBorrowerOperations.forward(activePool.address, sendETHData, { from: owner })
+    //await activePool.sendFIL(alice, dec(1, 'ether'), { from: mockBorrowerOperationsAddress })
+    const sendFILData = th.getTransactionData('sendFIL(address,uint256)', [alice, web3.utils.toHex(dec(1, 'ether'))])
+    const tx2 = await mockBorrowerOperations.forward(activePool.address, sendFILData, { from: owner })
     assert.isTrue(tx2.receipt.status)
 
     const activePool_BalanceAfterTx = web3.utils.toBN(await web3.eth.getBalance(activePool.address))
@@ -131,14 +131,14 @@ contract('DefaultPool', async accounts => {
     await defaultPool.setAddresses(mockTroveManager.address, mockActivePool.address)
   })
 
-  it('getETH(): gets the recorded DebtToken balance', async () => {
-    const recordedETHBalance = await defaultPool.getETH()
-    assert.equal(recordedETHBalance, 0)
+  it('getFIL(): gets the recorded DebtToken balance', async () => {
+    const recordedFILBalance = await defaultPool.getFIL()
+    assert.equal(recordedFILBalance, 0)
   })
 
   it('getDebt(): gets the recorded DebtToken balance', async () => {
-    const recordedETHBalance = await defaultPool.getDebt()
-    assert.equal(recordedETHBalance, 0)
+    const recordedFILBalance = await defaultPool.getDebt()
+    assert.equal(recordedFILBalance, 0)
   })
  
   it('increaseDebtToken(): increases the recorded DebtToken balance by the correct amount', async () => {
@@ -174,7 +174,7 @@ contract('DefaultPool', async accounts => {
   })
 
   // send raw ether
-  it('sendETHToActivePool(): decreases the recorded ETH balance by the correct amount', async () => {
+  it('sendFILToActivePool(): decreases the recorded FIL balance by the correct amount', async () => {
     // setup: give pool 2 ether
     const defaultPool_initialBalance = web3.utils.toBN(await web3.eth.getBalance(defaultPool.address))
     assert.equal(defaultPool_initialBalance, 0)
@@ -190,10 +190,10 @@ contract('DefaultPool', async accounts => {
     assert.equal(defaultPool_BalanceBeforeTx, dec(2, 'ether'))
 
     // send ether from pool to alice
-    //await defaultPool.sendETHToActivePool(dec(1, 'ether'), { from: mockTroveManagerAddress })
-    const sendETHData = th.getTransactionData('sendETHToActivePool(uint256)', [web3.utils.toHex(dec(1, 'ether'))])
+    //await defaultPool.sendFILToActivePool(dec(1, 'ether'), { from: mockTroveManagerAddress })
+    const sendFILData = th.getTransactionData('sendFILToActivePool(uint256)', [web3.utils.toHex(dec(1, 'ether'))])
     await mockActivePool.setPayable(true)
-    const tx2 = await mockTroveManager.forward(defaultPool.address, sendETHData, { from: owner })
+    const tx2 = await mockTroveManager.forward(defaultPool.address, sendFILData, { from: owner })
     assert.isTrue(tx2.receipt.status)
 
     const defaultPool_BalanceAfterTx = web3.utils.toBN(await web3.eth.getBalance(defaultPool.address))

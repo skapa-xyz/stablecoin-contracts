@@ -79,11 +79,11 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
 
     // --- Compounding tests ---
 
-    // --- withdrawETHGainToTrove() ---
+    // --- withdrawFILGainToTrove() ---
 
     // --- Identical deposits, identical liquidation amounts---
-    it("withdrawETHGainToTrove(): Depositors with equal initial deposit withdraw correct compounded deposit and ETH Gain after one liquidation", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): Depositors with equal initial deposit withdraw correct compounded deposit and FIL Gain after one liquidation", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       // A, B, C open troves
@@ -107,27 +107,27 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       // Defaulter liquidated
       await troveManager.liquidate(defaulter_1, { from: owner });
 
-      // Check depositors' compounded deposit is 6666.66 DebtToken and ETH Gain is 33.16 ETH
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      // Check depositors' compounded deposit is 6666.66 DebtToken and FIL Gain is 33.16 FIL
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
 
-      // Grab the ETH gain from the emitted event in the tx log
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
+      // Grab the FIL gain from the emitted event in the tx log
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
 
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), '6666666666666666666666'), 10000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString(), '6666666666666666666666'), 10000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(carol)).toString(), '6666666666666666666666'), 10000)
 
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, '33166666666666666667'), 10000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, '33166666666666666667'), 10000)
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, '33166666666666666667'), 10000)
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, '33166666666666666667'), 10000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, '33166666666666666667'), 10000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, '33166666666666666667'), 10000)
     })
 
-    it("withdrawETHGainToTrove(): Depositors with equal initial deposit withdraw correct compounded deposit and ETH Gain after two identical liquidations", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): Depositors with equal initial deposit withdraw correct compounded deposit and FIL Gain after two identical liquidations", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       // A, B, C open troves
@@ -153,26 +153,26 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       await troveManager.liquidate(defaulter_1, { from: owner });
       await troveManager.liquidate(defaulter_2, { from: owner });
 
-      // Check depositors' compounded deposit is 3333.33 DebtToken and ETH Gain is 66.33 ETH
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
-      // Grab the ETH gain from the emitted event in the tx log
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
+      // Check depositors' compounded deposit is 3333.33 DebtToken and FIL Gain is 66.33 FIL
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      // Grab the FIL gain from the emitted event in the tx log
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
 
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), '3333333333333333333333'), 10000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString(), '3333333333333333333333'), 10000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(carol)).toString(), '3333333333333333333333'), 10000)
 
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, '66333333333333333333'), 10000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, '66333333333333333333'), 10000)
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, '66333333333333333333'), 10000)
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, '66333333333333333333'), 10000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, '66333333333333333333'), 10000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, '66333333333333333333'), 10000)
     })
 
-    it("withdrawETHGainToTrove():  Depositors with equal initial deposit withdraw correct compounded deposit and ETH Gain after three identical liquidations", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove():  Depositors with equal initial deposit withdraw correct compounded deposit and FIL Gain after three identical liquidations", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       // A, B, C open troves
@@ -200,28 +200,28 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       await troveManager.liquidate(defaulter_2, { from: owner });
       await troveManager.liquidate(defaulter_3, { from: owner });
 
-      // Check depositors' compounded deposit is 0 DebtToken and ETH Gain is 99.5 ETH 
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      // Check depositors' compounded deposit is 0 DebtToken and FIL Gain is 99.5 FIL 
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
 
-      // Grab the ETH gain from the emitted event in the tx log
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
+      // Grab the FIL gain from the emitted event in the tx log
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
 
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), '0'), 10000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString(), '0'), 10000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(carol)).toString(), '0'), 10000)
 
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, dec(99500, 15)), 10000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, dec(99500, 15)), 10000)
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, dec(99500, 15)), 10000)
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, dec(99500, 15)), 10000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, dec(99500, 15)), 10000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, dec(99500, 15)), 10000)
     })
 
     // --- Identical deposits, increasing liquidation amounts ---
-    it("withdrawETHGainToTrove(): Depositors with equal initial deposit withdraw correct compounded deposit and ETH Gain after two liquidations of increasing DebtToken", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): Depositors with equal initial deposit withdraw correct compounded deposit and FIL Gain after two liquidations of increasing DebtToken", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       // A, B, C open troves
@@ -248,27 +248,27 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       await troveManager.liquidate(defaulter_2, { from: owner });
 
       // Check depositors' compounded deposit
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
 
-      // Grab the ETH gain from the emitted event in the tx log
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
+      // Grab the FIL gain from the emitted event in the tx log
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
 
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), '6000000000000000000000'), 10000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString(), '6000000000000000000000'), 10000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(carol)).toString(), '6000000000000000000000'), 10000)
 
       // (0.5 + 0.7) * 99.5 / 3
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, dec(398, 17)), 10000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, dec(398, 17)), 10000)
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, dec(398, 17)), 10000)
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, dec(398, 17)), 10000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, dec(398, 17)), 10000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, dec(398, 17)), 10000)
     })
 
-    it("withdrawETHGainToTrove(): Depositors with equal initial deposit withdraw correct compounded deposit and ETH Gain after three liquidations of increasing DebtToken", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): Depositors with equal initial deposit withdraw correct compounded deposit and FIL Gain after three liquidations of increasing DebtToken", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       // A, B, C open troves
@@ -297,28 +297,28 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       await troveManager.liquidate(defaulter_3, { from: owner });
 
       // Check depositors' compounded deposit
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
 
-      // Grab the ETH gain from the emitted event in the tx log
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
+      // Grab the FIL gain from the emitted event in the tx log
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
 
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), '4000000000000000000000'), 10000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString(), '4000000000000000000000'), 10000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(carol)).toString(), '4000000000000000000000'), 10000)
 
       // (0.5 + 0.6 + 0.7) * 99.5 / 3
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, dec(597, 17)), 10000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, dec(597, 17)), 10000)
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, dec(597, 17)), 10000)
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, dec(597, 17)), 10000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, dec(597, 17)), 10000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, dec(597, 17)), 10000)
     })
 
     // --- Increasing deposits, identical liquidation amounts ---
-    it("withdrawETHGainToTrove(): Depositors with varying deposits withdraw correct compounded deposit and ETH Gain after two identical liquidations", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): Depositors with varying deposits withdraw correct compounded deposit and FIL Gain after two identical liquidations", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       // A, B, C open troves
@@ -346,26 +346,26 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       await troveManager.liquidate(defaulter_2, { from: owner });
 
       // Depositors attempt to withdraw everything
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
 
-      // Grab the ETH gain from the emitted event in the tx log
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
+      // Grab the FIL gain from the emitted event in the tx log
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
 
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), '6666666666666666666666'), 100000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString(), '13333333333333333333333'), 100000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(carol)).toString(), '20000000000000000000000'), 100000)
 
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, '33166666666666666667'), 100000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, '66333333333333333333'), 100000)
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, '33166666666666666667'), 100000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, '66333333333333333333'), 100000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, dec(995, 17)), 100000)
     })
 
-    it("withdrawETHGainToTrove(): Depositors with varying deposits withdraw correct compounded deposit and ETH Gain after three identical liquidations", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): Depositors with varying deposits withdraw correct compounded deposit and FIL Gain after three identical liquidations", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       // A, B, C open troves
@@ -395,27 +395,27 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       await troveManager.liquidate(defaulter_3, { from: owner });
 
       // Depositors attempt to withdraw everything
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
 
-      // Grab the ETH gain from the emitted event in the tx log
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
+      // Grab the FIL gain from the emitted event in the tx log
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
 
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), '5000000000000000000000'), 100000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString(), '10000000000000000000000'), 100000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(carol)).toString(), '15000000000000000000000'), 100000)
 
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, '49750000000000000000'), 100000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, dec(995, 17)), 100000)
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, '149250000000000000000'), 100000)
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, '49750000000000000000'), 100000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, '149250000000000000000'), 100000)
     })
 
     // --- Varied deposits and varied liquidation amount ---
-    it("withdrawETHGainToTrove(): Depositors with varying deposits withdraw correct compounded deposit and ETH Gain after three varying liquidations", async () => {
-      // Whale opens Trove with 1m ETH
+    it("withdrawFILGainToTrove(): Depositors with varying deposits withdraw correct compounded deposit and FIL Gain after three varying liquidations", async () => {
+      // Whale opens Trove with 1m FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(1000000, 18)), whale, whale, { from: whale, value: dec(1000000, 'ether') })
 
       // A, B, C open troves
@@ -437,9 +437,9 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
 
       /* Defaulters open troves
      
-      Defaulter 1: 207000 DebtToken & 2160 ETH
-      Defaulter 2: 5000 DebtToken & 50 ETH
-      Defaulter 3: 46700 DebtToken & 500 ETH
+      Defaulter 1: 207000 DebtToken & 2160 FIL
+      Defaulter 2: 5000 DebtToken & 50 FIL
+      Defaulter 3: 46700 DebtToken & 500 FIL
       */
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount('207000000000000000000000'), defaulter_1, defaulter_1, { from: defaulter_1, value: dec(2160, 18) })
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(5, 21)), defaulter_2, defaulter_2, { from: defaulter_2, value: dec(50, 'ether') })
@@ -454,14 +454,14 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       await troveManager.liquidate(defaulter_3, { from: owner });
 
       // Depositors attempt to withdraw everything
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
 
-      // Grab the ETH gain from the emitted event in the tx log
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
+      // Grab the FIL gain from the emitted event in the tx log
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
 
       // ()
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), '901719380174061000000'), 100000000000)
@@ -469,15 +469,15 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(carol)).toString(), '5906261940140100000000'), 10000000000)
 
       // 2710 * 0.995 * {2000, 456000, 13100}/4711
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, '11447463383570366500'), 10000000000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, '2610021651454043834000'), 10000000000)
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, '74980885162385912900'), 10000000000)
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, '11447463383570366500'), 10000000000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, '2610021651454043834000'), 10000000000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, '74980885162385912900'), 10000000000)
     })
 
     // --- Deposit enters at t > 0
 
-    it("withdrawETHGainToTrove(): A, B, C Deposit -> 2 liquidations -> D deposits -> 1 liquidation. All deposits and liquidations = 100 DebtToken.  A, B, C, D withdraw correct DebtToken deposit and ETH Gain", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): A, B, C Deposit -> 2 liquidations -> D deposits -> 1 liquidation. All deposits and liquidations = 100 DebtToken.  A, B, C, D withdraw correct DebtToken deposit and FIL Gain", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       // A, B, C open troves
@@ -512,16 +512,16 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       // Third defaulter liquidated
       await troveManager.liquidate(defaulter_3, { from: owner });
 
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
-      const txD = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      const txD = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
 
-      // Grab the ETH gain from the emitted event in the tx log
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
-      const dennis_ETHWithdrawn = th.getEventArgByName(txD, 'ETHGainWithdrawn', '_ETH').toString()
+      // Grab the FIL gain from the emitted event in the tx log
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
+      const dennis_FILWithdrawn = th.getEventArgByName(txD, 'FILGainWithdrawn', '_FIL').toString()
 
       console.log()
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), '1666666666666666666666'), 100000)
@@ -530,15 +530,15 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
 
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(dennis)).toString(), '5000000000000000000000'), 100000)
 
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, '82916666666666666667'), 100000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, '82916666666666666667'), 100000)
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, '82916666666666666667'), 100000)
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, '82916666666666666667'), 100000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, '82916666666666666667'), 100000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, '82916666666666666667'), 100000)
 
-      assert.isAtMost(th.getDifference(dennis_ETHWithdrawn, '49750000000000000000'), 100000)
+      assert.isAtMost(th.getDifference(dennis_FILWithdrawn, '49750000000000000000'), 100000)
     })
 
-    it("withdrawETHGainToTrove(): A, B, C Deposit -> 2 liquidations -> D deposits -> 2 liquidations. All deposits and liquidations = 100 DebtToken.  A, B, C, D withdraw correct DebtToken deposit and ETH Gain", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): A, B, C Deposit -> 2 liquidations -> D deposits -> 2 liquidations. All deposits and liquidations = 100 DebtToken.  A, B, C, D withdraw correct DebtToken deposit and FIL Gain", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       // A, B, C open troves
@@ -575,30 +575,30 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       await troveManager.liquidate(defaulter_3, { from: owner });
       await troveManager.liquidate(defaulter_4, { from: owner });
 
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
-      const txD = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      const txD = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
 
-      // Grab the ETH gain from the emitted event in the tx log
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
-      const dennis_ETHWithdrawn = th.getEventArgByName(txD, 'ETHGainWithdrawn', '_ETH').toString()
+      // Grab the FIL gain from the emitted event in the tx log
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
+      const dennis_FILWithdrawn = th.getEventArgByName(txD, 'FILGainWithdrawn', '_FIL').toString()
 
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), '0'), 100000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString(), '0'), 100000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(carol)).toString(), '0'), 100000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(dennis)).toString(), '0'), 100000)
 
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, dec(995, 17)), 100000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, dec(995, 17)), 100000)
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, dec(995, 17)), 100000)
-      assert.isAtMost(th.getDifference(dennis_ETHWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(dennis_FILWithdrawn, dec(995, 17)), 100000)
     })
 
-    it("withdrawETHGainToTrove(): A, B, C Deposit -> 2 liquidations -> D deposits -> 2 liquidations. Various deposit and liquidation vals.  A, B, C, D withdraw correct DebtToken deposit and ETH Gain", async () => {
-      // Whale opens Trove with 1m ETH
+    it("withdrawFILGainToTrove(): A, B, C Deposit -> 2 liquidations -> D deposits -> 2 liquidations. Various deposit and liquidation vals.  A, B, C, D withdraw correct DebtToken deposit and FIL Gain", async () => {
+      // Whale opens Trove with 1m FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(1000000, 18)), whale, whale, { from: whale, value: dec(1000000, 'ether') })
 
       // A, B, C, D open troves
@@ -621,10 +621,10 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       await stabilityPool.provideToSP(dec(15000, 18), ZERO_ADDRESS, { from: carol })
 
       /* Defaulters open troves:
-      Defaulter 1:  10000 DebtToken, 100 ETH
-      Defaulter 2:  25000 DebtToken, 250 ETH
-      Defaulter 3:  5000 DebtToken, 50 ETH
-      Defaulter 4:  40000 DebtToken, 400 ETH
+      Defaulter 1:  10000 DebtToken, 100 FIL
+      Defaulter 2:  25000 DebtToken, 250 FIL
+      Defaulter 3:  5000 DebtToken, 50 FIL
+      Defaulter 4:  40000 DebtToken, 400 FIL
       */
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(10000, 18)), defaulter_1, defaulter_1, { from: defaulter_1, value: dec(100, 'ether') })
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(25000, 18)), defaulter_2, defaulter_2, { from: defaulter_2, value: '250000000000000000000' })
@@ -647,16 +647,16 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       await troveManager.liquidate(defaulter_4, { from: owner });
 
       // Each depositor withdraws as much as possible
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
-      const txD = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      const txD = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
 
-      // Grab the ETH gain from the emitted event in the tx log
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
-      const dennis_ETHWithdrawn = th.getEventArgByName(txD, 'ETHGainWithdrawn', '_ETH').toString()
+      // Grab the FIL gain from the emitted event in the tx log
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
+      const dennis_FILWithdrawn = th.getEventArgByName(txD, 'FILGainWithdrawn', '_FIL').toString()
 
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), '17832817337461300000000'), 100000000000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString(), '5944272445820430000000'), 100000000000)
@@ -664,16 +664,16 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(dennis)).toString(), '11764705882352900000000'), 100000000000)
 
       // 3.5*0.995 * {60000,20000,15000,0} / 95000 + 450*0.995 * {60000/950*{60000,20000,15000},25000} / (120000-35000)
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, '419563467492260055900'), 100000000000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, '139854489164086692700'), 100000000000)
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, '104890866873065014000'), 100000000000)
-      assert.isAtMost(th.getDifference(dennis_ETHWithdrawn, '131691176470588233700'), 100000000000)
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, '419563467492260055900'), 100000000000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, '139854489164086692700'), 100000000000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, '104890866873065014000'), 100000000000)
+      assert.isAtMost(th.getDifference(dennis_FILWithdrawn, '131691176470588233700'), 100000000000)
     })
 
     // --- Depositor leaves ---
 
-    it("withdrawETHGainToTrove(): A, B, C, D deposit -> 2 liquidations -> D withdraws -> 2 liquidations. All deposits and liquidations = 100 DebtToken.  A, B, C, D withdraw correct DebtToken deposit and ETH Gain", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): A, B, C, D deposit -> 2 liquidations -> D withdraws -> 2 liquidations. All deposits and liquidations = 100 DebtToken.  A, B, C, D withdraw correct DebtToken deposit and FIL Gain", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       // A, B, C, D open troves
@@ -702,40 +702,40 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       await troveManager.liquidate(defaulter_1, { from: owner });
       await troveManager.liquidate(defaulter_2, { from: owner });
 
-      // Dennis withdraws his deposit and ETH gain
+      // Dennis withdraws his deposit and FIL gain
       // Increasing the price for a moment to avoid pending liquidations to block withdrawal
       await priceFeed.setPrice(dec(200, 18))
-      const txD = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
+      const txD = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
       await priceFeed.setPrice(dec(100, 18))
 
-      const dennis_ETHWithdrawn = th.getEventArgByName(txD, 'ETHGainWithdrawn', '_ETH').toString()
+      const dennis_FILWithdrawn = th.getEventArgByName(txD, 'FILGainWithdrawn', '_FIL').toString()
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(dennis)).toString(), '5000000000000000000000'), 100000)
-      assert.isAtMost(th.getDifference(dennis_ETHWithdrawn, '49750000000000000000'), 100000)
+      assert.isAtMost(th.getDifference(dennis_FILWithdrawn, '49750000000000000000'), 100000)
 
       // Two more defaulters are liquidated
       await troveManager.liquidate(defaulter_3, { from: owner });
       await troveManager.liquidate(defaulter_4, { from: owner });
 
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
 
-      // Grab the ETH gain from the emitted event in the tx log
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
+      // Grab the FIL gain from the emitted event in the tx log
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
 
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), '0'), 1000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString(), '0'), 1000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(carol)).toString(), '0'), 1000)
 
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, dec(995, 17)), 100000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, dec(995, 17)), 100000)
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, dec(995, 17)), 100000)
     })
 
-    it("withdrawETHGainToTrove(): A, B, C, D deposit -> 2 liquidations -> D withdraws -> 2 liquidations. Various deposit and liquidation vals. A, B, C, D withdraw correct DebtToken deposit and ETH Gain", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): A, B, C, D deposit -> 2 liquidations -> D withdraws -> 2 liquidations. Various deposit and liquidation vals. A, B, C, D withdraw correct DebtToken deposit and FIL Gain", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       // A, B, C, D open troves
@@ -777,43 +777,43 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       await troveManager.liquidate(defaulter_1, { from: owner });
       await troveManager.liquidate(defaulter_2, { from: owner });
 
-      // Dennis withdraws his deposit and ETH gain
+      // Dennis withdraws his deposit and FIL gain
       // Increasing the price for a moment to avoid pending liquidations to block withdrawal
       await priceFeed.setPrice(dec(200, 18))
       const txD = await stabilityPool.withdrawFromSP(dec(40000, 18), { from: dennis })
       await priceFeed.setPrice(dec(100, 18))
 
-      const dennis_ETHWithdrawn = th.getEventArgByName(txD, 'ETHGainWithdrawn', '_ETH').toString()
+      const dennis_FILWithdrawn = th.getEventArgByName(txD, 'FILGainWithdrawn', '_FIL').toString()
       assert.isAtMost(th.getDifference((await debtToken.balanceOf(dennis)).toString(), '27692307692307700000000'), 100000000000)
       // 300*0.995 * 40000/97500
-      assert.isAtMost(th.getDifference(dennis_ETHWithdrawn, '122461538461538466100'), 100000000000)
+      assert.isAtMost(th.getDifference(dennis_FILWithdrawn, '122461538461538466100'), 100000000000)
 
       // Two more defaulters are liquidated
       await troveManager.liquidate(defaulter_3, { from: owner });
       await troveManager.liquidate(defaulter_4, { from: owner });
 
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
 
-      // Grab the ETH gain from the emitted event in the tx log
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
+      // Grab the FIL gain from the emitted event in the tx log
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
 
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), '1672240802675590000000'), 10000000000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString(), '2090301003344480000000'), 100000000000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(carol)).toString(), '1045150501672240000000'), 100000000000)
 
       // 300*0.995 * {20000,25000,12500}/97500 + 350*0.995 * {20000,25000,12500}/57500
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, '182361204013377919900'), 100000000000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, '227951505016722411000'), 100000000000)
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, '113975752508361205500'), 100000000000)
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, '182361204013377919900'), 100000000000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, '227951505016722411000'), 100000000000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, '113975752508361205500'), 100000000000)
     })
 
     // --- One deposit enters at t > 0, and another leaves later ---
-    it("withdrawETHGainToTrove(): A, B, D deposit -> 2 liquidations -> C makes deposit -> 1 liquidation -> D withdraws -> 1 liquidation. All deposits: 100 DebtToken. Liquidations: 100,100,100,50.  A, B, C, D withdraw correct DebtToken deposit and ETH Gain", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): A, B, D deposit -> 2 liquidations -> C makes deposit -> 1 liquidation -> D withdraws -> 1 liquidation. All deposits: 100 DebtToken. Liquidations: 100,100,100,50.  A, B, C, D withdraw correct DebtToken deposit and FIL Gain", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       // A, B, C, D open troves
@@ -847,34 +847,34 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
 
       await troveManager.liquidate(defaulter_3, { from: owner });
 
-      // Dennis withdraws his deposit and ETH gain
+      // Dennis withdraws his deposit and FIL gain
       // Increasing the price for a moment to avoid pending liquidations to block withdrawal
       await priceFeed.setPrice(dec(200, 18))
       const txD = await stabilityPool.withdrawFromSP(dec(10000, 18), { from: dennis })
       await priceFeed.setPrice(dec(100, 18))
 
-      const dennis_ETHWithdrawn = th.getEventArgByName(txD, 'ETHGainWithdrawn', '_ETH').toString()
+      const dennis_FILWithdrawn = th.getEventArgByName(txD, 'FILGainWithdrawn', '_FIL').toString()
       assert.isAtMost(th.getDifference((await debtToken.balanceOf(dennis)).toString(), '1666666666666666666666'), 100000)
-      assert.isAtMost(th.getDifference(dennis_ETHWithdrawn, '82916666666666666667'), 100000)
+      assert.isAtMost(th.getDifference(dennis_FILWithdrawn, '82916666666666666667'), 100000)
 
       await troveManager.liquidate(defaulter_4, { from: owner });
 
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
 
-      // Grab the ETH gain from the emitted event in the tx log
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
+      // Grab the FIL gain from the emitted event in the tx log
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
 
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), '666666666666666666666'), 100000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString(), '666666666666666666666'), 100000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(carol)).toString(), '2000000000000000000000'), 100000)
 
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, '92866666666666666667'), 100000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, '92866666666666666667'), 100000)
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, '79600000000000000000'), 100000)
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, '92866666666666666667'), 100000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, '92866666666666666667'), 100000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, '79600000000000000000'), 100000)
     })
 
     // --- Tests for full offset - Pool empties to 0 ---
@@ -886,8 +886,8 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
 
     // A, B withdraw 0DebtToken & 100e
     // C, D withdraw 5000DebtToken  & 500e
-    it("withdrawETHGainToTrove(): Depositor withdraws correct compounded deposit after liquidation empties the pool", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): Depositor withdraws correct compounded deposit after liquidation empties the pool", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       // A, B, C, D open troves
@@ -926,31 +926,31 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       // await borrowerOperations.openTrove(th._100pct, dec(1, 18), account, account, { from: erin, value: dec(2, 'ether') })
       // await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: erin })
 
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
-      const txD = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      const txD = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
 
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
-      const dennis_ETHWithdrawn = th.getEventArgByName(txD, 'ETHGainWithdrawn', '_ETH').toString()
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
+      const dennis_FILWithdrawn = th.getEventArgByName(txD, 'FILGainWithdrawn', '_FIL').toString()
 
       // Expect Alice And Bob's compounded deposit to be 0 DebtToken
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), '0'), 10000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString(), '0'), 10000)
 
-      // Expect Alice and Bob's ETH Gain to be 100 ETH
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, dec(995, 17)), 100000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, dec(995, 17)), 100000)
+      // Expect Alice and Bob's FIL Gain to be 100 FIL
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, dec(995, 17)), 100000)
 
       // Expect Carol And Dennis' compounded deposit to be 50 DebtToken
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(carol)).toString(), '5000000000000000000000'), 100000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(dennis)).toString(), '5000000000000000000000'), 100000)
 
-      // Expect Carol and and Dennis ETH Gain to be 50 ETH
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, '49750000000000000000'), 100000)
-      assert.isAtMost(th.getDifference(dennis_ETHWithdrawn, '49750000000000000000'), 100000)
+      // Expect Carol and and Dennis FIL Gain to be 50 FIL
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, '49750000000000000000'), 100000)
+      assert.isAtMost(th.getDifference(dennis_FILWithdrawn, '49750000000000000000'), 100000)
     })
 
     // A, B deposit 10000
@@ -959,8 +959,8 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
     // C, D deposit 10000
     // L3 cancels 10000, 1 
     // L2 20000, 200 empties Pool
-    it("withdrawETHGainToTrove(): Pool-emptying liquidation increases epoch by one, resets scaleFactor to 0, and resets P to 1e18", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): Pool-emptying liquidation increases epoch by one, resets scaleFactor to 0, and resets P to 1e18", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       // A, B, C, D open troves
@@ -1057,8 +1057,8 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
 
     // A, B withdraw 0 DebtToken & 100e
     // C, D withdraw 5000 DebtToken  & 50e
-    it("withdrawETHGainToTrove(): Depositors withdraw correct compounded deposit after liquidation empties the pool", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): Depositors withdraw correct compounded deposit after liquidation empties the pool", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       // A, B, C, D open troves
@@ -1098,17 +1098,17 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       // Defaulter 2 liquidated. 10000 DebtToken offset
       await troveManager.liquidate(defaulter_2, { from: owner });
 
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
-      const txD = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
-      const txE = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: erin })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      const txD = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
+      const txE = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: erin })
 
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
-      const dennis_ETHWithdrawn = th.getEventArgByName(txD, 'ETHGainWithdrawn', '_ETH').toString()
-      const erin_ETHWithdrawn = th.getEventArgByName(txE, 'ETHGainWithdrawn', '_ETH').toString()
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
+      const dennis_FILWithdrawn = th.getEventArgByName(txD, 'FILGainWithdrawn', '_FIL').toString()
+      const erin_FILWithdrawn = th.getEventArgByName(txE, 'FILGainWithdrawn', '_FIL').toString()
 
       // Expect Alice And Bob's compounded deposit to be 0 DebtToken
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), '0'), 10000)
@@ -1118,21 +1118,21 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(dennis)).toString(), '16666666666666666666666'), 100000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(erin)).toString(), '25000000000000000000000'), 100000)
 
-      //Expect Alice and Bob's ETH Gain to be 1 ETH
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, dec(995, 17)), 100000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, dec(995, 17)), 100000)
+      //Expect Alice and Bob's FIL Gain to be 1 FIL
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, dec(995, 17)), 100000)
 
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, '16583333333333333333'), 100000)
-      assert.isAtMost(th.getDifference(dennis_ETHWithdrawn, '33166666666666666667'), 100000)
-      assert.isAtMost(th.getDifference(erin_ETHWithdrawn, '49750000000000000000'), 100000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, '16583333333333333333'), 100000)
+      assert.isAtMost(th.getDifference(dennis_FILWithdrawn, '33166666666666666667'), 100000)
+      assert.isAtMost(th.getDifference(erin_FILWithdrawn, '49750000000000000000'), 100000)
     })
 
     // A deposits 10000
     // L1, L2, L3 liquidated with 10000 DebtToken each
     // A withdraws all
     // Expect A to withdraw 0 deposit and ether only from reward L1
-    it("withdrawETHGainToTrove(): single deposit fully offset. After subsequent liquidations, depositor withdraws 0 deposit and *only* the ETH Gain from one liquidation", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): single deposit fully offset. After subsequent liquidations, depositor withdraws 0 deposit and *only* the FIL Gain from one liquidation", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       // A, B, C, D open troves
@@ -1157,13 +1157,13 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       await troveManager.liquidate(defaulter_2, { from: owner });
       await troveManager.liquidate(defaulter_3, { from: owner });
 
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
 
-      // Grab the ETH gain from the emitted event in the tx log
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
+      // Grab the FIL gain from the emitted event in the tx log
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
 
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), 0), 100000)
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, dec(995, 17)), 100000)
     })
 
     //--- Serial full offsets ---
@@ -1177,10 +1177,10 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
     // G,H deposits 10000
     // L4 cancels 20000, 200E
 
-    // Expect all depositors withdraw 0 DebtToken and 100 ETH
+    // Expect all depositors withdraw 0 DebtToken and 100 FIL
 
-    it("withdrawETHGainToTrove(): Depositor withdraws correct compounded deposit after liquidation empties the pool", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): Depositor withdraws correct compounded deposit after liquidation empties the pool", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       // A, B, C, D, E, F, G, H open troves
@@ -1242,23 +1242,23 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       // Defaulter 4 liquidated. 10k DebtToken offset
       await troveManager.liquidate(defaulter_4, { from: owner });
 
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
-      const txD = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
-      const txE = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: erin })
-      const txF = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: flyn })
-      const txG = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: graham })
-      const txH = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: harriet })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      const txD = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
+      const txE = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: erin })
+      const txF = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: flyn })
+      const txG = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: graham })
+      const txH = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: harriet })
 
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
-      const dennis_ETHWithdrawn = th.getEventArgByName(txD, 'ETHGainWithdrawn', '_ETH').toString()
-      const erin_ETHWithdrawn = th.getEventArgByName(txE, 'ETHGainWithdrawn', '_ETH').toString()
-      const flyn_ETHWithdrawn = th.getEventArgByName(txF, 'ETHGainWithdrawn', '_ETH').toString()
-      const graham_ETHWithdrawn = th.getEventArgByName(txG, 'ETHGainWithdrawn', '_ETH').toString()
-      const harriet_ETHWithdrawn = th.getEventArgByName(txH, 'ETHGainWithdrawn', '_ETH').toString()
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
+      const dennis_FILWithdrawn = th.getEventArgByName(txD, 'FILGainWithdrawn', '_FIL').toString()
+      const erin_FILWithdrawn = th.getEventArgByName(txE, 'FILGainWithdrawn', '_FIL').toString()
+      const flyn_FILWithdrawn = th.getEventArgByName(txF, 'FILGainWithdrawn', '_FIL').toString()
+      const graham_FILWithdrawn = th.getEventArgByName(txG, 'FILGainWithdrawn', '_FIL').toString()
+      const harriet_FILWithdrawn = th.getEventArgByName(txH, 'FILGainWithdrawn', '_FIL').toString()
 
       // Expect all deposits to be 0 DebtToken
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(alice)).toString(), '0'), 100000)
@@ -1270,16 +1270,16 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(graham)).toString(), '0'), 100000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(harriet)).toString(), '0'), 100000)
 
-      /* Expect all ETH gains to be 100 ETH:  Since each liquidation of empties the pool, depositors
-      should only earn ETH from the single liquidation that cancelled with their deposit */
-      assert.isAtMost(th.getDifference(alice_ETHWithdrawn, dec(995, 17)), 100000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, dec(995, 17)), 100000)
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, dec(995, 17)), 100000)
-      assert.isAtMost(th.getDifference(dennis_ETHWithdrawn, dec(995, 17)), 100000)
-      assert.isAtMost(th.getDifference(erin_ETHWithdrawn, dec(995, 17)), 100000)
-      assert.isAtMost(th.getDifference(flyn_ETHWithdrawn, dec(995, 17)), 100000)
-      assert.isAtMost(th.getDifference(graham_ETHWithdrawn, dec(995, 17)), 100000)
-      assert.isAtMost(th.getDifference(harriet_ETHWithdrawn, dec(995, 17)), 100000)
+      /* Expect all FIL gains to be 100 FIL:  Since each liquidation of empties the pool, depositors
+      should only earn FIL from the single liquidation that cancelled with their deposit */
+      assert.isAtMost(th.getDifference(alice_FILWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(dennis_FILWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(erin_FILWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(flyn_FILWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(graham_FILWithdrawn, dec(995, 17)), 100000)
+      assert.isAtMost(th.getDifference(harriet_FILWithdrawn, dec(995, 17)), 100000)
 
       const finalEpoch = (await stabilityPool.currentEpoch()).toString()
       assert.equal(finalEpoch, 4)
@@ -1294,9 +1294,9 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
     // L2 of 9900 DebtToken, should bring P slightly past boundary i.e. 1e-9 -> 1e-10
 
     // expect d(B) = d0(B)/100
-    // expect correct ETH gain, i.e. all of the reward
-    it("withdrawETHGainToTrove(): deposit spans one scale factor change: Single depositor withdraws correct compounded deposit and ETH Gain after one liquidation", async () => {
-      // Whale opens Trove with 100k ETH
+    // expect correct FIL gain, i.e. all of the reward
+    it("withdrawFILGainToTrove(): deposit spans one scale factor change: Single depositor withdraws correct compounded deposit and FIL Gain after one liquidation", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(10000, 18)), ZERO_ADDRESS, ZERO_ADDRESS, { from: alice, value: dec(10000, 'ether') })
@@ -1325,8 +1325,8 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       const txA = await stabilityPool.withdrawFromSP(dec(10000, 18), { from: alice })
       await priceFeed.setPrice(dec(100, 18))
 
-      // Grab the ETH gain from the emitted event in the tx log
-      const alice_ETHWithdrawn = await th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
+      // Grab the FIL gain from the emitted event in the tx log
+      const alice_FILWithdrawn = await th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
 
       await debtToken.transfer(bob, dec(10000, 18), { from: whale })
       await stabilityPool.provideToSP(dec(10000, 18), ZERO_ADDRESS, { from: bob })
@@ -1336,12 +1336,12 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
 
       assert.equal(await stabilityPool.currentScale(), '1')
 
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const bob_ETHWithdrawn = await th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const bob_FILWithdrawn = await th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
 
-      // Expect Bob to retain 1% of initial deposit (100 DebtToken) and all the liquidated ETH (60 ether)
+      // Expect Bob to retain 1% of initial deposit (100 DebtToken) and all the liquidated FIL (60 ether)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString(), '100000000000000000000'), 100000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, '59700000000000000000'), 100000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, '59700000000000000000'), 100000)
       
     })
 
@@ -1352,9 +1352,9 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
     // L2 of 59400, should bring P slightly past boundary i.e. 1e-9 -> 1e-10
 
     // expect d(B) = d0(B)/100
-    // expect correct ETH gain, i.e. all of the reward
-    it("withdrawETHGainToTrove(): Several deposits of varying amounts span one scale factor change. Depositors withdraw correct compounded deposit and ETH Gain after one liquidation", async () => {
-      // Whale opens Trove with 100k ETH
+    // expect correct FIL gain, i.e. all of the reward
+    it("withdrawFILGainToTrove(): Several deposits of varying amounts span one scale factor change. Depositors withdraw correct compounded deposit and FIL Gain after one liquidation", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(10000, 18)), ZERO_ADDRESS, ZERO_ADDRESS, { from: alice, value: dec(10000, 'ether') })
@@ -1401,11 +1401,11 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
 
       assert.equal(await stabilityPool.currentScale(), '1')
 
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
-      const txD = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      const txD = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
 
-      /* Expect depositors to retain 1% of their initial deposit, and an ETH gain 
+      /* Expect depositors to retain 1% of their initial deposit, and an FIL gain 
       in proportion to their initial deposit:
      
       Bob:  1000 DebtToken, 55 Ether
@@ -1418,16 +1418,16 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(carol)).toString(), dec(200, 18)), 100000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(dennis)).toString(), dec(300, 18)), 100000)
 
-      const bob_ETHWithdrawn = await th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = await th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
-      const dennis_ETHWithdrawn = await th.getEventArgByName(txD, 'ETHGainWithdrawn', '_ETH').toString()
+      const bob_FILWithdrawn = await th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = await th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
+      const dennis_FILWithdrawn = await th.getEventArgByName(txD, 'FILGainWithdrawn', '_FIL').toString()
 
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, '54725000000000000000'), 100000)
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, '109450000000000000000'), 100000)
-      assert.isAtMost(th.getDifference(dennis_ETHWithdrawn, '164175000000000000000'), 100000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, '54725000000000000000'), 100000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, '109450000000000000000'), 100000)
+      assert.isAtMost(th.getDifference(dennis_FILWithdrawn, '164175000000000000000'), 100000)
     })
 
-    // Deposit's ETH reward spans one scale change - deposit reduced by correct amount
+    // Deposit's FIL reward spans one scale change - deposit reduced by correct amount
 
     // A make deposit 10000 DebtToken
     // L1 brings P to 1e-5*P. L1:  9999.9000000000000000 DebtToken
@@ -1436,9 +1436,9 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
     // L2 decreases P again by 1e-5, over the scale boundary: 9999.9000000000000000 (near to the 10000 DebtToken total deposits)
     // B withdraws
     // expect d(B) = d0(B) * 1e-5
-    // expect B gets entire ETH gain from L2
-    it("withdrawETHGainToTrove(): deposit spans one scale factor change: Single depositor withdraws correct compounded deposit and ETH Gain after one liquidation", async () => {
-      // Whale opens Trove with 100k ETH
+    // expect B gets entire FIL gain from L2
+    it("withdrawFILGainToTrove(): deposit spans one scale factor change: Single depositor withdraws correct compounded deposit and FIL Gain after one liquidation", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(10000, 18)), ZERO_ADDRESS, ZERO_ADDRESS, { from: alice, value: dec(10000, 'ether') })
@@ -1477,12 +1477,12 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       assert.equal(await stabilityPool.P(), dec(1, 17))  // Scale changes and P changes. P = 1e(13-5+9) = 1e17
       assert.equal(await stabilityPool.currentScale(), '1')
 
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const bob_ETHWithdrawn = await th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const bob_FILWithdrawn = await th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
 
-      // Bob should withdraw 1e-5 of initial deposit: 0.1 DebtToken and the full ETH gain of 100 ether
+      // Bob should withdraw 1e-5 of initial deposit: 0.1 DebtToken and the full FIL gain of 100 ether
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString(), dec(1, 17)), 100000)
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, dec(995, 17)), 100000000000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, dec(995, 17)), 100000000000)
     })
 
     // A make deposit 10000 DebtToken
@@ -1492,9 +1492,9 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
     // L2 decreases P again by 1e-5, over boundary. L2: 59999.4000000000000000  (near to the 60000 DebtToken total deposits)
     // B withdraws
     // expect d(B) = d0(B) * 1e-5
-    // expect B gets entire ETH gain from L2
-    it("withdrawETHGainToTrove(): Several deposits of varying amounts span one scale factor change. Depositors withdraws correct compounded deposit and ETH Gain after one liquidation", async () => {
-      // Whale opens Trove with 100k ETH
+    // expect B gets entire FIL gain from L2
+    it("withdrawFILGainToTrove(): Several deposits of varying amounts span one scale factor change. Depositors withdraws correct compounded deposit and FIL Gain after one liquidation", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(10000, 18)), ZERO_ADDRESS, ZERO_ADDRESS, { from: alice, value: dec(10000, 'ether') })
@@ -1539,30 +1539,30 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       assert.equal(await stabilityPool.P(), dec(1, 17))  // P decreases. P = 1e(13-5+9) = 1e17
       assert.equal(await stabilityPool.currentScale(), '1')
 
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const bob_ETHWithdrawn = await th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const bob_FILWithdrawn = await th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
 
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
-      const carol_ETHWithdrawn = await th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      const carol_FILWithdrawn = await th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
 
-      const txD = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
-      const dennis_ETHWithdrawn = await th.getEventArgByName(txD, 'ETHGainWithdrawn', '_ETH').toString()
+      const txD = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
+      const dennis_FILWithdrawn = await th.getEventArgByName(txD, 'FILGainWithdrawn', '_FIL').toString()
 
       // {B, C, D} should have a compounded deposit of {0.1, 0.2, 0.3} DebtToken
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString(), dec(1, 17)), 100000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(carol)).toString(), dec(2, 17)), 100000)
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(dennis)).toString(), dec(3, 17)), 100000)
 
-      assert.isAtMost(th.getDifference(bob_ETHWithdrawn, dec(995, 17)), 10000000000)
-      assert.isAtMost(th.getDifference(carol_ETHWithdrawn, dec(1990, 17)), 100000000000)
-      assert.isAtMost(th.getDifference(dennis_ETHWithdrawn, dec(2985, 17)), 100000000000)
+      assert.isAtMost(th.getDifference(bob_FILWithdrawn, dec(995, 17)), 10000000000)
+      assert.isAtMost(th.getDifference(carol_FILWithdrawn, dec(1990, 17)), 100000000000)
+      assert.isAtMost(th.getDifference(dennis_FILWithdrawn, dec(2985, 17)), 100000000000)
     })
 
     // A make deposit 10000 DebtToken
     // L1 brings P to (~1e-10)*P. L1: 9999.9999999000000000 DebtToken
     // Expect A to withdraw 0 deposit
-    it("withdrawETHGainToTrove(): Deposit that decreases to less than 1e-9 of it's original value is reduced to 0", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): Deposit that decreases to less than 1e-9 of it's original value is reduced to 0", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(10000, 18)), ZERO_ADDRESS, ZERO_ADDRESS, { from: alice, value: dec(10000, 'ether') })
@@ -1591,17 +1591,17 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
     // --- Serial scale changes ---
 
     /* A make deposit 10000 DebtToken
-    L1 brings P to 0.0001P. L1:  9999.900000000000000000 DebtToken, 1 ETH
+    L1 brings P to 0.0001P. L1:  9999.900000000000000000 DebtToken, 1 FIL
     B makes deposit 9999.9, brings SP to 10k
-    L2 decreases P by(~1e-5)P. L2:  9999.900000000000000000 DebtToken, 1 ETH
+    L2 decreases P by(~1e-5)P. L2:  9999.900000000000000000 DebtToken, 1 FIL
     C makes deposit 9999.9, brings SP to 10k
-    L3 decreases P by(~1e-5)P. L3:  9999.900000000000000000 DebtToken, 1 ETH
+    L3 decreases P by(~1e-5)P. L3:  9999.900000000000000000 DebtToken, 1 FIL
     D makes deposit 9999.9, brings SP to 10k
-    L4 decreases P by(~1e-5)P. L4:  9999.900000000000000000 DebtToken, 1 ETH
+    L4 decreases P by(~1e-5)P. L4:  9999.900000000000000000 DebtToken, 1 FIL
     expect A, B, C, D each withdraw ~100 Ether
     */
-    it("withdrawETHGainToTrove(): Several deposits of 10000 DebtToken span one scale factor change. Depositors withdraws correct compounded deposit and ETH Gain after one liquidation", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): Several deposits of 10000 DebtToken span one scale factor change. Depositors withdraws correct compounded deposit and FIL Gain after one liquidation", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(10000, 18)), ZERO_ADDRESS, ZERO_ADDRESS, { from: alice, value: dec(10000, 'ether') })
@@ -1657,15 +1657,15 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       assert.equal(await stabilityPool.P(), dec(1, 16)) // Scale changes and P changes to 1e(12-5+9) = 1e16
       assert.equal(await stabilityPool.currentScale(), '2')
 
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
-      const txD = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: carol })
+      const txD = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: dennis })
 
-      const alice_ETHWithdrawn = await th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH').toString()
-      const bob_ETHWithdrawn = await th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH').toString()
-      const carol_ETHWithdrawn = await th.getEventArgByName(txC, 'ETHGainWithdrawn', '_ETH').toString()
-      const dennis_ETHWithdrawn = await th.getEventArgByName(txD, 'ETHGainWithdrawn', '_ETH').toString()
+      const alice_FILWithdrawn = await th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL').toString()
+      const bob_FILWithdrawn = await th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL').toString()
+      const carol_FILWithdrawn = await th.getEventArgByName(txC, 'FILGainWithdrawn', '_FIL').toString()
+      const dennis_FILWithdrawn = await th.getEventArgByName(txD, 'FILGainWithdrawn', '_FIL').toString()
 
       // A, B, C should retain 0 - their deposits have been completely used up
       assert.equal(await stabilityPool.getCompoundedDebtTokenDeposit(alice), '0')
@@ -1674,16 +1674,16 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       // D should retain around 0.9999 DebtToken, since his deposit of 9999.9 was reduced by a factor of 1e-5
       assert.isAtMost(th.getDifference((await stabilityPool.getCompoundedDebtTokenDeposit(dennis)).toString(), dec(99999, 12)), 100000)
 
-      // 99.5 ETH is offset at each L, 0.5 goes to gas comp
-      // Each depositor gets ETH rewards of around 99.5 ETH. 1e17 error tolerance
-      assert.isTrue(toBN(alice_ETHWithdrawn).sub(toBN(dec(995, 17))).abs().lte(toBN(dec(1, 17))))
-      assert.isTrue(toBN(bob_ETHWithdrawn).sub(toBN(dec(995, 17))).abs().lte(toBN(dec(1, 17))))
-      assert.isTrue(toBN(carol_ETHWithdrawn).sub(toBN(dec(995, 17))).abs().lte(toBN(dec(1, 17))))
-      assert.isTrue(toBN(dennis_ETHWithdrawn).sub(toBN(dec(995, 17))).abs().lte(toBN(dec(1, 17))))
+      // 99.5 FIL is offset at each L, 0.5 goes to gas comp
+      // Each depositor gets FIL rewards of around 99.5 FIL. 1e17 error tolerance
+      assert.isTrue(toBN(alice_FILWithdrawn).sub(toBN(dec(995, 17))).abs().lte(toBN(dec(1, 17))))
+      assert.isTrue(toBN(bob_FILWithdrawn).sub(toBN(dec(995, 17))).abs().lte(toBN(dec(1, 17))))
+      assert.isTrue(toBN(carol_FILWithdrawn).sub(toBN(dec(995, 17))).abs().lte(toBN(dec(1, 17))))
+      assert.isTrue(toBN(dennis_FILWithdrawn).sub(toBN(dec(995, 17))).abs().lte(toBN(dec(1, 17))))
     })
 
-    it("withdrawETHGainToTrove(): 2 depositors can withdraw after each receiving half of a pool-emptying liquidation", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): 2 depositors can withdraw after each receiving half of a pool-emptying liquidation", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(10000, 18)), ZERO_ADDRESS, ZERO_ADDRESS, { from: A, value: dec(10000, 'ether') })
@@ -1732,8 +1732,8 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       // Attempt withdrawals
       // Increasing the price for a moment to avoid pending liquidations to block withdrawal
       await priceFeed.setPrice(dec(200, 18))
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: A })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: B })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: A })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: B })
       await priceFeed.setPrice(dec(100, 18))
 
       assert.isTrue(txA.receipt.status)
@@ -1772,8 +1772,8 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       // Attempt withdrawals
       // Increasing the price for a moment to avoid pending liquidations to block withdrawal
       await priceFeed.setPrice(dec(200, 18))
-      const txC = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: C })
-      const txD = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: D })
+      const txC = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: C })
+      const txD = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: D })
       await priceFeed.setPrice(dec(100, 18))
 
       assert.isTrue(txC.receipt.status)
@@ -1809,19 +1809,19 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       assert.equal(SPDebtTokenBalance_3, '0')
 
       // Attempt withdrawals
-      const txE = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: E })
-      const txF = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: F })
+      const txE = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: E })
+      const txF = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: F })
       assert.isTrue(txE.receipt.status)
       assert.isTrue(txF.receipt.status)
     })
 
     // --- Extreme values, confirm no overflows ---
 
-    it("withdrawETHGainToTrove(): Large liquidated coll/debt, deposits and ETH price", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): Large liquidated coll/debt, deposits and FIL price", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
-      // ETH:USD price is $2 billion per ETH
+      // FIL:USD price is $2 billion per FIL
       await priceFeed.setPrice(dec(2, 27));
 
       const depositors = [alice, bob]
@@ -1833,18 +1833,18 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       // Defaulter opens trove with 200% ICR
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(1, 36)), defaulter_1, defaulter_1, { from: defaulter_1, value: dec(1, 27) })
 
-      // ETH:USD price drops to $1 billion per ETH
+      // FIL:USD price drops to $1 billion per FIL
       await priceFeed.setPrice(dec(1, 27));
 
       // Defaulter liquidated
       await troveManager.liquidate(defaulter_1, { from: owner });
 
-      const txA = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txB = await stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txA = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txB = await stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
 
-      // Grab the ETH gain from the emitted event in the tx log
-      const alice_ETHWithdrawn = th.getEventArgByName(txA, 'ETHGainWithdrawn', '_ETH')
-      const bob_ETHWithdrawn = th.getEventArgByName(txB, 'ETHGainWithdrawn', '_ETH')
+      // Grab the FIL gain from the emitted event in the tx log
+      const alice_FILWithdrawn = th.getEventArgByName(txA, 'FILGainWithdrawn', '_FIL')
+      const bob_FILWithdrawn = th.getEventArgByName(txB, 'FILGainWithdrawn', '_FIL')
 
       // Check DebtToken balances
       const aliceDebtTokenBalance = await stabilityPool.getCompoundedDebtTokenDeposit(alice)
@@ -1859,23 +1859,23 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
 
       assert.isTrue(bobDebtTokenBalDiff.lte(toBN(dec(1, 18))))
 
-      // Check ETH gains
-      const aliceExpectedETHGain = toBN(dec(4975, 23))
-      const aliceETHDiff = aliceExpectedETHGain.sub(toBN(alice_ETHWithdrawn))
+      // Check FIL gains
+      const aliceExpectedFILGain = toBN(dec(4975, 23))
+      const aliceFILDiff = aliceExpectedFILGain.sub(toBN(alice_FILWithdrawn))
 
-      assert.isTrue(aliceETHDiff.lte(toBN(dec(1, 18))))
+      assert.isTrue(aliceFILDiff.lte(toBN(dec(1, 18))))
 
-      const bobExpectedETHGain = toBN(dec(4975, 23))
-      const bobETHDiff = bobExpectedETHGain.sub(toBN(bob_ETHWithdrawn))
+      const bobExpectedFILGain = toBN(dec(4975, 23))
+      const bobFILDiff = bobExpectedFILGain.sub(toBN(bob_FILWithdrawn))
 
-      assert.isTrue(bobETHDiff.lte(toBN(dec(1, 18))))
+      assert.isTrue(bobFILDiff.lte(toBN(dec(1, 18))))
     })
 
-    it("withdrawETHGainToTrove(): Small liquidated coll/debt, large deposits and ETH price", async () => {
-      // Whale opens Trove with 100k ETH
+    it("withdrawFILGainToTrove(): Small liquidated coll/debt, large deposits and FIL price", async () => {
+      // Whale opens Trove with 100k FIL
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(100000, 18)), whale, whale, { from: whale, value: dec(100000, 'ether') })
 
-      // ETH:USD price is $2 billion per ETH
+      // FIL:USD price is $2 billion per FIL
       await priceFeed.setPrice(dec(2, 27));
       const price = await priceFeed.getPrice()
 
@@ -1885,21 +1885,21 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
         await stabilityPool.provideToSP(dec(1, 38), ZERO_ADDRESS, { from: account })
       }
 
-      // Defaulter opens trove with 50e-7 ETH and  5000 DebtToken. 200% ICR
+      // Defaulter opens trove with 50e-7 FIL and  5000 DebtToken. 200% ICR
       await borrowerOperations.openTrove(th._100pct, await getOpenTroveDebtTokenAmount(dec(5000, 18)), defaulter_1, defaulter_1, { from: defaulter_1, value: '5000000000000' })
       
-      // ETH:USD price drops to $1 billion per ETH
+      // FIL:USD price drops to $1 billion per FIL
       await priceFeed.setPrice(dec(1, 27));
 
       // Defaulter liquidated
       await troveManager.liquidate(defaulter_1, { from: owner });
 
-      const txAPromise = stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
-      const txBPromise = stabilityPool.withdrawETHGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
+      const txAPromise = stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: alice })
+      const txBPromise = stabilityPool.withdrawFILGainToTrove(ZERO_ADDRESS, ZERO_ADDRESS, { from: bob })
 
-      // Expect ETH gain per depositor of ~1e11 wei to be rounded to 0 by the ETHGainedPerUnitStaked calculation (e / D), where D is ~1e36.
-      await th.assertRevert(txAPromise, 'StabilityPool: caller must have non-zero ETH Gain')
-      await th.assertRevert(txBPromise, 'StabilityPool: caller must have non-zero ETH Gain')
+      // Expect FIL gain per depositor of ~1e11 wei to be rounded to 0 by the FILGainedPerUnitStaked calculation (e / D), where D is ~1e36.
+      await th.assertRevert(txAPromise, 'StabilityPool: caller must have non-zero FIL Gain')
+      await th.assertRevert(txBPromise, 'StabilityPool: caller must have non-zero FIL Gain')
 
       const aliceDebtTokenBalance = await stabilityPool.getCompoundedDebtTokenDeposit(alice)
       // const aliceDebtTokenBalance = await debtToken.balanceOf(alice)

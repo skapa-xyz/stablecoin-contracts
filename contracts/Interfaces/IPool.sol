@@ -7,7 +7,7 @@ interface IPool {
     
     // --- Events ---
     
-    event ETHBalanceUpdated(uint _newBalance);
+    event FILBalanceUpdated(uint _newBalance);
     event DebtTokenBalanceUpdated(uint _newBalance);
     event ActivePoolAddressChanged(address _newActivePoolAddress);
     event DefaultPoolAddressChanged(address _newDefaultPoolAddress);
@@ -16,7 +16,7 @@ interface IPool {
 
     // --- Functions ---
     
-    function getETH() external view returns (uint);
+    function getFIL() external view returns (uint);
 
     function getDebt() external view returns (uint);
 

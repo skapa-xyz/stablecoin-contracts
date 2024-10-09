@@ -50,7 +50,7 @@ contract('TroveManager', async accounts => {
     await borrowerOperations.openTrove(0, 0, accounts[99], { from: accounts[99], value: dec(100, 'ether') })
     await borrowerOperations.openTrove(0, dec(170, 18), accounts[0], { from: accounts[0], value: dec(1, 'ether') })
 
-    await th.openTrove_allAccounts_randomETH(1, 2, accounts.slice(1, 10), contracts, dec(170, 18))
+    await th.openTrove_allAccounts_randomFIL(1, 2, accounts.slice(1, 10), contracts, dec(170, 18))
 
     await priceFeed.setPrice(dec(100, 18))
 
@@ -63,22 +63,22 @@ contract('TroveManager', async accounts => {
     await borrowerOperations.addColl(accounts[99], accounts[99], { from: accounts[99], value: 1 })
     
     // check DefaultPool
-    const ETH_DefaultPool = await defaultPool.getETH()
+    const FIL_DefaultPool = await defaultPool.getFIL()
     const Debt_DefaultPool = await defaultPool.getDebt()
-    console.log(`ETH left in Default Pool is: ${ETH_DefaultPool}`)
+    console.log(`FIL left in Default Pool is: ${FIL_DefaultPool}`)
     console.log(`Debt left in Default Pool is: ${Debt_DefaultPool}`)
   })
 
   /* ABDK64, no error correction:
-    ETH left in Default Pool is: 34
+    FIL left in Default Pool is: 34
     Debt left in Default Pool is: 98
 
     DeciMath, no error correction:
-    ETH left in Default Pool is: 7
+    FIL left in Default Pool is: 7
     Debt left in Default Pool is: 37
 
     Pure division, no correction for rewards:
-    ETH left in Default Pool is: 52
+    FIL left in Default Pool is: 52
     Debt left in Default Pool is: 96
   */
 
@@ -86,7 +86,7 @@ contract('TroveManager', async accounts => {
     await borrowerOperations.openTrove(0, 0, accounts[999], { from: accounts[999], value: dec(1000, 'ether') })
     await borrowerOperations.openTrove(0, dec(170, 18), accounts[0], { from: accounts[0], value: dec(1, 'ether') })
 
-    await th.openTrove_allAccounts_randomETH(1, 2, accounts.slice(1, 100), contracts, dec(170, 18))
+    await th.openTrove_allAccounts_randomFIL(1, 2, accounts.slice(1, 100), contracts, dec(170, 18))
 
     await priceFeed.setPrice(dec(100, 18))
 
@@ -98,21 +98,21 @@ contract('TroveManager', async accounts => {
    
     await borrowerOperations.addColl(accounts[999], accounts[999], { from: accounts[999], value: 1 })
     // check DefaultPool
-    const ETH_DefaultPool = await defaultPool.getETH()
+    const FIL_DefaultPool = await defaultPool.getFIL()
     const Debt_DefaultPool = await defaultPool.getDebt()
-    console.log(`ETH left in Default Pool is: ${ETH_DefaultPool}`)
+    console.log(`FIL left in Default Pool is: ${FIL_DefaultPool}`)
     console.log(`Debt left in Default Pool is: ${Debt_DefaultPool}`)
   })
 
   /* ABDK64, no error correction:
-    ETH left in Default Pool is: 908
+    FIL left in Default Pool is: 908
     Debt left in Default Pool is: 108
 
     DeciMath, no error correction:
     --Subtraction Overflow
 
     Pure division, no correction for rewards:
-    ETH left in Default Pool is: 167
+    FIL left in Default Pool is: 167
     Debt left in Default Pool is: 653
   */
 
@@ -131,21 +131,21 @@ contract('TroveManager', async accounts => {
 
     await borrowerOperations.addColl(accounts[99], accounts[99], { from: accounts[99], value: 1 })
     // check DefaultPool
-    const ETH_DefaultPool = await defaultPool.getETH()
+    const FIL_DefaultPool = await defaultPool.getFIL()
     const Debt_DefaultPool = await defaultPool.getDebt()
-    console.log(`ETH left in Default Pool is: ${ETH_DefaultPool}`)
+    console.log(`FIL left in Default Pool is: ${FIL_DefaultPool}`)
     console.log(`Debt left in Default Pool is: ${Debt_DefaultPool}`)
   })
   
   /* ABDK64, no error correction:
-    ETH left in Default Pool is: 64
+    FIL left in Default Pool is: 64
     Debt left in Default Pool is: 75 
     
     DeciMath, no error correction:
     --Subtraction Overflow
 
     Pure division, no correction:
-    ETH left in Default Pool is: 64
+    FIL left in Default Pool is: 64
     Debt left in Default Pool is: 75
   */
 
@@ -164,21 +164,21 @@ contract('TroveManager', async accounts => {
     await borrowerOperations.addColl(accounts[99], accounts[99], { from: accounts[99], value: 1 })
 
     // check DefaultPool
-    const ETH_DefaultPool = await defaultPool.getETH()
+    const FIL_DefaultPool = await defaultPool.getFIL()
     const Debt_DefaultPool = await defaultPool.getDebt()
-    console.log(`ETH left in Default Pool is: ${ETH_DefaultPool}`)
+    console.log(`FIL left in Default Pool is: ${FIL_DefaultPool}`)
     console.log(`Debt left in Default Pool is: ${Debt_DefaultPool}`)
   })
   
   /* ABDK64, no error correction:
-    ETH left in Default Pool is: 100
+    FIL left in Default Pool is: 100
     Debt left in Default Pool is: 180 
     
     DeciMath, no error correction:
     --Subtraction Overflow
 
     Pure division, no correction:
-    ETH left in Default Pool is: 100
+    FIL left in Default Pool is: 100
     Debt left in Default Pool is: 180
   */
 
@@ -197,22 +197,22 @@ contract('TroveManager', async accounts => {
     await borrowerOperations.addColl(accounts[999], accounts[999], { from: accounts[999], value: 1 })
 
     // check DefaultPool
-    const ETH_DefaultPool = await defaultPool.getETH()
+    const FIL_DefaultPool = await defaultPool.getFIL()
     const Debt_DefaultPool = await defaultPool.getDebt()
-    console.log(`ETH left in Default Pool is: ${ETH_DefaultPool}`)
+    console.log(`FIL left in Default Pool is: ${FIL_DefaultPool}`)
     console.log(`Debt left in Default Pool is: ${Debt_DefaultPool}:`)
   })
 
   /*
     ABDK64, no error correction:
-    ETH left in Default Pool is: 1000
+    FIL left in Default Pool is: 1000
     Debt left in Default Pool is: 180: 
     
     DeciMath, no error correction:
     -- overflow
 
     Pure division, no correction:
-    ETH left in Default Pool is: 1000
+    FIL left in Default Pool is: 1000
     Debt left in Default Pool is: 180:
   */
 
@@ -233,36 +233,36 @@ contract('TroveManager', async accounts => {
     await troveManager.liquidate(accounts[0])
 
     // Grab total active coll and debt before liquidations
-    let totalETHPoolDifference = web3.utils.toBN(0)
+    let totalFILPoolDifference = web3.utils.toBN(0)
     let totalDebtPoolDifference = web3.utils.toBN(0)
 
     for (account of accounts.slice(1, 11)) {
-      const activePoolETH = await activePool.getETH()
+      const activePoolFIL = await activePool.getFIL()
       const activePoolDebt = await activePool.getDebt()
 
       await troveManager.liquidate(account)
 
-      const defaultPoolETH = await defaultPool.getETH()
+      const defaultPoolFIL = await defaultPool.getFIL()
       const defaultPoolDebt = await defaultPool.getDebt()
 
-      totalETHPoolDifference.add(activePoolETH.sub(defaultPoolETH))
+      totalFILPoolDifference.add(activePoolFIL.sub(defaultPoolFIL))
       totalDebtPoolDifference.add(activePoolDebt.sub(defaultPoolDebt))
     }
     
-    console.log(`Accumulated ETH difference between Default and Active Pools is: ${totalETHPoolDifference}`)
+    console.log(`Accumulated FIL difference between Default and Active Pools is: ${totalFILPoolDifference}`)
     console.log(`Accumulated Debt difference between Active and Default Pools is: ${totalDebtPoolDifference}`)
   })
   
   /* ABDK64, no error correction
-    Accumulated ETH difference between Default and Active Pools is: 0
+    Accumulated FIL difference between Default and Active Pools is: 0
     Accumulated Debt difference between Active and Default Pools is: 0
     
     DeciMath, no error correction:
-    Accumulated ETH difference between Default and Active Pools is: 0
+    Accumulated FIL difference between Default and Active Pools is: 0
     Accumulated Debt difference between Active and Default Pools is: 0
     
     Pure division with correction:
-    Accumulated ETH difference between Default and Active Pools is: 0
+    Accumulated FIL difference between Default and Active Pools is: 0
     Accumulated Debt difference between Active and Default Pools is: 0
   */
 
@@ -279,39 +279,39 @@ contract('TroveManager', async accounts => {
       await troveManager.liquidate(account)
     }
 
-    const L_ETH = await troveManager.L_ETH()
+    const L_FIL = await troveManager.L_FIL()
     const L_Debt = await troveManager.L_Debt()
 
-    const totalColl = await activePool.getETH()
+    const totalColl = await activePool.getFIL()
 
     const _1e18_BN = web3.utils.toBN(dec(1, 18))
-    const totalETHRewards = (totalColl.mul(L_ETH)).div(_1e18_BN)
+    const totalFILRewards = (totalColl.mul(L_FIL)).div(_1e18_BN)
     const totalDebtRewards = (totalColl.mul(L_Debt)).div(_1e18_BN)
 
-    const defaultPoolETH = await defaultPool.getETH()
+    const defaultPoolFIL = await defaultPool.getFIL()
     const defaultPoolDebt = await defaultPool.getDebt()
 
-    const ETHRewardDifference = defaultPoolETH.sub(totalETHRewards)
+    const FILRewardDifference = defaultPoolFIL.sub(totalFILRewards)
     const DebtRewardDifference = defaultPoolDebt.sub(totalDebtRewards)
 
-    console.log(`ETH difference between total pending rewards and DefaultPool: ${ETHRewardDifference} `)
+    console.log(`FIL difference between total pending rewards and DefaultPool: ${FILRewardDifference} `)
     console.log(`Debt difference between total pending rewards and DefaultPool: ${DebtRewardDifference} `)
   })
 
   /* ABDK64, no error correction:
-    ETH difference between total pending rewards and DefaultPool: 700
+    FIL difference between total pending rewards and DefaultPool: 700
     Debt difference between total pending rewards and DefaultPool: 800
 
     ABDK64 WITH correction:
-    ETH difference between total pending rewards and DefaultPool: 300
+    FIL difference between total pending rewards and DefaultPool: 300
     Debt difference between total pending rewards and DefaultPool: 400
     
     DeciMath, no error correction:
-    ETH difference between total pending rewards and DefaultPool: -100
+    FIL difference between total pending rewards and DefaultPool: -100
     Debt difference between total pending rewards and DefaultPool: -200
 
     Pure division with correction: 
-    ETH difference between total pending rewards and DefaultPool: 0
+    FIL difference between total pending rewards and DefaultPool: 0
     Debt difference between total pending rewards and DefaultPool: 0
   */
 
@@ -328,46 +328,46 @@ contract('TroveManager', async accounts => {
       await troveManager.liquidate(account)
     }
 
-    const L_ETH = await troveManager.L_ETH()
+    const L_FIL = await troveManager.L_FIL()
     const L_Debt = await troveManager.L_Debt()
 
-    const totalColl = await activePool.getETH()
+    const totalColl = await activePool.getFIL()
 
     const _1e18_BN = web3.utils.toBN(dec(1, 18))
-    const totalETHRewards = (totalColl.mul(L_ETH)).div(_1e18_BN)
+    const totalFILRewards = (totalColl.mul(L_FIL)).div(_1e18_BN)
     const totalDebtRewards = (totalColl.mul(L_Debt)).div(_1e18_BN)
 
-    const defaultPoolETH = await defaultPool.getETH()
+    const defaultPoolFIL = await defaultPool.getFIL()
     const defaultPoolDebt = await defaultPool.getDebt()
 
-    const ETHRewardDifference = defaultPoolETH.sub(totalETHRewards)
+    const FILRewardDifference = defaultPoolFIL.sub(totalFILRewards)
     const DebtRewardDifference = defaultPoolDebt.sub(totalDebtRewards)
 
-    console.log(`ETH difference between total pending rewards and DefaultPool: ${ETHRewardDifference} `)
+    console.log(`FIL difference between total pending rewards and DefaultPool: ${FILRewardDifference} `)
     console.log(`Debt difference between total pending rewards and DefaultPool: ${DebtRewardDifference} `)
   })
   
   /* ABDK64, no error correction:
-    ETH difference between total pending rewards and DefaultPool: 51000
+    FIL difference between total pending rewards and DefaultPool: 51000
     Debt difference between total pending rewards and DefaultPool: 55000
     
     ABDK64 WITH correction:
-    ETH difference between total pending rewards and DefaultPool: 31000
+    FIL difference between total pending rewards and DefaultPool: 31000
     Debt difference between total pending rewards and DefaultPool: 31000
 
     DeciMath, no error correction:
-    ETH difference between total pending rewards and DefaultPool: 2000
+    FIL difference between total pending rewards and DefaultPool: 2000
     Debt difference between total pending rewards and DefaultPool: -2000
     
     Pure division with correction:
-    ETH difference between total pending rewards and DefaultPool: 0
+    FIL difference between total pending rewards and DefaultPool: 0
     Debt difference between total pending rewards and DefaultPool: 0
   */
 
- it("11 accounts with random ETH and proportional Debt (180:1). 10 liquidations. Check (DefaultPool - totalRewards) differences", async () => {
+ it("11 accounts with random FIL and proportional Debt (180:1). 10 liquidations. Check (DefaultPool - totalRewards) differences", async () => {
   await borrowerOperations.openTrove(0, 0,  accounts[999], { from: accounts[999], value: dec(100, 'ether') })
 
-  await th.openTrove_allAccounts_randomETH_ProportionalDebt(1, 2, accounts.slice(0, 11), contracts, 180)
+  await th.openTrove_allAccounts_randomFIL_ProportionalDebt(1, 2, accounts.slice(0, 11), contracts, 180)
 
     await priceFeed.setPrice(dec(100, 18))
 
@@ -377,46 +377,46 @@ contract('TroveManager', async accounts => {
       await troveManager.liquidate(account)
 
     }
-    const L_ETH = await troveManager.L_ETH()
+    const L_FIL = await troveManager.L_FIL()
     const L_Debt = await troveManager.L_Debt()
 
-    const totalColl = await activePool.getETH()
+    const totalColl = await activePool.getFIL()
 
     const _1e18_BN = web3.utils.toBN(dec(1, 18))
-    const totalETHRewards = (totalColl.mul(L_ETH)).div(_1e18_BN)
+    const totalFILRewards = (totalColl.mul(L_FIL)).div(_1e18_BN)
     const totalDebtRewards = (totalColl.mul(L_Debt)).div(_1e18_BN)
 
-    const defaultPoolETH = await defaultPool.getETH()
+    const defaultPoolFIL = await defaultPool.getFIL()
     const defaultPoolDebt = await defaultPool.getDebt()
 
-    const ETHRewardDifference = defaultPoolETH.sub(totalETHRewards)
+    const FILRewardDifference = defaultPoolFIL.sub(totalFILRewards)
     const DebtRewardDifference = defaultPoolDebt.sub(totalDebtRewards)
 
-    console.log(`ETH difference between total pending rewards and DefaultPool: ${ETHRewardDifference} `)
+    console.log(`FIL difference between total pending rewards and DefaultPool: ${FILRewardDifference} `)
     console.log(`Debt difference between total pending rewards and DefaultPool: ${DebtRewardDifference} `)
   })
 
   /* ABDK64, no error correction:
-    ETH difference between total pending rewards and DefaultPool: 4500
+    FIL difference between total pending rewards and DefaultPool: 4500
     Debt difference between total pending rewards and DefaultPool: 8000
 
     ABDK64 WITH correction:
-    ETH difference between total pending rewards and DefaultPool: 300
+    FIL difference between total pending rewards and DefaultPool: 300
     Debt difference between total pending rewards and DefaultPool: 300
       
     DeciMath, no error correction:
-    ETH difference between total pending rewards and DefaultPool: 0
+    FIL difference between total pending rewards and DefaultPool: 0
     Debt difference between total pending rewards and DefaultPool: -200
 
     Pure division with correction:
-    ETH difference between total pending rewards and DefaultPool: 100
+    FIL difference between total pending rewards and DefaultPool: 100
     Debt difference between total pending rewards and DefaultPool: 100
   */
 
-  it("101 accounts with random ETH and proportional Debt (180:1). 100 liquidations. Check 1) (DefaultPool - totalDistributionRewards) difference, and 2) ", async () => {
+  it("101 accounts with random FIL and proportional Debt (180:1). 100 liquidations. Check 1) (DefaultPool - totalDistributionRewards) difference, and 2) ", async () => {
     await borrowerOperations.openTrove(0, 0,  accounts[999], { from: accounts[999], value: dec(1000, 'ether') })
 
-    await th.openTrove_allAccounts_randomETH_ProportionalDebt(1, 2, accounts.slice(0, 101), contracts, 180)
+    await th.openTrove_allAccounts_randomFIL_ProportionalDebt(1, 2, accounts.slice(0, 101), contracts, 180)
 
     await priceFeed.setPrice(dec(100, 18))
 
@@ -427,39 +427,39 @@ contract('TroveManager', async accounts => {
     }
 
     // check (DefaultPool  - totalRewards)
-    const L_ETH = await troveManager.L_ETH()
+    const L_FIL = await troveManager.L_FIL()
     const L_Debt = await troveManager.L_Debt()
 
-    const totalColl = await activePool.getETH()
+    const totalColl = await activePool.getFIL()
 
     const _1e18_BN = web3.utils.toBN(dec(1, 18))
-    const totalETHRewards = (totalColl.mul(L_ETH)).div(_1e18_BN)
+    const totalFILRewards = (totalColl.mul(L_FIL)).div(_1e18_BN)
     const totalDebtRewards = (totalColl.mul(L_Debt)).div(_1e18_BN)
 
-    const defaultPoolETH = await defaultPool.getETH()
+    const defaultPoolFIL = await defaultPool.getFIL()
     const defaultPoolDebt = await defaultPool.getDebt()
 
-    const ETHRewardDifference = defaultPoolETH.sub(totalETHRewards)
+    const FILRewardDifference = defaultPoolFIL.sub(totalFILRewards)
     const DebtRewardDifference = defaultPoolDebt.sub(totalDebtRewards)
 
-    console.log(`ETH difference between total pending rewards and DefaultPool: ${ETHRewardDifference} `)
+    console.log(`FIL difference between total pending rewards and DefaultPool: ${FILRewardDifference} `)
     console.log(`Debt difference between total pending rewards and DefaultPool: ${DebtRewardDifference} `)
   })
 
   /* ABDK64, no error correction:
-    ETH difference between total pending rewards and DefaultPool: 53900
+    FIL difference between total pending rewards and DefaultPool: 53900
     Debt difference between total pending rewards and DefaultPool: 61000
 
     ABDK64 WITH correction:
-    ETH difference between total pending rewards and DefaultPool: 31300
+    FIL difference between total pending rewards and DefaultPool: 31300
     Debt difference between total pending rewards and DefaultPool: 30000
     
     DeciMath, no error correction:
-    ETH difference between total pending rewards and DefaultPool: -4300
+    FIL difference between total pending rewards and DefaultPool: -4300
     Debt difference between total pending rewards and DefaultPool: -8000
   
     Pure division with correction:
-    ETH difference between total pending rewards and DefaultPool: 400
+    FIL difference between total pending rewards and DefaultPool: 400
     Debt difference between total pending rewards and DefaultPool: 1000
   */
 
@@ -481,35 +481,35 @@ contract('TroveManager', async accounts => {
       await troveManager.liquidate(account)
     }
     // check (DefaultPool - totalRewards from distribution)
-    const L_ETH = await troveManager.L_ETH()
+    const L_FIL = await troveManager.L_FIL()
     const L_Debt = await troveManager.L_Debt()
 
-    const totalColl = await activePool.getETH()
+    const totalColl = await activePool.getFIL()
 
     const _1e18_BN = web3.utils.toBN(dec(1, 18))
-    const totalETHRewards_Distribution = (totalColl.mul(L_ETH)).div(_1e18_BN)
+    const totalFILRewards_Distribution = (totalColl.mul(L_FIL)).div(_1e18_BN)
     const totalDebtRewards_Distribution = (totalColl.mul(L_Debt)).div(_1e18_BN)
 
-    const defaultPoolETH = await defaultPool.getETH()
+    const defaultPoolFIL = await defaultPool.getFIL()
     const defaultPoolDebt = await defaultPool.getDebt()
 
-    const ETHRewardDifference = defaultPoolETH.sub(totalETHRewards_Distribution)
+    const FILRewardDifference = defaultPoolFIL.sub(totalFILRewards_Distribution)
     const DebtRewardDifference = defaultPoolDebt.sub(totalDebtRewards_Distribution)
 
-    console.log(`ETH difference between total pending distribution rewards and DefaultPool: ${ETHRewardDifference} `)
+    console.log(`FIL difference between total pending distribution rewards and DefaultPool: ${FILRewardDifference} `)
     console.log(`Debt difference between total pending distribution rewards and DefaultPool: ${DebtRewardDifference} `)
   })
 
   /* ABDK64, no error correction
-    ETH difference between total pending distribution rewards and DefaultPool: 550
+    FIL difference between total pending distribution rewards and DefaultPool: 550
     Debt difference between total pending distribution rewards and DefaultPool: 600
     
     DeciMath, no error correction:
-    ETH difference between total pending distribution rewards and DefaultPool: 150
+    FIL difference between total pending distribution rewards and DefaultPool: 150
     Debt difference between total pending distribution rewards and DefaultPool: -200
     
     Pure division with error correction:
-    ETH difference between total pending distribution rewards and DefaultPool: 50
+    FIL difference between total pending distribution rewards and DefaultPool: 50
     Debt difference between total pending distribution rewards and DefaultPool: 0
   */
 
@@ -529,35 +529,35 @@ contract('TroveManager', async accounts => {
        await troveManager.liquidate(account)
      }
      // check (DefaultPool - totalRewards from distribution)
-     const L_ETH = await troveManager.L_ETH()
+     const L_FIL = await troveManager.L_FIL()
      const L_Debt = await troveManager.L_Debt()
  
-     const totalColl = await activePool.getETH()
+     const totalColl = await activePool.getFIL()
  
      const _1e18_BN = web3.utils.toBN(dec(1, 18))
-     const totalETHRewards_Distribution = (totalColl.mul(L_ETH)).div(_1e18_BN)
+     const totalFILRewards_Distribution = (totalColl.mul(L_FIL)).div(_1e18_BN)
      const totalDebtRewards_Distribution = (totalColl.mul(L_Debt)).div(_1e18_BN)
  
-     const defaultPoolETH = await defaultPool.getETH()
+     const defaultPoolFIL = await defaultPool.getFIL()
      const defaultPoolDebt = await defaultPool.getDebt()
  
-     const ETHRewardDifference = defaultPoolETH.sub(totalETHRewards_Distribution)
+     const FILRewardDifference = defaultPoolFIL.sub(totalFILRewards_Distribution)
      const DebtRewardDifference = defaultPoolDebt.sub(totalDebtRewards_Distribution)
  
-     console.log(`ETH difference between total pending distribution rewards and DefaultPool: ${ETHRewardDifference} `)
+     console.log(`FIL difference between total pending distribution rewards and DefaultPool: ${FILRewardDifference} `)
      console.log(`Debt difference between total pending distribution rewards and DefaultPool: ${DebtRewardDifference} `)
    })
 
   /* ABDK64, no error correction
-    ETH difference between total pending distribution rewards and DefaultPool: 7600 
+    FIL difference between total pending distribution rewards and DefaultPool: 7600 
     Debt difference between total pending distribution rewards and DefaultPool: 8900
     
     DeciMath, no error correction:
-    ETH difference between total pending distribution rewards and DefaultPool: -700
+    FIL difference between total pending distribution rewards and DefaultPool: -700
     Debt difference between total pending distribution rewards and DefaultPool: 200
     
     Pure division with error correction:
-    ETH difference between total pending distribution rewards and DefaultPool: 0
+    FIL difference between total pending distribution rewards and DefaultPool: 0
     Debt difference between total pending distribution rewards and DefaultPool: 0
   */
 
@@ -589,13 +589,13 @@ contract('TroveManager', async accounts => {
     await stabilityPool.provideToSP(whaleSPDeposit,ZERO_ADDRESS, {from: accounts[999]} )
     
     await stabilityPool.withdrawFromSP(dec(50, 18), {from: accounts[1]} )
-    const SP_ETH = await stabilityPool.getETH()
+    const SP_FIL = await stabilityPool.getFIL()
     const SP_Debt = await stabilityPool.getTotalDebtTokenDeposits()  
 
     const SP_Debt_Insufficiency = web3.utils.toBN(whaleSPDeposit).sub(SP_Debt)
 
      // check Stability Pool
-    console.log(`Surplus ETH left in in Stability Pool is ${SP_ETH}`)
+    console.log(`Surplus FIL left in in Stability Pool is ${SP_FIL}`)
     console.log(`Debt insufficiency in Stability Pool is ${SP_Debt_Insufficiency}`)
    })
 
@@ -603,16 +603,16 @@ contract('TroveManager', async accounts => {
       Sometimes subtraction overflows on last withdrawal from SP - error leaves insufficient Debt in Pool.
       Noticed when reward shares are recurring fractions.
 
-      Error in ETH gain accumulates in the Pool.
-      Surplus ETH left in in Stability Pool is 530
+      Error in FIL gain accumulates in the Pool.
+      Surplus FIL left in in Stability Pool is 530
       Debt insufficiency in Stability Pool is 530
       
       DeciMath, no error correction:
-      Surplus ETH left in in Stability Pool is 0
+      Surplus FIL left in in Stability Pool is 0
       Debt insufficiency in Stability Pool is 0
 
       Pure division with error correction:
-      Surplus ETH left in in Stability Pool is 0
+      Surplus FIL left in in Stability Pool is 0
       Debt insufficiency in Stability Pool is 0
     */
 
@@ -642,26 +642,26 @@ contract('TroveManager', async accounts => {
     await stabilityPool.provideToSP(whaleSPDeposit,ZERO_ADDRESS, {from: accounts[999]} )
     
     await stabilityPool.withdrawFromSP(dec(50, 18), {from: accounts[1]} )
-    const SP_ETH = await stabilityPool.getETH()
+    const SP_FIL = await stabilityPool.getFIL()
     const SP_Debt = await stabilityPool.getTotalDebtTokenDeposits()  
 
     const SP_Debt_Insufficiency = web3.utils.toBN(whaleSPDeposit).sub(SP_Debt)
 
      // check Stability Pool
-    console.log(`Surplus ETH left in in Stability Pool is ${SP_ETH}`)
+    console.log(`Surplus FIL left in in Stability Pool is ${SP_FIL}`)
     console.log(`Debt insufficiency in Stability Pool is ${SP_Debt_Insufficiency}`)
    })
 
    /* ABDK64, no error correction
-    Surplus ETH left in in Stability Pool is 5300
+    Surplus FIL left in in Stability Pool is 5300
     Debt insufficiency in Stability Pool is 5300
       
     DeciMath, no error correction:
-    Surplus ETH left in in Stability Pool is 0
+    Surplus FIL left in in Stability Pool is 0
     Debt insufficiency in Stability Pool is 0
 
     Pure division with error correction:
-    Surplus ETH left in in Stability Pool is 0
+    Surplus FIL left in in Stability Pool is 0
     Debt insufficiency in Stability Pool is 0
    */
 
@@ -695,13 +695,13 @@ contract('TroveManager', async accounts => {
     await stabilityPool.provideToSP(whaleSPDeposit, ZERO_ADDRESS, {from: accounts[999]} )
     
     await stabilityPool.withdrawFromSP(account1SPDeposit, {from: accounts[1]} )
-    const SP_ETH = await stabilityPool.getETH()
+    const SP_FIL = await stabilityPool.getFIL()
     const SP_Debt = await stabilityPool.getTotalDebtTokenDeposits()  
 
     const SP_Debt_Insufficiency = web3.utils.toBN(whaleSPDeposit).sub(SP_Debt)
 
      // check Stability Pool
-    console.log(`Surplus ETH left in in Stability Pool is ${SP_ETH}`)
+    console.log(`Surplus FIL left in in Stability Pool is ${SP_FIL}`)
     console.log(`Debt insufficiency in Stability Pool is ${SP_Debt_Insufficiency}`)
    })
 
@@ -709,19 +709,19 @@ contract('TroveManager', async accounts => {
       Sometimes subtraction overflows on last withdrawal from SP - error leaves insufficient Debt in Pool.
       Noticed when reward shares are recurring fractions.
 
-      Error in ETH gain accumulates in the Pool.
-      Surplus ETH left in in Stability Pool is 84
+      Error in FIL gain accumulates in the Pool.
+      Surplus FIL left in in Stability Pool is 84
       Debt insufficiency in Stability Pool is 442
 
       DeciMath, no error correction:
       -- Subtraction Overflow
 
       Pure division with no error correction:
-      Surplus ETH left in in Stability Pool is 366
+      Surplus FIL left in in Stability Pool is 366
       Debt insufficiency in Stability Pool is 67
 
       Pure division with error correction:
-      Surplus ETH left in in Stability Pool is 446
+      Surplus FIL left in in Stability Pool is 446
       Debt insufficiency in Stability Pool is 507
     */
 
@@ -755,30 +755,30 @@ contract('TroveManager', async accounts => {
     
     await stabilityPool.withdrawFromSP(account1SPDeposit, {from: accounts[1]} )
 
-    const SP_ETH = await stabilityPool.getETH()
+    const SP_FIL = await stabilityPool.getFIL()
     const SP_Debt = await stabilityPool.getTotalDebtTokenDeposits()  
 
     const SP_Debt_Insufficiency = web3.utils.toBN(whaleSPDeposit).sub(SP_Debt)
 
      // check Stability Pool
-    console.log(`Surplus ETH left in in Stability Pool is ${SP_ETH}`)
+    console.log(`Surplus FIL left in in Stability Pool is ${SP_FIL}`)
     console.log(`Debt insufficiency in Stability Pool is ${SP_Debt_Insufficiency}`)
    })
 
    /* ABDK64, no error correction
-    Surplus ETH left in in Stability Pool is 3321
+    Surplus FIL left in in Stability Pool is 3321
     Debt insufficiency in Stability Pool is 1112
 
     DeciMath, no error correction:
-    Surplus ETH left in in Stability Pool is 1373
+    Surplus FIL left in in Stability Pool is 1373
     Debt insufficiency in Stability Pool is -13
 
     Pure division with no error correction:
-    Surplus ETH left in in Stability Pool is 4087
+    Surplus FIL left in in Stability Pool is 4087
     Debt insufficiency in Stability Pool is 1960
 
     Pure division with error correction:
-    Surplus ETH left in in Stability Pool is 3072
+    Surplus FIL left in in Stability Pool is 3072
     Debt insufficiency in Stability Pool is 452
   */ 
 
@@ -812,27 +812,27 @@ contract('TroveManager', async accounts => {
   
   await stabilityPool.withdrawFromSP(account1SPDeposit, {from: accounts[1]} )
 
-  const SP_ETH = await stabilityPool.getETH()
+  const SP_FIL = await stabilityPool.getFIL()
   const SP_Debt = await stabilityPool.getTotalDebtTokenDeposits()  
 
   const SP_Debt_Insufficiency = web3.utils.toBN(whaleSPDeposit).sub(SP_Debt)
 
    // check Stability Pool
-  console.log(`Surplus ETH left in in Stability Pool is ${SP_ETH}`)
+  console.log(`Surplus FIL left in in Stability Pool is ${SP_FIL}`)
   console.log(`Debt insufficiency in Stability Pool is ${SP_Debt_Insufficiency}`)
  })
 
   /* ABDK64, no error correction:
     DeciMath, no error correction:
-    Surplus ETH left in in Stability Pool is 2691
+    Surplus FIL left in in Stability Pool is 2691
     Debt insufficiency in Stability Pool is -8445
 
     Pure division, no correction:
-    Surplus ETH left in in Stability Pool is 18708
+    Surplus FIL left in in Stability Pool is 18708
     Debt insufficiency in Stability Pool is 25427
 
     Pure division with error correction:
-    Surplus ETH left in in Stability Pool is 1573
+    Surplus FIL left in in Stability Pool is 1573
     Debt insufficiency in Stability Pool is 6037
   */ 
 
@@ -844,7 +844,7 @@ contract('TroveManager', async accounts => {
  
   // Starting values for parallel off-chain computation
   let offchainTotalStakes = await troveManager.totalStakes()
-  let offchainTotalColl = await activePool.getETH()
+  let offchainTotalColl = await activePool.getFIL()
   let offchainStake = web3.utils.toBN(0)
   let stakeDifference = web3.utils.toBN(0)
   let totalStakesDifference = web3.utils.toBN(0)
@@ -900,7 +900,7 @@ contract('TroveManager', async accounts => {
  
   // Starting values for parallel off-chain computation
   let offchainTotalStakes = await troveManager.totalStakes()
-  let offchainTotalColl = await activePool.getETH()
+  let offchainTotalColl = await activePool.getFIL()
   let offchainStake = web3.utils.toBN(0)
   let stakeDifference = web3.utils.toBN(0)
   let totalStakesDifference = web3.utils.toBN(0)
@@ -957,7 +957,7 @@ it("100 accounts. 100x liquidate -> addColl. Random coll. Check stake and totalS
  
   // Starting values for parallel off-chain computation
   let offchainTotalStakes = await troveManager.totalStakes()
-  let offchainTotalColl = await activePool.getETH()
+  let offchainTotalColl = await activePool.getFIL()
   let offchainStake = web3.utils.toBN(0)
   let stakeDifference = web3.utils.toBN(0)
   let totalStakesDifference = web3.utils.toBN(0)
@@ -1013,7 +1013,7 @@ it("11 accounts with random large coll, magnitude ~1e8 ether. 1 liquidation. 10 
   await borrowerOperations.openTrove(0, dec(170, 18), accounts[0], { from: accounts[0], value: dec(1, 'ether') })
 
   // Troves open with 100-200 million ether
-  await th.openTrove_allAccounts_randomETH(100000000, 200000000, accounts.slice(1, 10), contracts, dec(170, 18))
+  await th.openTrove_allAccounts_randomFIL(100000000, 200000000, accounts.slice(1, 10), contracts, dec(170, 18))
 
   await priceFeed.setPrice(dec(100, 18))
 
@@ -1026,22 +1026,22 @@ it("11 accounts with random large coll, magnitude ~1e8 ether. 1 liquidation. 10 
 
   await borrowerOperations.addColl(accounts[99], accounts[99], { from: accounts[99], value: 1 })
   // check DefaultPool
-  const ETH_DefaultPool = await defaultPool.getETH()
+  const FIL_DefaultPool = await defaultPool.getFIL()
   const Debt_DefaultPool = await defaultPool.getDebt()
-  console.log(`ETH left in Default Pool is: ${ETH_DefaultPool}`)
+  console.log(`FIL left in Default Pool is: ${FIL_DefaultPool}`)
   console.log(`Debt left in Default Pool is: ${Debt_DefaultPool}`)
 })
 
 /* DeciMath:
-  ETH left in Default Pool is: 563902502
+  FIL left in Default Pool is: 563902502
   Debt left in Default Pool is: 308731912
 
   Pure division, correction:
-  ETH left in Default Pool is: 1136050360
+  FIL left in Default Pool is: 1136050360
   Debt left in Default Pool is: 997601870
 
   Pure division, no correction:
-  ETH left in Default Pool is: 810899932
+  FIL left in Default Pool is: 810899932
   Debt left in Default Pool is: 535042995
 */
 
@@ -1050,7 +1050,7 @@ it("101 accounts with random large coll, magnitude ~1e8 ether. 1 liquidation. 50
   await borrowerOperations.openTrove(0, dec(170, 18), accounts[0], { from: accounts[0], value: dec(1, 'ether') })
 
    // Troves open with 100-200 million ether
-  await th.openTrove_allAccounts_randomETH(100000000, 200000000, accounts.slice(1, 100), contracts, dec(170, 18))
+  await th.openTrove_allAccounts_randomFIL(100000000, 200000000, accounts.slice(1, 100), contracts, dec(170, 18))
 
   await priceFeed.setPrice(dec(100, 18))
 
@@ -1063,29 +1063,29 @@ it("101 accounts with random large coll, magnitude ~1e8 ether. 1 liquidation. 50
  
   await borrowerOperations.addColl(accounts[999], accounts[999], { from: accounts[999], value: 1 })
   // check DefaultPool
-  const ETH_DefaultPool = await defaultPool.getETH()
+  const FIL_DefaultPool = await defaultPool.getFIL()
   const Debt_DefaultPool = await defaultPool.getDebt()
-  console.log(`ETH left in Default Pool is: ${ETH_DefaultPool}`)
+  console.log(`FIL left in Default Pool is: ${FIL_DefaultPool}`)
   console.log(`Debt left in Default Pool is: ${Debt_DefaultPool}`)
 })
 
  /*
   Pure division, no correction:
-  ETH left in Default Pool is: 8356761440
+  FIL left in Default Pool is: 8356761440
   Debt left in Default Pool is: 14696382412
 
   Pure division, correction:
-  ETH left in Default Pool is: 9281255535
+  FIL left in Default Pool is: 9281255535
   Debt left in Default Pool is: 5854012464
   */
 
 // --- Liquidations, large coll and debt ---
 
-it("11 accounts with random ETH and proportional Debt (180:1). 10 liquidations. Check (DefaultPool - totalRewards) differences", async () => {
+it("11 accounts with random FIL and proportional Debt (180:1). 10 liquidations. Check (DefaultPool - totalRewards) differences", async () => {
   await borrowerOperations.openTrove(0, 0,  accounts[999], { from: accounts[999], value: dec(1, 27) })
 
   // Troves open with 100-200 million ether and proportional Debt Debt
-  await th.openTrove_allAccounts_randomETH_ProportionalDebt(100000000, 200000000, accounts.slice(0, 11), contracts, 180)
+  await th.openTrove_allAccounts_randomFIL_ProportionalDebt(100000000, 200000000, accounts.slice(0, 11), contracts, 180)
 
   await priceFeed.setPrice(dec(100, 18))
 
@@ -1095,40 +1095,40 @@ it("11 accounts with random ETH and proportional Debt (180:1). 10 liquidations. 
     await troveManager.liquidate(account)
   }
 
-  const L_ETH = await troveManager.L_ETH()
+  const L_FIL = await troveManager.L_FIL()
   const L_Debt = await troveManager.L_Debt()
 
-  const totalColl = await activePool.getETH()
+  const totalColl = await activePool.getFIL()
 
   const _1e18_BN = web3.utils.toBN(dec(1, 18))
-  const totalETHRewards = (totalColl.mul(L_ETH)).div(_1e18_BN)
+  const totalFILRewards = (totalColl.mul(L_FIL)).div(_1e18_BN)
   const totalDebtRewards = (totalColl.mul(L_Debt)).div(_1e18_BN)
 
-  const defaultPoolETH = await defaultPool.getETH()
+  const defaultPoolFIL = await defaultPool.getFIL()
   const defaultPoolDebt = await defaultPool.getDebt()
 
-  const ETHRewardDifference = defaultPoolETH.sub(totalETHRewards)
+  const FILRewardDifference = defaultPoolFIL.sub(totalFILRewards)
   const DebtRewardDifference = defaultPoolDebt.sub(totalDebtRewards)
 
-  console.log(`ETH difference between total pending rewards and DefaultPool: ${ETHRewardDifference} `)
+  console.log(`FIL difference between total pending rewards and DefaultPool: ${FILRewardDifference} `)
   console.log(`Debt difference between total pending rewards and DefaultPool: ${DebtRewardDifference} `)
 })
  
 /* 
   Pure division, no error correction:
-  ETH difference between total pending rewards and DefaultPool: 9000000000
+  FIL difference between total pending rewards and DefaultPool: 9000000000
   Debt difference between total pending rewards and DefaultPool: 12000000000
 
   Pure division with correction:
-  ETH difference between total pending rewards and DefaultPool: 1000000000
+  FIL difference between total pending rewards and DefaultPool: 1000000000
   Debt difference between total pending rewards and DefaultPool: 1000000000
   */
 
-  it("101 accounts with random ETH and proportional Debt (180:1). 100 liquidations. Check 1) (DefaultPool - totalDistributionRewards) difference, and 2) ", async () => {
+  it("101 accounts with random FIL and proportional Debt (180:1). 100 liquidations. Check 1) (DefaultPool - totalDistributionRewards) difference, and 2) ", async () => {
     await borrowerOperations.openTrove(0, 0,  accounts[999], { from: accounts[999], value: dec(1, 28) })
 
     // Troves open with 100-200 million ether and proportional Debt Debt
-    await th.openTrove_allAccounts_randomETH_ProportionalDebt(100000000, 200000000, accounts.slice(0, 101), contracts, 180)
+    await th.openTrove_allAccounts_randomFIL_ProportionalDebt(100000000, 200000000, accounts.slice(0, 101), contracts, 180)
 
     await priceFeed.setPrice(dec(100, 18))
 
@@ -1140,31 +1140,31 @@ it("11 accounts with random ETH and proportional Debt (180:1). 10 liquidations. 
     }
 
     // check (DefaultPool  - totalRewards)
-    const L_ETH = await troveManager.L_ETH()
+    const L_FIL = await troveManager.L_FIL()
     const L_Debt = await troveManager.L_Debt()
 
-    const totalColl = await activePool.getETH()
+    const totalColl = await activePool.getFIL()
 
     const _1e18_BN = web3.utils.toBN(dec(1, 18))
-    const totalETHRewards = (totalColl.mul(L_ETH)).div(_1e18_BN)
+    const totalFILRewards = (totalColl.mul(L_FIL)).div(_1e18_BN)
     const totalDebtRewards = (totalColl.mul(L_Debt)).div(_1e18_BN)
 
-    const defaultPoolETH = await defaultPool.getETH()
+    const defaultPoolFIL = await defaultPool.getFIL()
     const defaultPoolDebt = await defaultPool.getDebt()
 
-    const ETHRewardDifference = defaultPoolETH.sub(totalETHRewards)
+    const FILRewardDifference = defaultPoolFIL.sub(totalFILRewards)
     const DebtRewardDifference = defaultPoolDebt.sub(totalDebtRewards)
 
-    console.log(`ETH difference between total pending rewards and DefaultPool: ${ETHRewardDifference} `)
+    console.log(`FIL difference between total pending rewards and DefaultPool: ${FILRewardDifference} `)
     console.log(`Debt difference between total pending rewards and DefaultPool: ${DebtRewardDifference} `)
   })
   /*
     Pure division, no correction:
-    ETH difference between total pending rewards and DefaultPool: 910000000000
+    FIL difference between total pending rewards and DefaultPool: 910000000000
     Debt difference between total pending rewards and DefaultPool: 870000000000
 
     Pure division with correction:
-    ETH difference between total pending rewards and DefaultPool: 10000000000
+    FIL difference between total pending rewards and DefaultPool: 10000000000
     Debt difference between total pending rewards and DefaultPool: 10000000000
   */
 })
@@ -1186,13 +1186,13 @@ it("11 accounts with random ETH and proportional Debt (180:1). 10 liquidations. 
 
   ABDK64:
 
-  1) Reward applications accumulate ETH and Debt error in DefaultPool
+  1) Reward applications accumulate FIL and Debt error in DefaultPool
 
-  2) Liquidations accumulate ETH and Debt error in DefaultPool
+  2) Liquidations accumulate FIL and Debt error in DefaultPool
 
   3) Liquidations with partial offset send slightly too little to StabilityPool, and redistribute slightly too much
   
-  4) StabilityPool Withdrawals accumulate ETH error in the StabilityPool
+  4) StabilityPool Withdrawals accumulate FIL error in the StabilityPool
 
   5) StabilityPool Withdrawals can accumulate DebtLoss in the StabilityPool (i.e. they distribute too much Debt token), and can block
   the final deposit withdrawal

@@ -13,12 +13,12 @@ interface ILQTYStaking {
     event ActivePoolAddressSet(address _activePoolAddress);
 
     event StakeChanged(address indexed staker, uint newStake);
-    event StakingGainsWithdrawn(address indexed staker, uint debtTokenGain, uint ETHGain);
-    event F_ETHUpdated(uint _F_ETH);
+    event StakingGainsWithdrawn(address indexed staker, uint debtTokenGain, uint FILGain);
+    event F_FILUpdated(uint _F_FIL);
     event F_DebtTokenUpdated(uint _F_DebtToken);
     event TotalLQTYStakedUpdated(uint _totalLQTYStaked);
     event EtherSent(address _account, uint _amount);
-    event StakerSnapshotsUpdated(address _staker, uint _F_ETH, uint _F_DebtToken);
+    event StakerSnapshotsUpdated(address _staker, uint _F_FIL, uint _F_DebtToken);
 
     // --- Functions ---
 
@@ -35,11 +35,11 @@ interface ILQTYStaking {
 
     function unstake(uint _LQTYamount) external;
 
-    function increaseF_ETH(uint _ETHFee) external; 
+    function increaseF_FIL(uint _FILFee) external; 
 
     function increaseF_DebtToken(uint _debtTokenFee) external;  
 
-    function getPendingETHGain(address _user) external view returns (uint);
+    function getPendingFILGain(address _user) external view returns (uint);
 
     function getPendingDebtTokenGain(address _user) external view returns (uint);
 }

@@ -113,7 +113,7 @@ contract('TroveManager - in Recovery Mode - back to normal mode in 1 tx', async 
         price,
       } = await setup()
 
-      const spEthBefore = await stabilityPool.getETH()
+      const spEthBefore = await stabilityPool.getFIL()
       const spDebtTokenBefore = await stabilityPool.getTotalDebtTokenDeposits()
 
       const tx = await troveManager.batchLiquidateTroves([alice, carol])
@@ -126,7 +126,7 @@ contract('TroveManager - in Recovery Mode - back to normal mode in 1 tx', async 
       assert.equal((await troveManager.Troves(alice))[3], '3')
       assert.equal((await troveManager.Troves(carol))[3], '3')
 
-      const spEthAfter = await stabilityPool.getETH()
+      const spEthAfter = await stabilityPool.getFIL()
       const spDebtTokenAfter = await stabilityPool.getTotalDebtTokenDeposits()
 
       // liquidate collaterals with the gas compensation fee subtracted
@@ -136,7 +136,7 @@ contract('TroveManager - in Recovery Mode - back to normal mode in 1 tx', async 
       const expectedGainInDebtToken = expectedCollateralLiquidatedA.mul(price).div(mv._1e18BN).sub(A_totalDebt)
       const realGainInDebtToken = spEthAfter.sub(spEthBefore).mul(price).div(mv._1e18BN).sub(spDebtTokenBefore.sub(spDebtTokenAfter))
 
-      assert.equal(spEthAfter.sub(spEthBefore).toString(), expectedCollateralLiquidatedA.toString(), 'Stability Pool ETH doesn’t match')
+      assert.equal(spEthAfter.sub(spEthBefore).toString(), expectedCollateralLiquidatedA.toString(), 'Stability Pool FIL doesn’t match')
       assert.equal(spDebtTokenBefore.sub(spDebtTokenAfter).toString(), A_totalDebt.toString(), 'Stability Pool DebtToken doesn’t match')
       assert.equal(realGainInDebtToken.toString(), expectedGainInDebtToken.toString(), 'Stability Pool gains don’t match')
     })

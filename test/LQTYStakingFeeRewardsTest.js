@@ -17,10 +17,10 @@ const ZERO = th.toBN('0')
 
 const GAS_PRICE = 10000000
 
-/* NOTE: These tests do not test for specific ETH and debt token gain values. They only test that the 
+/* NOTE: These tests do not test for specific FIL and debt token gain values. They only test that the 
  * gains are non-zero, occur when they should, and are in correct proportion to the user's stake. 
  *
- * Specific ETH/DebtToken gain values will depend on the final fee schedule used, and the final choices for
+ * Specific FIL/DebtToken gain values will depend on the final fee schedule used, and the final choices for
  * parameters BETA and MINUTE_DECAY_FACTOR in the TroveManager, which are still TBD based on economic
  * modelling.
  * 
@@ -86,7 +86,7 @@ contract('LQTYStaking revenue share tests', async accounts => {
     await assertRevert(lqtyStaking.stake(0, {from: A}), "LQTYStaking: Amount must be non-zero")
   })
 
-  it("ETH fee per LQTY staked increases when a redemption fee is triggered and totalStakes > 0", async () => {
+  it("FIL fee per LQTY staked increases when a redemption fee is triggered and totalStakes > 0", async () => {
     await openTrove({ extraDebtTokenAmount: toBN(dec(10000, 18)), ICR: toBN(dec(10, 18)), extraParams: { from: whale } })
     await openTrove({ extraDebtTokenAmount: toBN(dec(20000, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: A } })
     await openTrove({ extraDebtTokenAmount: toBN(dec(30000, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: B } })
@@ -104,9 +104,9 @@ contract('LQTYStaking revenue share tests', async accounts => {
     await lqtyToken.approve(lqtyStaking.address, dec(100, 18), {from: A})
     await lqtyStaking.stake(dec(100, 18), {from: A})
 
-    // Check ETH fee per unit staked is zero
-    const F_ETH_Before = await lqtyStaking.F_ETH()
-    assert.equal(F_ETH_Before, '0')
+    // Check FIL fee per unit staked is zero
+    const F_FIL_Before = await lqtyStaking.F_FIL()
+    assert.equal(F_FIL_Before, '0')
 
     const B_BalBeforeREdemption = await debtToken.balanceOf(B)
     // B redeems
@@ -115,20 +115,20 @@ contract('LQTYStaking revenue share tests', async accounts => {
     const B_BalAfterRedemption = await debtToken.balanceOf(B)
     assert.isTrue(B_BalAfterRedemption.lt(B_BalBeforeREdemption))
 
-    // check ETH fee emitted in event is non-zero
-    const emittedETHFee = toBN((await th.getEmittedRedemptionValues(redemptionTx))[3])
-    assert.isTrue(emittedETHFee.gt(toBN('0')))
+    // check FIL fee emitted in event is non-zero
+    const emittedFILFee = toBN((await th.getEmittedRedemptionValues(redemptionTx))[3])
+    assert.isTrue(emittedFILFee.gt(toBN('0')))
 
-    // Check ETH fee per unit staked has increased by correct amount
-    const F_ETH_After = await lqtyStaking.F_ETH()
+    // Check FIL fee per unit staked has increased by correct amount
+    const F_FIL_After = await lqtyStaking.F_FIL()
 
     // Expect fee per unit staked = fee/100, since there is 100 DebtToken totalStaked
-    const expected_F_ETH_After = emittedETHFee.div(toBN('100')) 
+    const expected_F_FIL_After = emittedFILFee.div(toBN('100')) 
 
-    assert.isTrue(expected_F_ETH_After.eq(F_ETH_After))
+    assert.isTrue(expected_F_FIL_After.eq(F_FIL_After))
   })
 
-  it("ETH fee per LQTY staked doesn't change when a redemption fee is triggered and totalStakes == 0", async () => {
+  it("FIL fee per LQTY staked doesn't change when a redemption fee is triggered and totalStakes == 0", async () => {
     await openTrove({ extraDebtTokenAmount: toBN(dec(10000, 18)), ICR: toBN(dec(10, 18)), extraParams: { from: whale } })
     await openTrove({ extraDebtTokenAmount: toBN(dec(20000, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: A } })
     await openTrove({ extraDebtTokenAmount: toBN(dec(30000, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: B } })
@@ -141,9 +141,9 @@ contract('LQTYStaking revenue share tests', async accounts => {
     // multisig transfers LQTY to staker A
     await lqtyToken.transfer(A, dec(100, 18), {from: multisig, gasPrice: GAS_PRICE})
 
-    // Check ETH fee per unit staked is zero
-    const F_ETH_Before = await lqtyStaking.F_ETH()
-    assert.equal(F_ETH_Before, '0')
+    // Check FIL fee per unit staked is zero
+    const F_FIL_Before = await lqtyStaking.F_FIL()
+    assert.equal(F_FIL_Before, '0')
 
     const B_BalBeforeREdemption = await debtToken.balanceOf(B)
     // B redeems
@@ -152,13 +152,13 @@ contract('LQTYStaking revenue share tests', async accounts => {
     const B_BalAfterRedemption = await debtToken.balanceOf(B)
     assert.isTrue(B_BalAfterRedemption.lt(B_BalBeforeREdemption))
 
-    // check ETH fee emitted in event is non-zero
-    const emittedETHFee = toBN((await th.getEmittedRedemptionValues(redemptionTx))[3])
-    assert.isTrue(emittedETHFee.gt(toBN('0')))
+    // check FIL fee emitted in event is non-zero
+    const emittedFILFee = toBN((await th.getEmittedRedemptionValues(redemptionTx))[3])
+    assert.isTrue(emittedFILFee.gt(toBN('0')))
 
-    // Check ETH fee per unit staked has not increased 
-    const F_ETH_After = await lqtyStaking.F_ETH()
-    assert.equal(F_ETH_After, '0')
+    // Check FIL fee per unit staked has not increased 
+    const F_FIL_After = await lqtyStaking.F_FIL()
+    assert.equal(F_FIL_After, '0')
   })
 
   it("DebtToken fee per LQTY staked increases when a redemption fee is triggered and totalStakes > 0", async () => {
@@ -179,7 +179,7 @@ contract('LQTYStaking revenue share tests', async accounts => {
     await lqtyStaking.stake(dec(100, 18), {from: A})
 
     // Check DebtToken fee per unit staked is zero
-    const F_DebtToken_Before = await lqtyStaking.F_ETH()
+    const F_DebtToken_Before = await lqtyStaking.F_FIL()
     assert.equal(F_DebtToken_Before, '0')
 
     const B_BalBeforeREdemption = await debtToken.balanceOf(B)
@@ -223,7 +223,7 @@ contract('LQTYStaking revenue share tests', async accounts => {
     await lqtyToken.transfer(A, dec(100, 18), {from: multisig})
 
     // Check DebtToken fee per unit staked is zero
-    const F_DebtToken_Before = await lqtyStaking.F_ETH()
+    const F_DebtToken_Before = await lqtyStaking.F_FIL()
     assert.equal(F_DebtToken_Before, '0')
 
     const B_BalBeforeREdemption = await debtToken.balanceOf(B)
@@ -249,7 +249,7 @@ contract('LQTYStaking revenue share tests', async accounts => {
     assert.equal(F_DebtToken_After, '0')
   })
 
-  it("LQTY Staking: A single staker earns all ETH and LQTY fees that occur", async () => {
+  it("LQTY Staking: A single staker earns all FIL and LQTY fees that occur", async () => {
     await openTrove({ extraDebtTokenAmount: toBN(dec(10000, 18)), ICR: toBN(dec(10, 18)), extraParams: { from: whale } })
     await openTrove({ extraDebtTokenAmount: toBN(dec(20000, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: A } })
     await openTrove({ extraDebtTokenAmount: toBN(dec(30000, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: B } })
@@ -273,9 +273,9 @@ contract('LQTYStaking revenue share tests', async accounts => {
     const B_BalAfterRedemption = await debtToken.balanceOf(B)
     assert.isTrue(B_BalAfterRedemption.lt(B_BalBeforeREdemption))
 
-    // check ETH fee 1 emitted in event is non-zero
-    const emittedETHFee_1 = toBN((await th.getEmittedRedemptionValues(redemptionTx_1))[3])
-    assert.isTrue(emittedETHFee_1.gt(toBN('0')))
+    // check FIL fee 1 emitted in event is non-zero
+    const emittedFILFee_1 = toBN((await th.getEmittedRedemptionValues(redemptionTx_1))[3])
+    assert.isTrue(emittedFILFee_1.gt(toBN('0')))
 
     const C_BalBeforeREdemption = await debtToken.balanceOf(C)
     // C redeems
@@ -284,9 +284,9 @@ contract('LQTYStaking revenue share tests', async accounts => {
     const C_BalAfterRedemption = await debtToken.balanceOf(C)
     assert.isTrue(C_BalAfterRedemption.lt(C_BalBeforeREdemption))
  
-     // check ETH fee 2 emitted in event is non-zero
-     const emittedETHFee_2 = toBN((await th.getEmittedRedemptionValues(redemptionTx_2))[3])
-     assert.isTrue(emittedETHFee_2.gt(toBN('0')))
+     // check FIL fee 2 emitted in event is non-zero
+     const emittedFILFee_2 = toBN((await th.getEmittedRedemptionValues(redemptionTx_2))[3])
+     assert.isTrue(emittedFILFee_2.gt(toBN('0')))
 
     // D draws debt
     const borrowingTx_1 = await borrowerOperations.withdrawDebtToken(th._100pct, dec(104, 18), D, D, {from: D})
@@ -302,27 +302,27 @@ contract('LQTYStaking revenue share tests', async accounts => {
     const emittedDebtTokenFee_2 = toBN(th.getFeeFromDebtTokenBorrowingEvent(borrowingTx_2))
     assert.isTrue(emittedDebtTokenFee_2.gt(toBN('0')))
 
-    const expectedTotalETHGain = emittedETHFee_1.add(emittedETHFee_2)
+    const expectedTotalFILGain = emittedFILFee_1.add(emittedFILFee_2)
     const expectedTotalDebtTokenGain = emittedDebtTokenFee_1.add(emittedDebtTokenFee_2)
 
-    const A_ETHBalance_Before = toBN(await web3.eth.getBalance(A))
+    const A_FILBalance_Before = toBN(await web3.eth.getBalance(A))
     const A_DebtTokenBalance_Before = toBN(await debtToken.balanceOf(A))
 
     // A un-stakes
     const GAS_Used = th.gasUsed(await lqtyStaking.unstake(dec(100, 18), {from: A, gasPrice: GAS_PRICE }))
 
-    const A_ETHBalance_After = toBN(await web3.eth.getBalance(A))
+    const A_FILBalance_After = toBN(await web3.eth.getBalance(A))
     const A_DebtTokenBalance_After = toBN(await debtToken.balanceOf(A))
 
 
-    const A_ETHGain = A_ETHBalance_After.sub(A_ETHBalance_Before).add(toBN(GAS_Used * GAS_PRICE))
+    const A_FILGain = A_FILBalance_After.sub(A_FILBalance_Before).add(toBN(GAS_Used * GAS_PRICE))
     const A_DebtTokenGain = A_DebtTokenBalance_After.sub(A_DebtTokenBalance_Before)
 
-    assert.isAtMost(th.getDifference(expectedTotalETHGain, A_ETHGain), 1000)
+    assert.isAtMost(th.getDifference(expectedTotalFILGain, A_FILGain), 1000)
     assert.isAtMost(th.getDifference(expectedTotalDebtTokenGain, A_DebtTokenGain), 1000)
   })
 
-  it("stake(): Top-up sends out all accumulated ETH and DebtToken gains to the staker", async () => { 
+  it("stake(): Top-up sends out all accumulated FIL and DebtToken gains to the staker", async () => { 
     await openTrove({ extraDebtTokenAmount: toBN(dec(10000, 18)), ICR: toBN(dec(10, 18)), extraParams: { from: whale } })
     await openTrove({ extraDebtTokenAmount: toBN(dec(20000, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: A } })
     await openTrove({ extraDebtTokenAmount: toBN(dec(30000, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: B } })
@@ -346,9 +346,9 @@ contract('LQTYStaking revenue share tests', async accounts => {
     const B_BalAfterRedemption = await debtToken.balanceOf(B)
     assert.isTrue(B_BalAfterRedemption.lt(B_BalBeforeREdemption))
 
-    // check ETH fee 1 emitted in event is non-zero
-    const emittedETHFee_1 = toBN((await th.getEmittedRedemptionValues(redemptionTx_1))[3])
-    assert.isTrue(emittedETHFee_1.gt(toBN('0')))
+    // check FIL fee 1 emitted in event is non-zero
+    const emittedFILFee_1 = toBN((await th.getEmittedRedemptionValues(redemptionTx_1))[3])
+    assert.isTrue(emittedFILFee_1.gt(toBN('0')))
 
     const C_BalBeforeREdemption = await debtToken.balanceOf(C)
     // C redeems
@@ -357,9 +357,9 @@ contract('LQTYStaking revenue share tests', async accounts => {
     const C_BalAfterRedemption = await debtToken.balanceOf(C)
     assert.isTrue(C_BalAfterRedemption.lt(C_BalBeforeREdemption))
  
-     // check ETH fee 2 emitted in event is non-zero
-     const emittedETHFee_2 = toBN((await th.getEmittedRedemptionValues(redemptionTx_2))[3])
-     assert.isTrue(emittedETHFee_2.gt(toBN('0')))
+     // check FIL fee 2 emitted in event is non-zero
+     const emittedFILFee_2 = toBN((await th.getEmittedRedemptionValues(redemptionTx_2))[3])
+     assert.isTrue(emittedFILFee_2.gt(toBN('0')))
 
     // D draws debt
     const borrowingTx_1 = await borrowerOperations.withdrawDebtToken(th._100pct, dec(104, 18), D, D, {from: D})
@@ -375,26 +375,26 @@ contract('LQTYStaking revenue share tests', async accounts => {
     const emittedDebtTokenFee_2 = toBN(th.getFeeFromDebtTokenBorrowingEvent(borrowingTx_2))
     assert.isTrue(emittedDebtTokenFee_2.gt(toBN('0')))
 
-    const expectedTotalETHGain = emittedETHFee_1.add(emittedETHFee_2)
+    const expectedTotalFILGain = emittedFILFee_1.add(emittedFILFee_2)
     const expectedTotalDebtTokenGain = emittedDebtTokenFee_1.add(emittedDebtTokenFee_2)
 
-    const A_ETHBalance_Before = toBN(await web3.eth.getBalance(A))
+    const A_FILBalance_Before = toBN(await web3.eth.getBalance(A))
     const A_DebtTokenBalance_Before = toBN(await debtToken.balanceOf(A))
 
     // A tops up
     const GAS_Used = th.gasUsed(await lqtyStaking.stake(dec(50, 18), {from: A, gasPrice: GAS_PRICE }))
 
-    const A_ETHBalance_After = toBN(await web3.eth.getBalance(A))
+    const A_FILBalance_After = toBN(await web3.eth.getBalance(A))
     const A_DebtTokenBalance_After = toBN(await debtToken.balanceOf(A))
 
-    const A_ETHGain = A_ETHBalance_After.sub(A_ETHBalance_Before).add(toBN(GAS_Used * GAS_PRICE))
+    const A_FILGain = A_FILBalance_After.sub(A_FILBalance_Before).add(toBN(GAS_Used * GAS_PRICE))
     const A_DebtTokenGain = A_DebtTokenBalance_After.sub(A_DebtTokenBalance_Before)
 
-    assert.isAtMost(th.getDifference(expectedTotalETHGain, A_ETHGain), 1000)
+    assert.isAtMost(th.getDifference(expectedTotalFILGain, A_FILGain), 1000)
     assert.isAtMost(th.getDifference(expectedTotalDebtTokenGain, A_DebtTokenGain), 1000)
   })
 
-  it("getPendingETHGain(): Returns the staker's correct pending ETH gain", async () => { 
+  it("getPendingFILGain(): Returns the staker's correct pending FIL gain", async () => { 
     await openTrove({ extraDebtTokenAmount: toBN(dec(10000, 18)), ICR: toBN(dec(10, 18)), extraParams: { from: whale } })
     await openTrove({ extraDebtTokenAmount: toBN(dec(20000, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: A } })
     await openTrove({ extraDebtTokenAmount: toBN(dec(30000, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: B } })
@@ -418,9 +418,9 @@ contract('LQTYStaking revenue share tests', async accounts => {
     const B_BalAfterRedemption = await debtToken.balanceOf(B)
     assert.isTrue(B_BalAfterRedemption.lt(B_BalBeforeREdemption))
 
-    // check ETH fee 1 emitted in event is non-zero
-    const emittedETHFee_1 = toBN((await th.getEmittedRedemptionValues(redemptionTx_1))[3])
-    assert.isTrue(emittedETHFee_1.gt(toBN('0')))
+    // check FIL fee 1 emitted in event is non-zero
+    const emittedFILFee_1 = toBN((await th.getEmittedRedemptionValues(redemptionTx_1))[3])
+    assert.isTrue(emittedFILFee_1.gt(toBN('0')))
 
     const C_BalBeforeREdemption = await debtToken.balanceOf(C)
     // C redeems
@@ -429,15 +429,15 @@ contract('LQTYStaking revenue share tests', async accounts => {
     const C_BalAfterRedemption = await debtToken.balanceOf(C)
     assert.isTrue(C_BalAfterRedemption.lt(C_BalBeforeREdemption))
  
-     // check ETH fee 2 emitted in event is non-zero
-     const emittedETHFee_2 = toBN((await th.getEmittedRedemptionValues(redemptionTx_2))[3])
-     assert.isTrue(emittedETHFee_2.gt(toBN('0')))
+     // check FIL fee 2 emitted in event is non-zero
+     const emittedFILFee_2 = toBN((await th.getEmittedRedemptionValues(redemptionTx_2))[3])
+     assert.isTrue(emittedFILFee_2.gt(toBN('0')))
 
-    const expectedTotalETHGain = emittedETHFee_1.add(emittedETHFee_2)
+    const expectedTotalFILGain = emittedFILFee_1.add(emittedFILFee_2)
 
-    const A_ETHGain = await lqtyStaking.getPendingETHGain(A)
+    const A_FILGain = await lqtyStaking.getPendingFILGain(A)
 
-    assert.isAtMost(th.getDifference(expectedTotalETHGain, A_ETHGain), 1000)
+    assert.isAtMost(th.getDifference(expectedTotalFILGain, A_FILGain), 1000)
   })
 
   it("getPendingDebtTokenGain(): Returns the staker's correct pending DebtToken gain", async () => { 
@@ -464,9 +464,9 @@ contract('LQTYStaking revenue share tests', async accounts => {
     const B_BalAfterRedemption = await debtToken.balanceOf(B)
     assert.isTrue(B_BalAfterRedemption.lt(B_BalBeforeREdemption))
 
-    // check ETH fee 1 emitted in event is non-zero
-    const emittedETHFee_1 = toBN((await th.getEmittedRedemptionValues(redemptionTx_1))[3])
-    assert.isTrue(emittedETHFee_1.gt(toBN('0')))
+    // check FIL fee 1 emitted in event is non-zero
+    const emittedFILFee_1 = toBN((await th.getEmittedRedemptionValues(redemptionTx_1))[3])
+    assert.isTrue(emittedFILFee_1.gt(toBN('0')))
 
     const C_BalBeforeREdemption = await debtToken.balanceOf(C)
     // C redeems
@@ -475,9 +475,9 @@ contract('LQTYStaking revenue share tests', async accounts => {
     const C_BalAfterRedemption = await debtToken.balanceOf(C)
     assert.isTrue(C_BalAfterRedemption.lt(C_BalBeforeREdemption))
  
-     // check ETH fee 2 emitted in event is non-zero
-     const emittedETHFee_2 = toBN((await th.getEmittedRedemptionValues(redemptionTx_2))[3])
-     assert.isTrue(emittedETHFee_2.gt(toBN('0')))
+     // check FIL fee 2 emitted in event is non-zero
+     const emittedFILFee_2 = toBN((await th.getEmittedRedemptionValues(redemptionTx_2))[3])
+     assert.isTrue(emittedFILFee_2.gt(toBN('0')))
 
     // D draws debt
     const borrowingTx_1 = await borrowerOperations.withdrawDebtToken(th._100pct, dec(104, 18), D, D, {from: D})
@@ -500,7 +500,7 @@ contract('LQTYStaking revenue share tests', async accounts => {
   })
 
   // - multi depositors, several rewards
-  it("LQTY Staking: Multiple stakers earn the correct share of all ETH and LQTY fees, based on their stake size", async () => {
+  it("LQTY Staking: Multiple stakers earn the correct share of all FIL and LQTY fees, based on their stake size", async () => {
     await openTrove({ extraDebtTokenAmount: toBN(dec(10000, 18)), ICR: toBN(dec(10, 18)), extraParams: { from: whale } })
     await openTrove({ extraDebtTokenAmount: toBN(dec(20000, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: A } })
     await openTrove({ extraDebtTokenAmount: toBN(dec(30000, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: B } })
@@ -533,13 +533,13 @@ contract('LQTYStaking revenue share tests', async accounts => {
 
     // F redeems
     const redemptionTx_1 = await th.redeemCollateralAndGetTxObject(F, contracts, dec(45, 18), gasPrice = GAS_PRICE)
-    const emittedETHFee_1 = toBN((await th.getEmittedRedemptionValues(redemptionTx_1))[3])
-    assert.isTrue(emittedETHFee_1.gt(toBN('0')))
+    const emittedFILFee_1 = toBN((await th.getEmittedRedemptionValues(redemptionTx_1))[3])
+    assert.isTrue(emittedFILFee_1.gt(toBN('0')))
 
      // G redeems
      const redemptionTx_2 = await th.redeemCollateralAndGetTxObject(G, contracts, dec(197, 18), gasPrice = GAS_PRICE)
-     const emittedETHFee_2 = toBN((await th.getEmittedRedemptionValues(redemptionTx_2))[3])
-     assert.isTrue(emittedETHFee_2.gt(toBN('0')))
+     const emittedFILFee_2 = toBN((await th.getEmittedRedemptionValues(redemptionTx_2))[3])
+     assert.isTrue(emittedFILFee_2.gt(toBN('0')))
 
     // F draws debt
     const borrowingTx_1 = await borrowerOperations.withdrawDebtToken(th._100pct, dec(104, 18), F, F, {from: F})
@@ -562,8 +562,8 @@ contract('LQTYStaking revenue share tests', async accounts => {
 
      // G redeems
      const redemptionTx_3 = await th.redeemCollateralAndGetTxObject(C, contracts, dec(197, 18), gasPrice = GAS_PRICE)
-     const emittedETHFee_3 = toBN((await th.getEmittedRedemptionValues(redemptionTx_3))[3])
-     assert.isTrue(emittedETHFee_3.gt(toBN('0')))
+     const emittedFILFee_3 = toBN((await th.getEmittedRedemptionValues(redemptionTx_3))[3])
+     assert.isTrue(emittedFILFee_3.gt(toBN('0')))
 
      // G draws debt
     const borrowingTx_3 = await borrowerOperations.withdrawDebtToken(th._100pct, dec(17, 18), G, G, {from: G})
@@ -573,10 +573,10 @@ contract('LQTYStaking revenue share tests', async accounts => {
     /*  
     Expected rewards:
 
-    A_ETH: (100* ETHFee_1)/600 + (100* ETHFee_2)/600 + (100*ETH_Fee_3)/650
-    B_ETH: (200* ETHFee_1)/600 + (200* ETHFee_2)/600 + (200*ETH_Fee_3)/650
-    C_ETH: (300* ETHFee_1)/600 + (300* ETHFee_2)/600 + (300*ETH_Fee_3)/650
-    D_ETH:                                             (100*ETH_Fee_3)/650
+    A_FIL: (100* FILFee_1)/600 + (100* FILFee_2)/600 + (100*FIL_Fee_3)/650
+    B_FIL: (200* FILFee_1)/600 + (200* FILFee_2)/600 + (200*FIL_Fee_3)/650
+    C_FIL: (300* FILFee_1)/600 + (300* FILFee_2)/600 + (300*FIL_Fee_3)/650
+    D_FIL:                                             (100*FIL_Fee_3)/650
 
     A_DebtToken: (100*DebtTokenFee_1 )/600 + (100* DebtTokenFee_2)/600 + (100*DebtTokenFee_3)/650
     B_DebtToken: (200* DebtTokenFee_1)/600 + (200* DebtTokenFee_2)/600 + (200*DebtTokenFee_3)/650
@@ -584,20 +584,20 @@ contract('LQTYStaking revenue share tests', async accounts => {
     D_DebtToken:                                               (100*DebtTokenFee_3)/650
     */
 
-    // Expected ETH gains
-    const expectedETHGain_A = toBN('100').mul(emittedETHFee_1).div( toBN('600'))
-                            .add(toBN('100').mul(emittedETHFee_2).div( toBN('600')))
-                            .add(toBN('100').mul(emittedETHFee_3).div( toBN('650')))
+    // Expected FIL gains
+    const expectedFILGain_A = toBN('100').mul(emittedFILFee_1).div( toBN('600'))
+                            .add(toBN('100').mul(emittedFILFee_2).div( toBN('600')))
+                            .add(toBN('100').mul(emittedFILFee_3).div( toBN('650')))
 
-    const expectedETHGain_B = toBN('200').mul(emittedETHFee_1).div( toBN('600'))
-                            .add(toBN('200').mul(emittedETHFee_2).div( toBN('600')))
-                            .add(toBN('200').mul(emittedETHFee_3).div( toBN('650')))
+    const expectedFILGain_B = toBN('200').mul(emittedFILFee_1).div( toBN('600'))
+                            .add(toBN('200').mul(emittedFILFee_2).div( toBN('600')))
+                            .add(toBN('200').mul(emittedFILFee_3).div( toBN('650')))
 
-    const expectedETHGain_C = toBN('300').mul(emittedETHFee_1).div( toBN('600'))
-                            .add(toBN('300').mul(emittedETHFee_2).div( toBN('600')))
-                            .add(toBN('300').mul(emittedETHFee_3).div( toBN('650')))
+    const expectedFILGain_C = toBN('300').mul(emittedFILFee_1).div( toBN('600'))
+                            .add(toBN('300').mul(emittedFILFee_2).div( toBN('600')))
+                            .add(toBN('300').mul(emittedFILFee_3).div( toBN('650')))
 
-    const expectedETHGain_D = toBN('50').mul(emittedETHFee_3).div( toBN('650'))
+    const expectedFILGain_D = toBN('50').mul(emittedFILFee_3).div( toBN('650'))
 
     // Expected DebtToken gains:
     const expectedDebtTokenGain_A = toBN('100').mul(emittedDebtTokenFee_1).div( toBN('600'))
@@ -615,13 +615,13 @@ contract('LQTYStaking revenue share tests', async accounts => {
     const expectedDebtTokenGain_D = toBN('50').mul(emittedDebtTokenFee_3).div( toBN('650'))
 
 
-    const A_ETHBalance_Before = toBN(await web3.eth.getBalance(A))
+    const A_FILBalance_Before = toBN(await web3.eth.getBalance(A))
     const A_DebtTokenBalance_Before = toBN(await debtToken.balanceOf(A))
-    const B_ETHBalance_Before = toBN(await web3.eth.getBalance(B))
+    const B_FILBalance_Before = toBN(await web3.eth.getBalance(B))
     const B_DebtTokenBalance_Before = toBN(await debtToken.balanceOf(B))
-    const C_ETHBalance_Before = toBN(await web3.eth.getBalance(C))
+    const C_FILBalance_Before = toBN(await web3.eth.getBalance(C))
     const C_DebtTokenBalance_Before = toBN(await debtToken.balanceOf(C))
-    const D_ETHBalance_Before = toBN(await web3.eth.getBalance(D))
+    const D_FILBalance_Before = toBN(await web3.eth.getBalance(D))
     const D_DebtTokenBalance_Before = toBN(await debtToken.balanceOf(D))
 
     // A-D un-stake
@@ -636,38 +636,38 @@ contract('LQTYStaking revenue share tests', async accounts => {
     assert.equal((await lqtyToken.balanceOf(lqtyStaking.address)), '0')
     assert.equal((await lqtyStaking.totalLQTYStaked()), '0')
 
-    // Get A-D ETH and DebtToken balances
-    const A_ETHBalance_After = toBN(await web3.eth.getBalance(A))
+    // Get A-D FIL and DebtToken balances
+    const A_FILBalance_After = toBN(await web3.eth.getBalance(A))
     const A_DebtTokenBalance_After = toBN(await debtToken.balanceOf(A))
-    const B_ETHBalance_After = toBN(await web3.eth.getBalance(B))
+    const B_FILBalance_After = toBN(await web3.eth.getBalance(B))
     const B_DebtTokenBalance_After = toBN(await debtToken.balanceOf(B))
-    const C_ETHBalance_After = toBN(await web3.eth.getBalance(C))
+    const C_FILBalance_After = toBN(await web3.eth.getBalance(C))
     const C_DebtTokenBalance_After = toBN(await debtToken.balanceOf(C))
-    const D_ETHBalance_After = toBN(await web3.eth.getBalance(D))
+    const D_FILBalance_After = toBN(await web3.eth.getBalance(D))
     const D_DebtTokenBalance_After = toBN(await debtToken.balanceOf(D))
 
-    // Get ETH and DebtToken gains
-    const A_ETHGain = A_ETHBalance_After.sub(A_ETHBalance_Before).add(toBN(A_GAS_Used * GAS_PRICE))
+    // Get FIL and DebtToken gains
+    const A_FILGain = A_FILBalance_After.sub(A_FILBalance_Before).add(toBN(A_GAS_Used * GAS_PRICE))
     const A_DebtTokenGain = A_DebtTokenBalance_After.sub(A_DebtTokenBalance_Before)
-    const B_ETHGain = B_ETHBalance_After.sub(B_ETHBalance_Before).add(toBN(B_GAS_Used * GAS_PRICE))
+    const B_FILGain = B_FILBalance_After.sub(B_FILBalance_Before).add(toBN(B_GAS_Used * GAS_PRICE))
     const B_DebtTokenGain = B_DebtTokenBalance_After.sub(B_DebtTokenBalance_Before)
-    const C_ETHGain = C_ETHBalance_After.sub(C_ETHBalance_Before).add(toBN(C_GAS_Used * GAS_PRICE))
+    const C_FILGain = C_FILBalance_After.sub(C_FILBalance_Before).add(toBN(C_GAS_Used * GAS_PRICE))
     const C_DebtTokenGain = C_DebtTokenBalance_After.sub(C_DebtTokenBalance_Before)
-    const D_ETHGain = D_ETHBalance_After.sub(D_ETHBalance_Before).add(toBN(D_GAS_Used * GAS_PRICE))
+    const D_FILGain = D_FILBalance_After.sub(D_FILBalance_Before).add(toBN(D_GAS_Used * GAS_PRICE))
     const D_DebtTokenGain = D_DebtTokenBalance_After.sub(D_DebtTokenBalance_Before)
 
     // Check gains match expected amounts
-    assert.isAtMost(th.getDifference(expectedETHGain_A, A_ETHGain), 1000)
+    assert.isAtMost(th.getDifference(expectedFILGain_A, A_FILGain), 1000)
     assert.isAtMost(th.getDifference(expectedDebtTokenGain_A, A_DebtTokenGain), 1000)
-    assert.isAtMost(th.getDifference(expectedETHGain_B, B_ETHGain), 1000)
+    assert.isAtMost(th.getDifference(expectedFILGain_B, B_FILGain), 1000)
     assert.isAtMost(th.getDifference(expectedDebtTokenGain_B, B_DebtTokenGain), 1000)
-    assert.isAtMost(th.getDifference(expectedETHGain_C, C_ETHGain), 1000)
+    assert.isAtMost(th.getDifference(expectedFILGain_C, C_FILGain), 1000)
     assert.isAtMost(th.getDifference(expectedDebtTokenGain_C, C_DebtTokenGain), 1000)
-    assert.isAtMost(th.getDifference(expectedETHGain_D, D_ETHGain), 1000)
+    assert.isAtMost(th.getDifference(expectedFILGain_D, D_FILGain), 1000)
     assert.isAtMost(th.getDifference(expectedDebtTokenGain_D, D_DebtTokenGain), 1000)
   })
  
-  it("unstake(): reverts if caller has ETH gains and can't receive ETH",  async () => {
+  it("unstake(): reverts if caller has FIL gains and can't receive FIL",  async () => {
     await openTrove({ extraDebtTokenAmount: toBN(dec(20000, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: whale } })  
     await openTrove({ extraDebtTokenAmount: toBN(dec(20000, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: A } })
     await openTrove({ extraDebtTokenAmount: toBN(dec(30000, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: B } })
@@ -689,22 +689,22 @@ contract('LQTYStaking revenue share tests', async accounts => {
     await nonPayable.forward(lqtyStaking.address, proxystakeTxData, {from: A})
 
 
-    // B makes a redemption, creating ETH gain for proxy
+    // B makes a redemption, creating FIL gain for proxy
     const redemptionTx_1 = await th.redeemCollateralAndGetTxObject(B, contracts, dec(45, 18), gasPrice = GAS_PRICE)
     
-    const proxy_ETHGain = await lqtyStaking.getPendingETHGain(nonPayable.address)
-    assert.isTrue(proxy_ETHGain.gt(toBN('0')))
+    const proxy_FILGain = await lqtyStaking.getPendingFILGain(nonPayable.address)
+    assert.isTrue(proxy_FILGain.gt(toBN('0')))
 
-    // Expect this tx to revert: stake() tries to send nonPayable proxy's accumulated ETH gain (albeit 0),
+    // Expect this tx to revert: stake() tries to send nonPayable proxy's accumulated FIL gain (albeit 0),
     //  A tells proxy to unstake
     const proxyUnStakeTxData = await th.getTransactionData('unstake(uint256)', ['0x56bc75e2d63100000'])  // proxy stakes 100 LQTY
     const proxyUnstakeTxPromise = nonPayable.forward(lqtyStaking.address, proxyUnStakeTxData, {from: A})
    
-    // but nonPayable proxy can not accept ETH - therefore stake() reverts.
+    // but nonPayable proxy can not accept FIL - therefore stake() reverts.
     await assertRevert(proxyUnstakeTxPromise)
   })
 
-  it("receive(): reverts when it receives ETH from an address that is not the Active Pool",  async () => { 
+  it("receive(): reverts when it receives FIL from an address that is not the Active Pool",  async () => { 
     const ethSendTxPromise1 = web3.eth.sendTransaction({to: lqtyStaking.address, from: A, value: dec(1, 'ether')})
     const ethSendTxPromise2 = web3.eth.sendTransaction({to: lqtyStaking.address, from: owner, value: dec(1, 'ether')})
 
