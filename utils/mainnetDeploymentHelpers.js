@@ -72,7 +72,7 @@ class MainnetDeploymentHelper {
     const collSurplusPoolFactory = await this.getFactory("CollSurplusPool")
     const borrowerOperationsFactory = await this.getFactory("BorrowerOperations")
     const hintHelpersFactory = await this.getFactory("HintHelpers")
-    const lusdTokenFactory = await this.getFactory("LUSDToken")
+    const debtTokenFactory = await this.getFactory("DebtToken")
     const tellorCallerFactory = await this.getFactory("TellorCaller")
     const pythCallerFactory = await this.getFactory("PythCaller")
 
@@ -90,16 +90,16 @@ class MainnetDeploymentHelper {
     const tellorCaller = await this.loadOrDeploy(tellorCallerFactory, 'tellorCaller', deploymentState, [tellorMasterAddr])
     const pythCaller = await this.loadOrDeploy(pythCallerFactory, 'pythCaller', deploymentState, [pythPriceFeedAddr, pythPriceId, 'FIL / USD'])
 
-    const lusdTokenParams = [
+    const debtTokenParams = [
       troveManager.address,
       stabilityPool.address,
       borrowerOperations.address
     ]
-    const lusdToken = await this.loadOrDeploy(
-      lusdTokenFactory,
-      'lusdToken',
+    const debtToken = await this.loadOrDeploy(
+      debtTokenFactory,
+      'debtToken',
       deploymentState,
-      lusdTokenParams
+      debtTokenParams
     )
 
     if (!this.configParams.ETHERSCAN_BASE_URL) {
@@ -117,12 +117,12 @@ class MainnetDeploymentHelper {
       await this.verifyContract('hintHelpers', deploymentState)
       await this.verifyContract('tellorCaller', deploymentState, [tellorMasterAddr])
       await this.verifyContract('pythCaller', deploymentState, [pythPriceFeedAddr, pythPriceId, 'FIL / USD'])
-      await this.verifyContract('lusdToken', deploymentState, lusdTokenParams)
+      await this.verifyContract('debtToken', deploymentState, debtTokenParams)
     }
 
     const coreContracts = {
       priceFeed,
-      lusdToken,
+      debtToken,
       sortedTroves,
       troveManager,
       activePool,
@@ -246,7 +246,7 @@ class MainnetDeploymentHelper {
         contracts.gasPool.address,
         contracts.collSurplusPool.address,
         contracts.priceFeed.address,
-        contracts.lusdToken.address,
+        contracts.debtToken.address,
         contracts.sortedTroves.address,
         LQTYContracts.lqtyToken.address,
         LQTYContracts.lqtyStaking.address
@@ -263,7 +263,7 @@ class MainnetDeploymentHelper {
         contracts.collSurplusPool.address,
         contracts.priceFeed.address,
         contracts.sortedTroves.address,
-        contracts.lusdToken.address,
+        contracts.debtToken.address,
         LQTYContracts.lqtyStaking.address
       ))
 
@@ -273,7 +273,7 @@ class MainnetDeploymentHelper {
         contracts.borrowerOperations.address,
         contracts.troveManager.address,
         contracts.activePool.address,
-        contracts.lusdToken.address,
+        contracts.debtToken.address,
         contracts.sortedTroves.address,
         contracts.priceFeed.address,
         LQTYContracts.communityIssuance.address
@@ -318,7 +318,7 @@ class MainnetDeploymentHelper {
     await this.isOwnershipRenounced(LQTYContracts.lqtyStaking) ||
       await this.sendAndWaitForTransaction(LQTYContracts.lqtyStaking.setAddresses(
         LQTYContracts.lqtyToken.address,
-        coreContracts.lusdToken.address,
+        coreContracts.debtToken.address,
         coreContracts.troveManager.address, 
         coreContracts.borrowerOperations.address,
         coreContracts.activePool.address,
@@ -331,9 +331,9 @@ class MainnetDeploymentHelper {
       ))
   }
 
-  async connectUnipoolMainnet(uniPool, LQTYContracts, LUSDWETHPairAddr, duration) {
+  async connectUnipoolMainnet(uniPool, LQTYContracts, DebtTokenWETHPairAddr, duration) {
     await this.isOwnershipRenounced(uniPool) ||
-      await this.sendAndWaitForTransaction(uniPool.setParams(LQTYContracts.lqtyToken.address, LUSDWETHPairAddr, duration))
+      await this.sendAndWaitForTransaction(uniPool.setParams(LQTYContracts.lqtyToken.address, DebtTokenWETHPairAddr, duration))
   }
 
   // --- Verify on Ethrescan ---
