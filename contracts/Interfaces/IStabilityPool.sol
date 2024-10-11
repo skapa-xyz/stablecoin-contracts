@@ -34,9 +34,8 @@ pragma solidity 0.6.11;
  * https://github.com/liquity/dev/blob/main/README.md#lqty-issuance-to-stability-providers
  */
 interface IStabilityPool {
-
     // --- Events ---
-    
+
     event StabilityPoolFILBalanceUpdated(uint _newBalance);
     event StabilityPoolDebtTokenBalanceUpdated(uint _newBalance);
 
@@ -61,7 +60,11 @@ interface IStabilityPool {
     event DepositSnapshotUpdated(address indexed _depositor, uint _P, uint _S, uint _G);
     event FrontEndSnapshotUpdated(address indexed _frontEnd, uint _P, uint _G);
     event UserDepositChanged(address indexed _depositor, uint _newDeposit);
-    event FrontEndStakeChanged(address indexed _frontEnd, uint _newFrontEndStake, address _depositor);
+    event FrontEndStakeChanged(
+        address indexed _frontEnd,
+        uint _newFrontEndStake,
+        address _depositor
+    );
 
     event FILGainWithdrawn(address indexed _depositor, uint _FIL, uint _debtTokenLoss);
     event LQTYPaidToDepositor(address indexed _depositor, uint _LQTY);

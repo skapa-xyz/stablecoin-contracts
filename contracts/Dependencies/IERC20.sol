@@ -64,12 +64,16 @@ interface IERC20 {
      *
      * Emits a {Transfer} event.
      */
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
 
     function name() external view returns (string memory);
     function symbol() external view returns (string memory);
     function decimals() external view returns (uint8);
-    
+
     /**
      * @dev Emitted when `value` tokens are moved from one account (`from`) to
      * another (`to`).

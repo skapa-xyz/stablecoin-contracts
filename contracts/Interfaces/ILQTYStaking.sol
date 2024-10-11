@@ -3,9 +3,8 @@
 pragma solidity 0.6.11;
 
 interface ILQTYStaking {
-
     // --- Events --
-    
+
     event LQTYTokenAddressSet(address _lqtyTokenAddress);
     event DebtTokenAddressSet(address _debtTokenAddress);
     event TroveManagerAddressSet(address _troveManager);
@@ -22,22 +21,21 @@ interface ILQTYStaking {
 
     // --- Functions ---
 
-    function setAddresses
-    (
+    function setAddresses(
         address _lqtyTokenAddress,
         address _debtTokenAddress,
-        address _troveManagerAddress, 
+        address _troveManagerAddress,
         address _borrowerOperationsAddress,
         address _activePoolAddress
-    )  external;
+    ) external;
 
     function stake(uint _LQTYamount) external;
 
     function unstake(uint _LQTYamount) external;
 
-    function increaseF_FIL(uint _FILFee) external; 
+    function increaseF_FIL(uint _FILFee) external;
 
-    function increaseF_DebtToken(uint _debtTokenFee) external;  
+    function increaseF_DebtToken(uint _debtTokenFee) external;
 
     function getPendingFILGain(address _user) external view returns (uint);
 

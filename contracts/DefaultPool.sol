@@ -2,7 +2,7 @@
 
 pragma solidity 0.6.11;
 
-import './Interfaces/IDefaultPool.sol';
+import "./Interfaces/IDefaultPool.sol";
 import "./Dependencies/SafeMath.sol";
 import "./Dependencies/Ownable.sol";
 import "./Dependencies/CheckContract.sol";
@@ -18,12 +18,12 @@ import "./Dependencies/console.sol";
 contract DefaultPool is Ownable, CheckContract, IDefaultPool {
     using SafeMath for uint256;
 
-    string constant public NAME = "DefaultPool";
+    string public constant NAME = "DefaultPool";
 
     address public troveManagerAddress;
     address public activePoolAddress;
-    uint256 internal FIL;  // deposited FIL tracker
-    uint256 internal debt;  // debt
+    uint256 internal FIL; // deposited FIL tracker
+    uint256 internal debt; // debt
 
     event TroveManagerAddressChanged(address _newTroveManagerAddress);
     event DefaultPoolDebtUpdated(uint _debt);
@@ -34,10 +34,7 @@ contract DefaultPool is Ownable, CheckContract, IDefaultPool {
     function setAddresses(
         address _troveManagerAddress,
         address _activePoolAddress
-    )
-        external
-        onlyOwner
-    {
+    ) external onlyOwner {
         checkContract(_troveManagerAddress);
         checkContract(_activePoolAddress);
 
@@ -53,10 +50,10 @@ contract DefaultPool is Ownable, CheckContract, IDefaultPool {
     // --- Getters for public variables. Required by IPool interface ---
 
     /*
-    * Returns the FIL state variable.
-    *
-    * Not necessarily equal to the the contract's raw FIL balance - filecoin can be forcibly sent to contracts.
-    */
+     * Returns the FIL state variable.
+     *
+     * Not necessarily equal to the the contract's raw FIL balance - filecoin can be forcibly sent to contracts.
+     */
     function getFIL() external view override returns (uint) {
         return FIL;
     }
@@ -74,7 +71,7 @@ contract DefaultPool is Ownable, CheckContract, IDefaultPool {
         emit DefaultPoolFILBalanceUpdated(FIL);
         emit EtherSent(activePool, _amount);
 
-        (bool success, ) = activePool.call{ value: _amount }("");
+        (bool success, ) = activePool.call{value: _amount}("");
         require(success, "DefaultPool: sending FIL failed");
     }
 

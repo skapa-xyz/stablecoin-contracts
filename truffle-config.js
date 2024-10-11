@@ -7,7 +7,7 @@ module.exports = {
     develop: {
       port: 7545,
       gas: 9000000,
-      network_id: 5777
+      network_id: 5777,
     },
     // test: {
     //   port: 7545,
@@ -17,13 +17,13 @@ module.exports = {
     vertigo_test_network_1: {
       host: "127.0.0.1",
       port: 8545,
-      network_id: "*"
+      network_id: "*",
     },
     vertigo_test_network_2: {
       host: "127.0.0.1",
       port: 8546,
-      network_id: "*"
-    }
+      network_id: "*",
+    },
     // test: {
     //   gas: 9000000,
     //   network_id: 4447
@@ -32,14 +32,14 @@ module.exports = {
   solc: {
     optimizer: {
       enabled: true,
-      runs: 1000
+      runs: 1000,
     },
   },
-  // use native binaries rather than solc.js 
+  // use native binaries rather than solc.js
   compilers: {
     solc: {
-      version: "0.6.11"
-    }
+      version: "0.6.11",
+    },
   },
   // plugins: [
   //   'truffle-ganache-test'
@@ -47,4 +47,4 @@ module.exports = {
   // mocha: {
   //   reporter: 'eth-gas-reporter'
   // }
-}
+};

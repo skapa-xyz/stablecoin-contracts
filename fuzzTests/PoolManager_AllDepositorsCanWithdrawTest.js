@@ -1,192 +1,221 @@
-const deploymentHelper = require("../utils/deploymentHelpers.js")
-const testHelpers = require("../utils/testHelpers.js")
+const deploymentHelper = require("../utils/deploymentHelpers.js");
+const testHelpers = require("../utils/testHelpers.js");
 
-const th = testHelpers.TestHelper
-const dec = th.dec
-const toBN = th.toBN
+const th = testHelpers.TestHelper;
+const dec = th.dec;
+const toBN = th.toBN;
 
-const ZERO_ADDRESS = th.ZERO_ADDRESS
+const ZERO_ADDRESS = th.ZERO_ADDRESS;
 
-const ZERO = toBN('0')
+const ZERO = toBN("0");
 
 /*
-* Naive fuzz test that checks whether all SP depositors can successfully withdraw from the SP, after a random sequence
-* of deposits and liquidations.
-*
-* The test cases tackle different size ranges for liquidated collateral and SP deposits.
-*/
+ * Naive fuzz test that checks whether all SP depositors can successfully withdraw from the SP, after a random sequence
+ * of deposits and liquidations.
+ *
+ * The test cases tackle different size ranges for liquidated collateral and SP deposits.
+ */
 
-contract("PoolManager - random liquidations/deposits, then check all depositors can withdraw", async accounts => {
+contract(
+  "PoolManager - random liquidations/deposits, then check all depositors can withdraw",
+  async (accounts) => {
+    const whale = accounts[accounts.length - 1];
+    const bountyAddress = accounts[998];
+    const lpRewardsAddress = accounts[999];
 
-  const whale = accounts[accounts.length - 1]
-  const bountyAddress = accounts[998]
-  const lpRewardsAddress = accounts[999]
+    let priceFeed;
+    let debtToken;
+    let troveManager;
+    let stabilityPool;
+    let sortedTroves;
+    let borrowerOperations;
 
-  let priceFeed
-  let debtToken
-  let troveManager
-  let stabilityPool
-  let sortedTroves
-  let borrowerOperations
+    const skyrocketPriceAndCheckAllTrovesSafe = async () => {
+      // price skyrockets, therefore no undercollateralized troes
+      await priceFeed.setPrice(dec(1000, 18));
+      const lowestICR = await troveManager.getCurrentICR(
+        await sortedTroves.getLast(),
+        dec(1000, 18),
+      );
+      assert.isTrue(lowestICR.gt(toBN(dec(110, 16))));
+    };
 
-  const skyrocketPriceAndCheckAllTrovesSafe = async () => {
-        // price skyrockets, therefore no undercollateralized troes
-        await priceFeed.setPrice(dec(1000, 18));
-        const lowestICR = await troveManager.getCurrentICR(await sortedTroves.getLast(), dec(1000, 18))
-        assert.isTrue(lowestICR.gt(toBN(dec(110, 16))))
-  }
-
-  const performLiquidation = async (remainingDefaulters, liquidatedAccountsDict) => {
-    if (remainingDefaulters.length === 0) { return }
-
-    const randomDefaulterIndex = Math.floor(Math.random() * (remainingDefaulters.length))
-    const randomDefaulter = remainingDefaulters[randomDefaulterIndex]
-
-    const liquidatedDebt = (await troveManager.Troves(randomDefaulter))[0]
-    const liquidatedFIL = (await troveManager.Troves(randomDefaulter))[1]
-
-    const price = await priceFeed.getPrice()
-    const ICR = (await troveManager.getCurrentICR(randomDefaulter, price)).toString()
-    const ICRPercent = ICR.slice(0, ICR.length - 16)
-
-    console.log(`SP address: ${stabilityPool.address}`)
-    const debtTokenInPoolBefore = await stabilityPool.getTotalDebtTokenDeposits()
-    const liquidatedTx = await troveManager.liquidate(randomDefaulter, { from: accounts[0] })
-    const debtTokenInPoolAfter = await stabilityPool.getTotalDebtTokenDeposits()
-
-    assert.isTrue(liquidatedTx.receipt.status)
-
-    if (liquidatedTx.receipt.status) {
-      liquidatedAccountsDict[randomDefaulter] = true
-      remainingDefaulters.splice(randomDefaulterIndex, 1)
-    }
-    if (await troveManager.checkRecoveryMode(price)) { console.log("recovery mode: TRUE") }
-
-    console.log(`Liquidation. addr: ${th.squeezeAddr(randomDefaulter)} ICR: ${ICRPercent}% coll: ${liquidatedFIL} debt: ${liquidatedDebt} SP debt token before: ${debtTokenInPoolBefore} SP debt token after: ${debtTokenInPoolAfter} tx success: ${liquidatedTx.receipt.status}`)
-  }
-
-  const performSPDeposit = async (depositorAccounts, currentDepositors, currentDepositorsDict) => {
-    const randomIndex = Math.floor(Math.random() * (depositorAccounts.length))
-    const randomDepositor = depositorAccounts[randomIndex]
-
-    const userBalance = (await debtToken.balanceOf(randomDepositor))
-    const maxDebtTokenDeposit = userBalance.div(toBN(dec(1, 18)))
-
-    const randomDebtTokenAmount = th.randAmountInWei(1, maxDebtTokenDeposit)
-
-    const depositTx = await stabilityPool.provideToSP(randomDebtTokenAmount, ZERO_ADDRESS, { from: randomDepositor })
-
-    assert.isTrue(depositTx.receipt.status)
-
-    if (depositTx.receipt.status && !currentDepositorsDict[randomDepositor]) {
-      currentDepositorsDict[randomDepositor] = true
-      currentDepositors.push(randomDepositor)
-    }
-
-    console.log(`SP deposit. addr: ${th.squeezeAddr(randomDepositor)} amount: ${randomDebtTokenAmount} tx success: ${depositTx.receipt.status} `)
-  }
-
-  const randomOperation = async (depositorAccounts,
-    remainingDefaulters,
-    currentDepositors,
-    liquidatedAccountsDict,
-    currentDepositorsDict,
-  ) => {
-    const randomSelection = Math.floor(Math.random() * 2)
-
-    if (randomSelection === 0) {
-      await performLiquidation(remainingDefaulters, liquidatedAccountsDict)
-
-    } else if (randomSelection === 1) {
-      await performSPDeposit(depositorAccounts, currentDepositors, currentDepositorsDict)
-    }
-  }
-
-  const systemContainsTroveUnder110 = async (price) => {
-    const lowestICR = await troveManager.getCurrentICR(await sortedTroves.getLast(), price)
-    console.log(`lowestICR: ${lowestICR}, lowestICR.lt(dec(110, 16)): ${lowestICR.lt(toBN(dec(110, 16)))}`)
-    return lowestICR.lt(dec(110, 16))
-  }
-
-  const systemContainsTroveUnder100 = async (price) => {
-    const lowestICR = await troveManager.getCurrentICR(await sortedTroves.getLast(), price)
-    console.log(`lowestICR: ${lowestICR}, lowestICR.lt(dec(100, 16)): ${lowestICR.lt(toBN(dec(100, 16)))}`)
-    return lowestICR.lt(dec(100, 16))
-  }
-
-  const getTotalDebtFromUndercollateralizedTroves = async (n, price) => {
-    let totalDebt = ZERO
-    let trove = await sortedTroves.getLast()
-
-    for (let i = 0; i < n; i++) {
-      const ICR = await troveManager.getCurrentICR(trove, price)
-      const debt = ICR.lt(toBN(dec(110, 16))) ? (await troveManager.getEntireDebtAndColl(trove))[0] : ZERO
-
-      totalDebt = totalDebt.add(debt)
-      trove = await sortedTroves.getPrev(trove)
-    }
-
-    return totalDebt
-  }
-
-  const clearAllUndercollateralizedTroves = async (price) => {
-    /* Somewhat arbitrary way to clear under-collateralized troves: 
-    *
-    * - If system is in Recovery Mode and contains troves with ICR < 100, whale draws the lowest trove's debt amount 
-    * and sends to lowest trove owner, who then closes their trove.
-    *
-    * - If system contains troves with ICR < 110, whale simply draws and makes an SP deposit 
-    * equal to the debt of the last 50 troves, before a liquidateTroves tx hits the last 50 troves.
-    *
-    * The intent is to avoid the system entering an endless loop where the SP is empty and debt is being forever liquidated/recycled 
-    * between active troves, and the existence of some under-collateralized troves blocks all SP depositors from withdrawing.
-    * 
-    * Since the purpose of the fuzz test is to see if SP depositors can indeed withdraw *when they should be able to*,
-    * we first need to put the system in a state with no under-collateralized troves (which are supposed to block SP withdrawals).
-    */
-    while(await systemContainsTroveUnder100(price) && await troveManager.checkRecoveryMode()) {
-      const lowestTrove = await sortedTroves.getLast()
-      const lastTroveDebt = (await troveManager.getEntireDebtAndColl(trove))[0]
-      await borrowerOperations.adjustTrove(0, 0 , lastTroveDebt, true, whale, {from: whale})
-      await debtToken.transfer(lowestTrove, lowestTroveDebt, {from: whale})
-      await borrowerOperations.closeTrove({from: lowestTrove})
-    }
-
-    while (await systemContainsTroveUnder110(price)) {
-      const debtLowest50Troves = await getTotalDebtFromUndercollateralizedTroves(50, price)
-      
-      if (debtLowest50Troves.gt(ZERO)) {
-        await borrowerOperations.adjustTrove(0, 0 , debtLowest50Troves, true, whale, {from: whale})
-        await stabilityPool.provideToSP(debtLowest50Troves, {from: whale})
+    const performLiquidation = async (remainingDefaulters, liquidatedAccountsDict) => {
+      if (remainingDefaulters.length === 0) {
+        return;
       }
-      
-      await troveManager.liquidateTroves(50)
-    }
-  }
 
-  const attemptWithdrawAllDeposits = async (currentDepositors) => {
-    // First, liquidate all remaining undercollateralized troves, so that SP depositors may withdraw
+      const randomDefaulterIndex = Math.floor(Math.random() * remainingDefaulters.length);
+      const randomDefaulter = remainingDefaulters[randomDefaulterIndex];
 
-    console.log("\n")
-    console.log("--- Attempt to withdraw all deposits ---")
-    console.log(`Depositors count: ${currentDepositors.length}`)
+      const liquidatedDebt = (await troveManager.Troves(randomDefaulter))[0];
+      const liquidatedFIL = (await troveManager.Troves(randomDefaulter))[1];
 
-    for (depositor of currentDepositors) {
-      const initialDeposit = (await stabilityPool.deposits(depositor))[0]
-      const finalDeposit = await stabilityPool.getCompoundedDebtTokenDeposit(depositor)
-      const FILGain = await stabilityPool.getDepositorFILGain(depositor)
-      const FILinSP = (await stabilityPool.getFIL()).toString()
-      const DebtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString()
+      const price = await priceFeed.getPrice();
+      const ICR = (await troveManager.getCurrentICR(randomDefaulter, price)).toString();
+      const ICRPercent = ICR.slice(0, ICR.length - 16);
 
-      // Attempt to withdraw
-      const withdrawalTx = await stabilityPool.withdrawFromSP(dec(1, 36), { from: depositor })
+      console.log(`SP address: ${stabilityPool.address}`);
+      const debtTokenInPoolBefore = await stabilityPool.getTotalDebtTokenDeposits();
+      const liquidatedTx = await troveManager.liquidate(randomDefaulter, { from: accounts[0] });
+      const debtTokenInPoolAfter = await stabilityPool.getTotalDebtTokenDeposits();
 
-      const FILinSPAfter = (await stabilityPool.getFIL()).toString()
-      const DebtTokenInSPAfter = (await stabilityPool.getTotalDebtTokenDeposits()).toString()
-      const debtTokenBalanceSPAfter = (await debtToken.balanceOf(stabilityPool.address))
-      const depositAfter = await stabilityPool.getCompoundedDebtTokenDeposit(depositor)
+      assert.isTrue(liquidatedTx.receipt.status);
 
-      console.log(`--Before withdrawal--
+      if (liquidatedTx.receipt.status) {
+        liquidatedAccountsDict[randomDefaulter] = true;
+        remainingDefaulters.splice(randomDefaulterIndex, 1);
+      }
+      if (await troveManager.checkRecoveryMode(price)) {
+        console.log("recovery mode: TRUE");
+      }
+
+      console.log(
+        `Liquidation. addr: ${th.squeezeAddr(randomDefaulter)} ICR: ${ICRPercent}% coll: ${liquidatedFIL} debt: ${liquidatedDebt} SP debt token before: ${debtTokenInPoolBefore} SP debt token after: ${debtTokenInPoolAfter} tx success: ${liquidatedTx.receipt.status}`,
+      );
+    };
+
+    const performSPDeposit = async (
+      depositorAccounts,
+      currentDepositors,
+      currentDepositorsDict,
+    ) => {
+      const randomIndex = Math.floor(Math.random() * depositorAccounts.length);
+      const randomDepositor = depositorAccounts[randomIndex];
+
+      const userBalance = await debtToken.balanceOf(randomDepositor);
+      const maxDebtTokenDeposit = userBalance.div(toBN(dec(1, 18)));
+
+      const randomDebtTokenAmount = th.randAmountInWei(1, maxDebtTokenDeposit);
+
+      const depositTx = await stabilityPool.provideToSP(randomDebtTokenAmount, ZERO_ADDRESS, {
+        from: randomDepositor,
+      });
+
+      assert.isTrue(depositTx.receipt.status);
+
+      if (depositTx.receipt.status && !currentDepositorsDict[randomDepositor]) {
+        currentDepositorsDict[randomDepositor] = true;
+        currentDepositors.push(randomDepositor);
+      }
+
+      console.log(
+        `SP deposit. addr: ${th.squeezeAddr(randomDepositor)} amount: ${randomDebtTokenAmount} tx success: ${depositTx.receipt.status} `,
+      );
+    };
+
+    const randomOperation = async (
+      depositorAccounts,
+      remainingDefaulters,
+      currentDepositors,
+      liquidatedAccountsDict,
+      currentDepositorsDict,
+    ) => {
+      const randomSelection = Math.floor(Math.random() * 2);
+
+      if (randomSelection === 0) {
+        await performLiquidation(remainingDefaulters, liquidatedAccountsDict);
+      } else if (randomSelection === 1) {
+        await performSPDeposit(depositorAccounts, currentDepositors, currentDepositorsDict);
+      }
+    };
+
+    const systemContainsTroveUnder110 = async (price) => {
+      const lowestICR = await troveManager.getCurrentICR(await sortedTroves.getLast(), price);
+      console.log(
+        `lowestICR: ${lowestICR}, lowestICR.lt(dec(110, 16)): ${lowestICR.lt(toBN(dec(110, 16)))}`,
+      );
+      return lowestICR.lt(dec(110, 16));
+    };
+
+    const systemContainsTroveUnder100 = async (price) => {
+      const lowestICR = await troveManager.getCurrentICR(await sortedTroves.getLast(), price);
+      console.log(
+        `lowestICR: ${lowestICR}, lowestICR.lt(dec(100, 16)): ${lowestICR.lt(toBN(dec(100, 16)))}`,
+      );
+      return lowestICR.lt(dec(100, 16));
+    };
+
+    const getTotalDebtFromUndercollateralizedTroves = async (n, price) => {
+      let totalDebt = ZERO;
+      let trove = await sortedTroves.getLast();
+
+      for (let i = 0; i < n; i++) {
+        const ICR = await troveManager.getCurrentICR(trove, price);
+        const debt = ICR.lt(toBN(dec(110, 16)))
+          ? (await troveManager.getEntireDebtAndColl(trove))[0]
+          : ZERO;
+
+        totalDebt = totalDebt.add(debt);
+        trove = await sortedTroves.getPrev(trove);
+      }
+
+      return totalDebt;
+    };
+
+    const clearAllUndercollateralizedTroves = async (price) => {
+      /* Somewhat arbitrary way to clear under-collateralized troves:
+       *
+       * - If system is in Recovery Mode and contains troves with ICR < 100, whale draws the lowest trove's debt amount
+       * and sends to lowest trove owner, who then closes their trove.
+       *
+       * - If system contains troves with ICR < 110, whale simply draws and makes an SP deposit
+       * equal to the debt of the last 50 troves, before a liquidateTroves tx hits the last 50 troves.
+       *
+       * The intent is to avoid the system entering an endless loop where the SP is empty and debt is being forever liquidated/recycled
+       * between active troves, and the existence of some under-collateralized troves blocks all SP depositors from withdrawing.
+       *
+       * Since the purpose of the fuzz test is to see if SP depositors can indeed withdraw *when they should be able to*,
+       * we first need to put the system in a state with no under-collateralized troves (which are supposed to block SP withdrawals).
+       */
+      while (
+        (await systemContainsTroveUnder100(price)) &&
+        (await troveManager.checkRecoveryMode())
+      ) {
+        const lowestTrove = await sortedTroves.getLast();
+        const lastTroveDebt = (await troveManager.getEntireDebtAndColl(trove))[0];
+        await borrowerOperations.adjustTrove(0, 0, lastTroveDebt, true, whale, { from: whale });
+        await debtToken.transfer(lowestTrove, lowestTroveDebt, { from: whale });
+        await borrowerOperations.closeTrove({ from: lowestTrove });
+      }
+
+      while (await systemContainsTroveUnder110(price)) {
+        const debtLowest50Troves = await getTotalDebtFromUndercollateralizedTroves(50, price);
+
+        if (debtLowest50Troves.gt(ZERO)) {
+          await borrowerOperations.adjustTrove(0, 0, debtLowest50Troves, true, whale, {
+            from: whale,
+          });
+          await stabilityPool.provideToSP(debtLowest50Troves, { from: whale });
+        }
+
+        await troveManager.liquidateTroves(50);
+      }
+    };
+
+    const attemptWithdrawAllDeposits = async (currentDepositors) => {
+      // First, liquidate all remaining undercollateralized troves, so that SP depositors may withdraw
+
+      console.log("\n");
+      console.log("--- Attempt to withdraw all deposits ---");
+      console.log(`Depositors count: ${currentDepositors.length}`);
+
+      for (depositor of currentDepositors) {
+        const initialDeposit = (await stabilityPool.deposits(depositor))[0];
+        const finalDeposit = await stabilityPool.getCompoundedDebtTokenDeposit(depositor);
+        const FILGain = await stabilityPool.getDepositorFILGain(depositor);
+        const FILinSP = (await stabilityPool.getFIL()).toString();
+        const DebtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
+
+        // Attempt to withdraw
+        const withdrawalTx = await stabilityPool.withdrawFromSP(dec(1, 36), { from: depositor });
+
+        const FILinSPAfter = (await stabilityPool.getFIL()).toString();
+        const DebtTokenInSPAfter = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
+        const debtTokenBalanceSPAfter = await debtToken.balanceOf(stabilityPool.address);
+        const depositAfter = await stabilityPool.getCompoundedDebtTokenDeposit(depositor);
+
+        console.log(`--Before withdrawal--
                     withdrawer addr: ${th.squeezeAddr(depositor)}
                      initial deposit: ${initialDeposit}
                      FIL gain: ${FILGain}
@@ -200,333 +229,392 @@ contract("PoolManager - random liquidations/deposits, then check all depositors 
                      FIL remaining in SP: ${FILinSPAfter}
                      SP debt token deposits tracker after: ${DebtTokenInSPAfter}
                      SP debt token balance after: ${debtTokenBalanceSPAfter}
-                     `)
-      // Check each deposit can be withdrawn
-      assert.isTrue(withdrawalTx.receipt.status)
-      assert.equal(depositAfter, '0')
-    }
-  }
-
-  describe("Stability Pool Withdrawals", async () => {
-
-    before(async () => {
-      console.log(`Number of accounts: ${accounts.length}`)
-    })
-
-    beforeEach(async () => {
-      contracts = await deploymentHelper.deployLiquityCore()
-      const LQTYContracts = await deploymentHelper.deployLQTYContracts(bountyAddress, lpRewardsAddress)
-
-      stabilityPool = contracts.stabilityPool
-      priceFeed = contracts.priceFeedTestnet
-      debtToken = contracts.debtToken
-      stabilityPool = contracts.stabilityPool
-      troveManager = contracts.troveManager
-      borrowerOperations = contracts.borrowerOperations
-      sortedTroves = contracts.sortedTroves
-
-      await deploymentHelper.connectLQTYContracts(LQTYContracts)
-      await deploymentHelper.connectCoreContracts(contracts, LQTYContracts)
-      await deploymentHelper.connectLQTYContractsToCore(LQTYContracts, contracts)
-    })
-
-    // mixed deposits/liquidations
-
-    // ranges: low-low, low-high, high-low, high-high, full-full
-
-    // full offsets, partial offsets
-    // ensure full offset with whale2 in S
-    // ensure partial offset with whale 3 in L
-
-    it("Defaulters' Collateral in range [1, 1e8]. SP Deposits in range [100, 1e10]. FIL:USD = 100", async () => {
-      // whale adds coll that holds TCR > 150%
-      await borrowerOperations.openTrove(0, 0, whale, whale, { from: whale, value: dec(5, 29) })
-
-      const numberOfOps = 5
-      const defaulterAccounts = accounts.slice(1, numberOfOps)
-      const depositorAccounts = accounts.slice(numberOfOps + 1, numberOfOps * 2)
-
-      const defaulterCollMin = 1
-      const defaulterCollMax = 100000000
-      const defaulterDebtTokenProportionMin = 91
-      const defaulterDebtTokenProportionMax = 180
-
-      const depositorCollMin = 1
-      const depositorCollMax = 100000000
-      const depositorDebtTokenProportionMin = 100
-      const depositorDebtTokenProportionMax = 100
-
-      const remainingDefaulters = [...defaulterAccounts]
-      const currentDepositors = []
-      const liquidatedAccountsDict = {}
-      const currentDepositorsDict = {}
-
-      // setup:
-      // account set L all add coll and withdraw debt tokens
-      await th.openTrove_allAccounts_randomFIL_randomDebtToken(defaulterCollMin,
-        defaulterCollMax,
-        defaulterAccounts,
-        contracts,
-        defaulterDebtTokenProportionMin,
-        defaulterDebtTokenProportionMax,
-        true)
-
-      // account set S all add coll and withdraw debt tokens
-      await th.openTrove_allAccounts_randomFIL_randomDebtToken(depositorCollMin,
-        depositorCollMax,
-        depositorAccounts,
-        contracts,
-        depositorDebtTokenProportionMin,
-        depositorDebtTokenProportionMax,
-        true)
-
-      // price drops, all L liquidateable
-      await priceFeed.setPrice(dec(1, 18));
-
-      // Random sequence of operations: liquidations and SP deposits
-      for (i = 0; i < numberOfOps; i++) {
-        await randomOperation(depositorAccounts,
-          remainingDefaulters,
-          currentDepositors,
-          liquidatedAccountsDict,
-          currentDepositorsDict)
+                     `);
+        // Check each deposit can be withdrawn
+        assert.isTrue(withdrawalTx.receipt.status);
+        assert.equal(depositAfter, "0");
       }
+    };
 
-      await skyrocketPriceAndCheckAllTrovesSafe()
+    describe("Stability Pool Withdrawals", async () => {
+      before(async () => {
+        console.log(`Number of accounts: ${accounts.length}`);
+      });
 
-      const totalDebtTokenDepositsBeforeWithdrawals = await stabilityPool.getTotalDebtTokenDeposits()
-      const totalFILRewardsBeforeWithdrawals = await stabilityPool.getFIL()
+      beforeEach(async () => {
+        contracts = await deploymentHelper.deployLiquityCore();
+        const LQTYContracts = await deploymentHelper.deployLQTYContracts(
+          bountyAddress,
+          lpRewardsAddress,
+        );
 
-      await attemptWithdrawAllDeposits(currentDepositors)
+        stabilityPool = contracts.stabilityPool;
+        priceFeed = contracts.priceFeedTestnet;
+        debtToken = contracts.debtToken;
+        stabilityPool = contracts.stabilityPool;
+        troveManager = contracts.troveManager;
+        borrowerOperations = contracts.borrowerOperations;
+        sortedTroves = contracts.sortedTroves;
 
-      const totalDebtTokenDepositsAfterWithdrawals = await stabilityPool.getTotalDebtTokenDeposits()
-      const totalFILRewardsAfterWithdrawals = await stabilityPool.getFIL()
+        await deploymentHelper.connectLQTYContracts(LQTYContracts);
+        await deploymentHelper.connectCoreContracts(contracts, LQTYContracts);
+        await deploymentHelper.connectLQTYContractsToCore(LQTYContracts, contracts);
+      });
 
-      console.log(`Total debt token deposits before any withdrawals: ${totalDebtTokenDepositsBeforeWithdrawals}`)
-      console.log(`Total FIL rewards before any withdrawals: ${totalFILRewardsBeforeWithdrawals}`)
+      // mixed deposits/liquidations
 
-      console.log(`Remaining debt token deposits after withdrawals: ${totalDebtTokenDepositsAfterWithdrawals}`)
-      console.log(`Remaining FIL rewards after withdrawals: ${totalFILRewardsAfterWithdrawals}`)
+      // ranges: low-low, low-high, high-low, high-high, full-full
 
-      console.log(`current depositors length: ${currentDepositors.length}`)
-      console.log(`remaining defaulters length: ${remainingDefaulters.length}`)
-    })
+      // full offsets, partial offsets
+      // ensure full offset with whale2 in S
+      // ensure partial offset with whale 3 in L
 
-    it("Defaulters' Collateral in range [1, 10]. SP Deposits in range [1e8, 1e10]. FIL:USD = 100", async () => {
-      // whale adds coll that holds TCR > 150%
-      await borrowerOperations.openTrove(0, 0, whale, whale, { from: whale, value: dec(5, 29) })
+      it("Defaulters' Collateral in range [1, 1e8]. SP Deposits in range [100, 1e10]. FIL:USD = 100", async () => {
+        // whale adds coll that holds TCR > 150%
+        await borrowerOperations.openTrove(0, 0, whale, whale, { from: whale, value: dec(5, 29) });
 
-      const numberOfOps = 5
-      const defaulterAccounts = accounts.slice(1, numberOfOps)
-      const depositorAccounts = accounts.slice(numberOfOps + 1, numberOfOps * 2)
+        const numberOfOps = 5;
+        const defaulterAccounts = accounts.slice(1, numberOfOps);
+        const depositorAccounts = accounts.slice(numberOfOps + 1, numberOfOps * 2);
 
-      const defaulterCollMin = 1
-      const defaulterCollMax = 10
-      const defaulterDebtTokenProportionMin = 91
-      const defaulterDebtTokenProportionMax = 180
+        const defaulterCollMin = 1;
+        const defaulterCollMax = 100000000;
+        const defaulterDebtTokenProportionMin = 91;
+        const defaulterDebtTokenProportionMax = 180;
 
-      const depositorCollMin = 1000000
-      const depositorCollMax = 100000000
-      const depositorDebtTokenProportionMin = 100
-      const depositorDebtTokenProportionMax = 100
+        const depositorCollMin = 1;
+        const depositorCollMax = 100000000;
+        const depositorDebtTokenProportionMin = 100;
+        const depositorDebtTokenProportionMax = 100;
 
-      const remainingDefaulters = [...defaulterAccounts]
-      const currentDepositors = []
-      const liquidatedAccountsDict = {}
-      const currentDepositorsDict = {}
+        const remainingDefaulters = [...defaulterAccounts];
+        const currentDepositors = [];
+        const liquidatedAccountsDict = {};
+        const currentDepositorsDict = {};
 
-      // setup:
-      // account set L all add coll and withdraw debt tokens
-      await th.openTrove_allAccounts_randomFIL_randomDebtToken(defaulterCollMin,
-        defaulterCollMax,
-        defaulterAccounts,
-        contracts,
-        defaulterDebtTokenProportionMin,
-        defaulterDebtTokenProportionMax)
+        // setup:
+        // account set L all add coll and withdraw debt tokens
+        await th.openTrove_allAccounts_randomFIL_randomDebtToken(
+          defaulterCollMin,
+          defaulterCollMax,
+          defaulterAccounts,
+          contracts,
+          defaulterDebtTokenProportionMin,
+          defaulterDebtTokenProportionMax,
+          true,
+        );
 
-      // account set S all add coll and withdraw debt tokens
-      await th.openTrove_allAccounts_randomFIL_randomDebtToken(depositorCollMin,
-        depositorCollMax,
-        depositorAccounts,
-        contracts,
-        depositorDebtTokenProportionMin,
-        depositorDebtTokenProportionMax)
+        // account set S all add coll and withdraw debt tokens
+        await th.openTrove_allAccounts_randomFIL_randomDebtToken(
+          depositorCollMin,
+          depositorCollMax,
+          depositorAccounts,
+          contracts,
+          depositorDebtTokenProportionMin,
+          depositorDebtTokenProportionMax,
+          true,
+        );
 
-      // price drops, all L liquidateable
-      await priceFeed.setPrice(dec(100, 18));
+        // price drops, all L liquidateable
+        await priceFeed.setPrice(dec(1, 18));
 
-      // Random sequence of operations: liquidations and SP deposits
-      for (i = 0; i < numberOfOps; i++) {
-        await randomOperation(depositorAccounts,
-          remainingDefaulters,
-          currentDepositors,
-          liquidatedAccountsDict,
-          currentDepositorsDict)
-      }
+        // Random sequence of operations: liquidations and SP deposits
+        for (i = 0; i < numberOfOps; i++) {
+          await randomOperation(
+            depositorAccounts,
+            remainingDefaulters,
+            currentDepositors,
+            liquidatedAccountsDict,
+            currentDepositorsDict,
+          );
+        }
 
-      await skyrocketPriceAndCheckAllTrovesSafe()
+        await skyrocketPriceAndCheckAllTrovesSafe();
 
-      const totalDebtTokenDepositsBeforeWithdrawals = await stabilityPool.getTotalDebtTokenDeposits()
-      const totalFILRewardsBeforeWithdrawals = await stabilityPool.getFIL()
+        const totalDebtTokenDepositsBeforeWithdrawals =
+          await stabilityPool.getTotalDebtTokenDeposits();
+        const totalFILRewardsBeforeWithdrawals = await stabilityPool.getFIL();
 
-      await attemptWithdrawAllDeposits(currentDepositors)
+        await attemptWithdrawAllDeposits(currentDepositors);
 
-      const totalDebtTokenDepositsAfterWithdrawals = await stabilityPool.getTotalDebtTokenDeposits()
-      const totalFILRewardsAfterWithdrawals = await stabilityPool.getFIL()
+        const totalDebtTokenDepositsAfterWithdrawals =
+          await stabilityPool.getTotalDebtTokenDeposits();
+        const totalFILRewardsAfterWithdrawals = await stabilityPool.getFIL();
 
-      console.log(`Total debt token deposits before any withdrawals: ${totalDebtTokenDepositsBeforeWithdrawals}`)
-      console.log(`Total FIL rewards before any withdrawals: ${totalFILRewardsBeforeWithdrawals}`)
+        console.log(
+          `Total debt token deposits before any withdrawals: ${totalDebtTokenDepositsBeforeWithdrawals}`,
+        );
+        console.log(
+          `Total FIL rewards before any withdrawals: ${totalFILRewardsBeforeWithdrawals}`,
+        );
 
-      console.log(`Remaining debt token deposits after withdrawals: ${totalDebtTokenDepositsAfterWithdrawals}`)
-      console.log(`Remaining FIL rewards after withdrawals: ${totalFILRewardsAfterWithdrawals}`)
+        console.log(
+          `Remaining debt token deposits after withdrawals: ${totalDebtTokenDepositsAfterWithdrawals}`,
+        );
+        console.log(`Remaining FIL rewards after withdrawals: ${totalFILRewardsAfterWithdrawals}`);
 
-      console.log(`current depositors length: ${currentDepositors.length}`)
-      console.log(`remaining defaulters length: ${remainingDefaulters.length}`)
-    })
+        console.log(`current depositors length: ${currentDepositors.length}`);
+        console.log(`remaining defaulters length: ${remainingDefaulters.length}`);
+      });
 
-    it("Defaulters' Collateral in range [1e6, 1e8]. SP Deposits in range [100, 1000]. Every liquidation empties the Pool. FIL:USD = 100", async () => {
-      // whale adds coll that holds TCR > 150%
-      await borrowerOperations.openTrove(0, 0, whale, whale, { from: whale, value: dec(5, 29) })
+      it("Defaulters' Collateral in range [1, 10]. SP Deposits in range [1e8, 1e10]. FIL:USD = 100", async () => {
+        // whale adds coll that holds TCR > 150%
+        await borrowerOperations.openTrove(0, 0, whale, whale, { from: whale, value: dec(5, 29) });
 
-      const numberOfOps = 5
-      const defaulterAccounts = accounts.slice(1, numberOfOps)
-      const depositorAccounts = accounts.slice(numberOfOps + 1, numberOfOps * 2)
+        const numberOfOps = 5;
+        const defaulterAccounts = accounts.slice(1, numberOfOps);
+        const depositorAccounts = accounts.slice(numberOfOps + 1, numberOfOps * 2);
 
-      const defaulterCollMin = 1000000
-      const defaulterCollMax = 100000000
-      const defaulterDebtTokenProportionMin = 91
-      const defaulterDebtTokenProportionMax = 180
+        const defaulterCollMin = 1;
+        const defaulterCollMax = 10;
+        const defaulterDebtTokenProportionMin = 91;
+        const defaulterDebtTokenProportionMax = 180;
 
-      const depositorCollMin = 1
-      const depositorCollMax = 10
-      const depositorDebtTokenProportionMin = 100
-      const depositorDebtTokenProportionMax = 100
+        const depositorCollMin = 1000000;
+        const depositorCollMax = 100000000;
+        const depositorDebtTokenProportionMin = 100;
+        const depositorDebtTokenProportionMax = 100;
 
-      const remainingDefaulters = [...defaulterAccounts]
-      const currentDepositors = []
-      const liquidatedAccountsDict = {}
-      const currentDepositorsDict = {}
+        const remainingDefaulters = [...defaulterAccounts];
+        const currentDepositors = [];
+        const liquidatedAccountsDict = {};
+        const currentDepositorsDict = {};
 
-      // setup:
-      // account set L all add coll and withdraw debt tokens
-      await th.openTrove_allAccounts_randomFIL_randomDebtToken(defaulterCollMin,
-        defaulterCollMax,
-        defaulterAccounts,
-        contracts,
-        defaulterDebtTokenProportionMin,
-        defaulterDebtTokenProportionMax)
+        // setup:
+        // account set L all add coll and withdraw debt tokens
+        await th.openTrove_allAccounts_randomFIL_randomDebtToken(
+          defaulterCollMin,
+          defaulterCollMax,
+          defaulterAccounts,
+          contracts,
+          defaulterDebtTokenProportionMin,
+          defaulterDebtTokenProportionMax,
+        );
 
-      // account set S all add coll and withdraw debt tokens
-      await th.openTrove_allAccounts_randomFIL_randomDebtToken(depositorCollMin,
-        depositorCollMax,
-        depositorAccounts,
-        contracts,
-        depositorDebtTokenProportionMin,
-        depositorDebtTokenProportionMax)
+        // account set S all add coll and withdraw debt tokens
+        await th.openTrove_allAccounts_randomFIL_randomDebtToken(
+          depositorCollMin,
+          depositorCollMax,
+          depositorAccounts,
+          contracts,
+          depositorDebtTokenProportionMin,
+          depositorDebtTokenProportionMax,
+        );
 
-      // price drops, all L liquidateable
-      await priceFeed.setPrice(dec(100, 18));
+        // price drops, all L liquidateable
+        await priceFeed.setPrice(dec(100, 18));
 
-      // Random sequence of operations: liquidations and SP deposits
-      for (i = 0; i < numberOfOps; i++) {
-        await randomOperation(depositorAccounts,
-          remainingDefaulters,
-          currentDepositors,
-          liquidatedAccountsDict,
-          currentDepositorsDict)
-      }
+        // Random sequence of operations: liquidations and SP deposits
+        for (i = 0; i < numberOfOps; i++) {
+          await randomOperation(
+            depositorAccounts,
+            remainingDefaulters,
+            currentDepositors,
+            liquidatedAccountsDict,
+            currentDepositorsDict,
+          );
+        }
 
-      await skyrocketPriceAndCheckAllTrovesSafe()
+        await skyrocketPriceAndCheckAllTrovesSafe();
 
-      const totalDebtTokenDepositsBeforeWithdrawals = await stabilityPool.getTotalDebtTokenDeposits()
-      const totalFILRewardsBeforeWithdrawals = await stabilityPool.getFIL()
+        const totalDebtTokenDepositsBeforeWithdrawals =
+          await stabilityPool.getTotalDebtTokenDeposits();
+        const totalFILRewardsBeforeWithdrawals = await stabilityPool.getFIL();
 
-      await attemptWithdrawAllDeposits(currentDepositors)
+        await attemptWithdrawAllDeposits(currentDepositors);
 
-      const totalDebtTokenDepositsAfterWithdrawals = await stabilityPool.getTotalDebtTokenDeposits()
-      const totalFILRewardsAfterWithdrawals = await stabilityPool.getFIL()
+        const totalDebtTokenDepositsAfterWithdrawals =
+          await stabilityPool.getTotalDebtTokenDeposits();
+        const totalFILRewardsAfterWithdrawals = await stabilityPool.getFIL();
 
-      console.log(`Total debt token deposits before any withdrawals: ${totalDebtTokenDepositsBeforeWithdrawals}`)
-      console.log(`Total FIL rewards before any withdrawals: ${totalFILRewardsBeforeWithdrawals}`)
+        console.log(
+          `Total debt token deposits before any withdrawals: ${totalDebtTokenDepositsBeforeWithdrawals}`,
+        );
+        console.log(
+          `Total FIL rewards before any withdrawals: ${totalFILRewardsBeforeWithdrawals}`,
+        );
 
-      console.log(`Remaining debt token deposits after withdrawals: ${totalDebtTokenDepositsAfterWithdrawals}`)
-      console.log(`Remaining FIL rewards after withdrawals: ${totalFILRewardsAfterWithdrawals}`)
+        console.log(
+          `Remaining debt token deposits after withdrawals: ${totalDebtTokenDepositsAfterWithdrawals}`,
+        );
+        console.log(`Remaining FIL rewards after withdrawals: ${totalFILRewardsAfterWithdrawals}`);
 
-      console.log(`current depositors length: ${currentDepositors.length}`)
-      console.log(`remaining defaulters length: ${remainingDefaulters.length}`)
-    })
+        console.log(`current depositors length: ${currentDepositors.length}`);
+        console.log(`remaining defaulters length: ${remainingDefaulters.length}`);
+      });
 
-    it("Defaulters' Collateral in range [1e6, 1e8]. SP Deposits in range [1e8 1e10]. FIL:USD = 100", async () => {
-      // whale adds coll that holds TCR > 150%
-      await borrowerOperations.openTrove(0, 0, whale, whale, { from: whale, value: dec(5, 29) })
+      it("Defaulters' Collateral in range [1e6, 1e8]. SP Deposits in range [100, 1000]. Every liquidation empties the Pool. FIL:USD = 100", async () => {
+        // whale adds coll that holds TCR > 150%
+        await borrowerOperations.openTrove(0, 0, whale, whale, { from: whale, value: dec(5, 29) });
 
-      // price drops, all L liquidateable
-      const numberOfOps = 5
-      const defaulterAccounts = accounts.slice(1, numberOfOps)
-      const depositorAccounts = accounts.slice(numberOfOps + 1, numberOfOps * 2)
+        const numberOfOps = 5;
+        const defaulterAccounts = accounts.slice(1, numberOfOps);
+        const depositorAccounts = accounts.slice(numberOfOps + 1, numberOfOps * 2);
 
-      const defaulterCollMin = 1000000
-      const defaulterCollMax = 100000000
-      const defaulterDebtTokenProportionMin = 91
-      const defaulterDebtTokenProportionMax = 180
+        const defaulterCollMin = 1000000;
+        const defaulterCollMax = 100000000;
+        const defaulterDebtTokenProportionMin = 91;
+        const defaulterDebtTokenProportionMax = 180;
 
-      const depositorCollMin = 1000000
-      const depositorCollMax = 100000000
-      const depositorDebtTokenProportionMin = 100
-      const depositorDebtTokenProportionMax = 100
+        const depositorCollMin = 1;
+        const depositorCollMax = 10;
+        const depositorDebtTokenProportionMin = 100;
+        const depositorDebtTokenProportionMax = 100;
 
-      const remainingDefaulters = [...defaulterAccounts]
-      const currentDepositors = []
-      const liquidatedAccountsDict = {}
-      const currentDepositorsDict = {}
+        const remainingDefaulters = [...defaulterAccounts];
+        const currentDepositors = [];
+        const liquidatedAccountsDict = {};
+        const currentDepositorsDict = {};
 
-      // setup:
-      // account set L all add coll and withdraw debt tokens
-      await th.openTrove_allAccounts_randomFIL_randomDebtToken(defaulterCollMin,
-        defaulterCollMax,
-        defaulterAccounts,
-        contracts,
-        defaulterDebtTokenProportionMin,
-        defaulterDebtTokenProportionMax)
+        // setup:
+        // account set L all add coll and withdraw debt tokens
+        await th.openTrove_allAccounts_randomFIL_randomDebtToken(
+          defaulterCollMin,
+          defaulterCollMax,
+          defaulterAccounts,
+          contracts,
+          defaulterDebtTokenProportionMin,
+          defaulterDebtTokenProportionMax,
+        );
 
-      // account set S all add coll and withdraw debt tokens
-      await th.openTrove_allAccounts_randomFIL_randomDebtToken(depositorCollMin,
-        depositorCollMax,
-        depositorAccounts,
-        contracts,
-        depositorDebtTokenProportionMin,
-        depositorDebtTokenProportionMax)
+        // account set S all add coll and withdraw debt tokens
+        await th.openTrove_allAccounts_randomFIL_randomDebtToken(
+          depositorCollMin,
+          depositorCollMax,
+          depositorAccounts,
+          contracts,
+          depositorDebtTokenProportionMin,
+          depositorDebtTokenProportionMax,
+        );
 
-      // price drops, all L liquidateable
-      await priceFeed.setPrice(dec(100, 18));
+        // price drops, all L liquidateable
+        await priceFeed.setPrice(dec(100, 18));
 
-      // Random sequence of operations: liquidations and SP deposits
-      for (i = 0; i < numberOfOps; i++) {
-        await randomOperation(depositorAccounts,
-          remainingDefaulters,
-          currentDepositors,
-          liquidatedAccountsDict,
-          currentDepositorsDict)
-      }
+        // Random sequence of operations: liquidations and SP deposits
+        for (i = 0; i < numberOfOps; i++) {
+          await randomOperation(
+            depositorAccounts,
+            remainingDefaulters,
+            currentDepositors,
+            liquidatedAccountsDict,
+            currentDepositorsDict,
+          );
+        }
 
-      await skyrocketPriceAndCheckAllTrovesSafe()
+        await skyrocketPriceAndCheckAllTrovesSafe();
 
-      const totalDebtTokenDepositsBeforeWithdrawals = await stabilityPool.getTotalDebtTokenDeposits()
-      const totalFILRewardsBeforeWithdrawals = await stabilityPool.getFIL()
+        const totalDebtTokenDepositsBeforeWithdrawals =
+          await stabilityPool.getTotalDebtTokenDeposits();
+        const totalFILRewardsBeforeWithdrawals = await stabilityPool.getFIL();
 
-      await attemptWithdrawAllDeposits(currentDepositors)
+        await attemptWithdrawAllDeposits(currentDepositors);
 
-      const totalDebtTokenDepositsAfterWithdrawals = await stabilityPool.getTotalDebtTokenDeposits()
-      const totalFILRewardsAfterWithdrawals = await stabilityPool.getFIL()
+        const totalDebtTokenDepositsAfterWithdrawals =
+          await stabilityPool.getTotalDebtTokenDeposits();
+        const totalFILRewardsAfterWithdrawals = await stabilityPool.getFIL();
 
-      console.log(`Total debt token deposits before any withdrawals: ${totalDebtTokenDepositsBeforeWithdrawals}`)
-      console.log(`Total FIL rewards before any withdrawals: ${totalFILRewardsBeforeWithdrawals}`)
+        console.log(
+          `Total debt token deposits before any withdrawals: ${totalDebtTokenDepositsBeforeWithdrawals}`,
+        );
+        console.log(
+          `Total FIL rewards before any withdrawals: ${totalFILRewardsBeforeWithdrawals}`,
+        );
 
-      console.log(`Remaining debt token deposits after withdrawals: ${totalDebtTokenDepositsAfterWithdrawals}`)
-      console.log(`Remaining FIL rewards after withdrawals: ${totalFILRewardsAfterWithdrawals}`)
+        console.log(
+          `Remaining debt token deposits after withdrawals: ${totalDebtTokenDepositsAfterWithdrawals}`,
+        );
+        console.log(`Remaining FIL rewards after withdrawals: ${totalFILRewardsAfterWithdrawals}`);
 
-      console.log(`current depositors length: ${currentDepositors.length}`)
-      console.log(`remaining defaulters length: ${remainingDefaulters.length}`)
-    })
-  })
-})
+        console.log(`current depositors length: ${currentDepositors.length}`);
+        console.log(`remaining defaulters length: ${remainingDefaulters.length}`);
+      });
+
+      it("Defaulters' Collateral in range [1e6, 1e8]. SP Deposits in range [1e8 1e10]. FIL:USD = 100", async () => {
+        // whale adds coll that holds TCR > 150%
+        await borrowerOperations.openTrove(0, 0, whale, whale, { from: whale, value: dec(5, 29) });
+
+        // price drops, all L liquidateable
+        const numberOfOps = 5;
+        const defaulterAccounts = accounts.slice(1, numberOfOps);
+        const depositorAccounts = accounts.slice(numberOfOps + 1, numberOfOps * 2);
+
+        const defaulterCollMin = 1000000;
+        const defaulterCollMax = 100000000;
+        const defaulterDebtTokenProportionMin = 91;
+        const defaulterDebtTokenProportionMax = 180;
+
+        const depositorCollMin = 1000000;
+        const depositorCollMax = 100000000;
+        const depositorDebtTokenProportionMin = 100;
+        const depositorDebtTokenProportionMax = 100;
+
+        const remainingDefaulters = [...defaulterAccounts];
+        const currentDepositors = [];
+        const liquidatedAccountsDict = {};
+        const currentDepositorsDict = {};
+
+        // setup:
+        // account set L all add coll and withdraw debt tokens
+        await th.openTrove_allAccounts_randomFIL_randomDebtToken(
+          defaulterCollMin,
+          defaulterCollMax,
+          defaulterAccounts,
+          contracts,
+          defaulterDebtTokenProportionMin,
+          defaulterDebtTokenProportionMax,
+        );
+
+        // account set S all add coll and withdraw debt tokens
+        await th.openTrove_allAccounts_randomFIL_randomDebtToken(
+          depositorCollMin,
+          depositorCollMax,
+          depositorAccounts,
+          contracts,
+          depositorDebtTokenProportionMin,
+          depositorDebtTokenProportionMax,
+        );
+
+        // price drops, all L liquidateable
+        await priceFeed.setPrice(dec(100, 18));
+
+        // Random sequence of operations: liquidations and SP deposits
+        for (i = 0; i < numberOfOps; i++) {
+          await randomOperation(
+            depositorAccounts,
+            remainingDefaulters,
+            currentDepositors,
+            liquidatedAccountsDict,
+            currentDepositorsDict,
+          );
+        }
+
+        await skyrocketPriceAndCheckAllTrovesSafe();
+
+        const totalDebtTokenDepositsBeforeWithdrawals =
+          await stabilityPool.getTotalDebtTokenDeposits();
+        const totalFILRewardsBeforeWithdrawals = await stabilityPool.getFIL();
+
+        await attemptWithdrawAllDeposits(currentDepositors);
+
+        const totalDebtTokenDepositsAfterWithdrawals =
+          await stabilityPool.getTotalDebtTokenDeposits();
+        const totalFILRewardsAfterWithdrawals = await stabilityPool.getFIL();
+
+        console.log(
+          `Total debt token deposits before any withdrawals: ${totalDebtTokenDepositsBeforeWithdrawals}`,
+        );
+        console.log(
+          `Total FIL rewards before any withdrawals: ${totalFILRewardsBeforeWithdrawals}`,
+        );
+
+        console.log(
+          `Remaining debt token deposits after withdrawals: ${totalDebtTokenDepositsAfterWithdrawals}`,
+        );
+        console.log(`Remaining FIL rewards after withdrawals: ${totalFILRewardsAfterWithdrawals}`);
+
+        console.log(`current depositors length: ${currentDepositors.length}`);
+        console.log(`remaining defaulters length: ${remainingDefaulters.length}`);
+      });
+    });
+  },
+);

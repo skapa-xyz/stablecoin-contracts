@@ -15,11 +15,10 @@ import "./FILTransferScript.sol";
 import "./LQTYStakingScript.sol";
 import "../Dependencies/console.sol";
 
-
 contract BorrowerWrappersScript is BorrowerOperationsScript, FILTransferScript, LQTYStakingScript {
     using SafeMath for uint;
 
-    string constant public NAME = "BorrowerWrappersScript";
+    string public constant NAME = "BorrowerWrappersScript";
 
     ITroveManager immutable troveManager;
     IStabilityPool immutable stabilityPool;
@@ -33,9 +32,9 @@ contract BorrowerWrappersScript is BorrowerOperationsScript, FILTransferScript, 
         address _troveManagerAddress,
         address _lqtyStakingAddress
     )
+        public
         BorrowerOperationsScript(IBorrowerOperations(_borrowerOperationsAddress))
         LQTYStakingScript(_lqtyStakingAddress)
-        public
     {
         checkContract(_troveManagerAddress);
         ITroveManager troveManagerCached = ITroveManager(_troveManagerAddress);
@@ -58,11 +57,19 @@ contract BorrowerWrappersScript is BorrowerOperationsScript, FILTransferScript, 
         lqtyToken = IERC20(lqtyTokenCached);
 
         ILQTYStaking lqtyStakingCached = troveManagerCached.lqtyStaking();
-        require(_lqtyStakingAddress == address(lqtyStakingCached), "BorrowerWrappersScript: Wrong LQTYStaking address");
+        require(
+            _lqtyStakingAddress == address(lqtyStakingCached),
+            "BorrowerWrappersScript: Wrong LQTYStaking address"
+        );
         lqtyStaking = lqtyStakingCached;
     }
 
-    function claimCollateralAndOpenTrove(uint _maxFee, uint _debtTokenAmount, address _upperHint, address _lowerHint) external payable {
+    function claimCollateralAndOpenTrove(
+        uint _maxFee,
+        uint _debtTokenAmount,
+        address _upperHint,
+        address _lowerHint
+    ) external payable {
         uint balanceBefore = address(this).balance;
 
         // Claim collateral
@@ -76,10 +83,19 @@ contract BorrowerWrappersScript is BorrowerOperationsScript, FILTransferScript, 
         uint totalCollateral = balanceAfter.sub(balanceBefore).add(msg.value);
 
         // Open trove with obtained collateral, plus collateral sent by user
-        borrowerOperations.openTrove{ value: totalCollateral }(_maxFee, _debtTokenAmount, _upperHint, _lowerHint);
+        borrowerOperations.openTrove{value: totalCollateral}(
+            _maxFee,
+            _debtTokenAmount,
+            _upperHint,
+            _lowerHint
+        );
     }
 
-    function claimSPRewardsAndRecycle(uint _maxFee, address _upperHint, address _lowerHint) external {
+    function claimSPRewardsAndRecycle(
+        uint _maxFee,
+        address _upperHint,
+        address _lowerHint
+    ) external {
         uint collBalanceBefore = address(this).balance;
         uint lqtyBalanceBefore = lqtyToken.balanceOf(address(this));
 
@@ -94,7 +110,14 @@ contract BorrowerWrappersScript is BorrowerOperationsScript, FILTransferScript, 
         if (claimedCollateral > 0) {
             _requireUserHasTrove(address(this));
             uint debtAmount = _getNetDebtAmount(claimedCollateral);
-            borrowerOperations.adjustTrove{ value: claimedCollateral }(_maxFee, 0, debtAmount, true, _upperHint, _lowerHint);
+            borrowerOperations.adjustTrove{value: claimedCollateral}(
+                _maxFee,
+                0,
+                debtAmount,
+                true,
+                _upperHint,
+                _lowerHint
+            );
             // Provide withdrawn debt token to Stability Pool
             if (debtAmount > 0) {
                 stabilityPool.provideToSP(debtAmount, address(0));
@@ -108,7 +131,11 @@ contract BorrowerWrappersScript is BorrowerOperationsScript, FILTransferScript, 
         }
     }
 
-    function claimStakingGainsAndRecycle(uint _maxFee, address _upperHint, address _lowerHint) external {
+    function claimStakingGainsAndRecycle(
+        uint _maxFee,
+        address _upperHint,
+        address _lowerHint
+    ) external {
         uint collBalanceBefore = address(this).balance;
         uint debtTokenBalanceBefore = debtToken.balanceOf(address(this));
         uint lqtyBalanceBefore = lqtyToken.balanceOf(address(this));
@@ -124,7 +151,14 @@ contract BorrowerWrappersScript is BorrowerOperationsScript, FILTransferScript, 
         if (gainedCollateral > 0) {
             _requireUserHasTrove(address(this));
             netDebtAmount = _getNetDebtAmount(gainedCollateral);
-            borrowerOperations.adjustTrove{ value: gainedCollateral }(_maxFee, 0, netDebtAmount, true, _upperHint, _lowerHint);
+            borrowerOperations.adjustTrove{value: gainedCollateral}(
+                _maxFee,
+                0,
+                netDebtAmount,
+                true,
+                _upperHint,
+                _lowerHint
+            );
         }
 
         uint totalDebt = gainedDebt.add(netDebtAmount);
@@ -138,7 +172,6 @@ contract BorrowerWrappersScript is BorrowerOperationsScript, FILTransferScript, 
                 lqtyStaking.stake(claimedLQTY);
             }
         }
-
     }
 
     function _getNetDebtAmount(uint _collateral) internal returns (uint) {
@@ -147,12 +180,17 @@ contract BorrowerWrappersScript is BorrowerOperationsScript, FILTransferScript, 
 
         uint debtAmount = _collateral.mul(price).div(ICR);
         uint borrowingRate = troveManager.getBorrowingRateWithDecay();
-        uint netDebt = debtAmount.mul(LiquityMath.DECIMAL_PRECISION).div(LiquityMath.DECIMAL_PRECISION.add(borrowingRate));
+        uint netDebt = debtAmount.mul(LiquityMath.DECIMAL_PRECISION).div(
+            LiquityMath.DECIMAL_PRECISION.add(borrowingRate)
+        );
 
         return netDebt;
     }
 
     function _requireUserHasTrove(address _depositor) internal view {
-        require(troveManager.getTroveStatus(_depositor) == 1, "BorrowerWrappersScript: caller must have an active trove");
+        require(
+            troveManager.getTroveStatus(_depositor) == 1,
+            "BorrowerWrappersScript: caller must have an active trove"
+        );
     }
 }

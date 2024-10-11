@@ -2,11 +2,9 @@
 
 pragma solidity 0.6.11;
 
-
 interface ICollSurplusPool {
-
     // --- Events ---
-    
+
     event BorrowerOperationsAddressChanged(address _newBorrowerOperationsAddress);
     event TroveManagerAddressChanged(address _newTroveManagerAddress);
     event ActivePoolAddressChanged(address _newActivePoolAddress);

@@ -2,7 +2,7 @@
 
 pragma solidity 0.6.11;
 
-import './Interfaces/IActivePool.sol';
+import "./Interfaces/IActivePool.sol";
 import "./Dependencies/SafeMath.sol";
 import "./Dependencies/Ownable.sol";
 import "./Dependencies/CheckContract.sol";
@@ -18,13 +18,13 @@ import "./Dependencies/console.sol";
 contract ActivePool is Ownable, CheckContract, IActivePool {
     using SafeMath for uint256;
 
-    string constant public NAME = "ActivePool";
+    string public constant NAME = "ActivePool";
 
     address public borrowerOperationsAddress;
     address public troveManagerAddress;
     address public stabilityPoolAddress;
     address public defaultPoolAddress;
-    uint256 internal FIL;  // deposited filecoin tracker
+    uint256 internal FIL; // deposited filecoin tracker
     uint256 internal debt;
 
     // --- Events ---
@@ -41,10 +41,7 @@ contract ActivePool is Ownable, CheckContract, IActivePool {
         address _troveManagerAddress,
         address _stabilityPoolAddress,
         address _defaultPoolAddress
-    )
-        external
-        onlyOwner
-    {
+    ) external onlyOwner {
         checkContract(_borrowerOperationsAddress);
         checkContract(_troveManagerAddress);
         checkContract(_stabilityPoolAddress);
@@ -66,10 +63,10 @@ contract ActivePool is Ownable, CheckContract, IActivePool {
     // --- Getters for public variables. Required by IPool interface ---
 
     /*
-    * Returns the FIL state variable.
-    *
-    * Not necessarily equal to the the contract's raw FIL balance - filecoin can be forcibly sent to contracts.
-    */
+     * Returns the FIL state variable.
+     *
+     * Not necessarily equal to the the contract's raw FIL balance - filecoin can be forcibly sent to contracts.
+     */
     function getFIL() external view override returns (uint) {
         return FIL;
     }
@@ -86,13 +83,13 @@ contract ActivePool is Ownable, CheckContract, IActivePool {
         emit ActivePoolFILBalanceUpdated(FIL);
         emit EtherSent(_account, _amount);
 
-        (bool success, ) = _account.call{ value: _amount }("");
+        (bool success, ) = _account.call{value: _amount}("");
         require(success, "ActivePool: sending FIL failed");
     }
 
     function increaseDebt(uint _amount) external override {
         _requireCallerIsBOorTroveM();
-        debt  = debt.add(_amount);
+        debt = debt.add(_amount);
         ActivePoolDebtUpdated(debt);
     }
 
@@ -106,24 +103,25 @@ contract ActivePool is Ownable, CheckContract, IActivePool {
 
     function _requireCallerIsBorrowerOperationsOrDefaultPool() internal view {
         require(
-            msg.sender == borrowerOperationsAddress ||
-            msg.sender == defaultPoolAddress,
-            "ActivePool: Caller is neither BO nor Default Pool");
+            msg.sender == borrowerOperationsAddress || msg.sender == defaultPoolAddress,
+            "ActivePool: Caller is neither BO nor Default Pool"
+        );
     }
 
     function _requireCallerIsBOorTroveMorSP() internal view {
         require(
             msg.sender == borrowerOperationsAddress ||
-            msg.sender == troveManagerAddress ||
-            msg.sender == stabilityPoolAddress,
-            "ActivePool: Caller is neither BorrowerOperations nor TroveManager nor StabilityPool");
+                msg.sender == troveManagerAddress ||
+                msg.sender == stabilityPoolAddress,
+            "ActivePool: Caller is neither BorrowerOperations nor TroveManager nor StabilityPool"
+        );
     }
 
     function _requireCallerIsBOorTroveM() internal view {
         require(
-            msg.sender == borrowerOperationsAddress ||
-            msg.sender == troveManagerAddress,
-            "ActivePool: Caller is neither BorrowerOperations nor TroveManager");
+            msg.sender == borrowerOperationsAddress || msg.sender == troveManagerAddress,
+            "ActivePool: Caller is neither BorrowerOperations nor TroveManager"
+        );
     }
 
     // --- Fallback function ---

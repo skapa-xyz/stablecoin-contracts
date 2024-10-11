@@ -5,91 +5,109 @@ require("solidity-coverage");
 require("hardhat-gas-reporter");
 
 const accounts = require("./hardhatAccountsList2k.js");
-const accountsList = accounts.accountsList
+const accountsList = accounts.accountsList;
 
-const fs = require('fs')
-const getSecret = (secretKey, defaultValue='') => {
-    const SECRETS_FILE = "./secrets.js"
-    let secret = defaultValue
-    if (fs.existsSync(SECRETS_FILE)) {
-        const { secrets } = require(SECRETS_FILE)
-        if (secrets[secretKey]) { secret = secrets[secretKey] }
+const fs = require("fs");
+const getSecret = (secretKey, defaultValue = "") => {
+  const SECRETS_FILE = "./secrets.js";
+  let secret = defaultValue;
+  if (fs.existsSync(SECRETS_FILE)) {
+    const { secrets } = require(SECRETS_FILE);
+    if (secrets[secretKey]) {
+      secret = secrets[secretKey];
     }
+  }
 
-    return secret
-}
+  return secret;
+};
 
 module.exports = {
-    paths: {
-        // contracts: "./contracts",
-        // artifacts: "./artifacts"
-    },
-    solidity: {
-        compilers: [
-            {
-                version: "0.4.23",
-                settings: {
-                    optimizer: {
-                        enabled: true,
-                        runs: 100
-                    }
-                }
-            },
-            {
-                version: "0.5.17",
-                settings: {
-                    optimizer: {
-                        enabled: true,
-                        runs: 100
-                    }
-                }
-            },
-            {
-                version: "0.6.11",
-                settings: {
-                    optimizer: {
-                        enabled: true,
-                        runs: 100
-                    }
-                }
-            },
-        ]
-    },
-    networks: {
-        hardhat: {
-            accounts: accountsList,
-            gas: 10000000,  // tx gas limit
-            blockGasLimit: 15000000,
-            gasPrice: 20000000000,
-            initialBaseFeePerGas: 0,
+  paths: {
+    // contracts: "./contracts",
+    // artifacts: "./artifacts"
+  },
+  solidity: {
+    compilers: [
+      {
+        version: "0.4.23",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 100,
+          },
         },
-        localhost: {
-            url: 'http://127.0.0.1:8545',
-            chainId: 31337,
-            accounts: [getSecret('TESTNET_DEPLOYER_PRIVATEKEY', '0x60ddfe7f579ab6867cbe7a2dc03853dc141d7a4ab6dbefc0dae2d2b1bd4e487f')],
+      },
+      {
+        version: "0.5.17",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 100,
+          },
         },
-        mainnet: {
-            url: getSecret('RPC_ENDPOINT'),
-            gasPrice: process.env.GAS_PRICE ? parseInt(process.env.GAS_PRICE) : 20000000000,
-            accounts: [
-                getSecret('DEPLOYER_PRIVATEKEY', '0x60ddfe7f579ab6867cbe7a2dc03853dc141d7a4ab6dbefc0dae2d2b1bd4e487f'),
-                getSecret('ACCOUNT2_PRIVATEKEY', '0x3ec7cedbafd0cb9ec05bf9f7ccfa1e8b42b3e3a02c75addfccbfeb328d1b383b')
-            ]
+      },
+      {
+        version: "0.6.11",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 100,
+          },
         },
-        testnet: {
-            url: getSecret('TESTNET_RPC_ENDPOINT'),
-            accounts: [getSecret('TESTNET_DEPLOYER_PRIVATEKEY', '0x60ddfe7f579ab6867cbe7a2dc03853dc141d7a4ab6dbefc0dae2d2b1bd4e487f')]
-        },
+      },
+    ],
+  },
+  networks: {
+    hardhat: {
+      accounts: accountsList,
+      gas: 10000000, // tx gas limit
+      blockGasLimit: 15000000,
+      gasPrice: 20000000000,
+      initialBaseFeePerGas: 0,
     },
-    etherscan: {
-        apiKey: getSecret("ETHERSCAN_API_KEY")
+    localhost: {
+      url: "http://127.0.0.1:8545",
+      chainId: 31337,
+      accounts: [
+        getSecret(
+          "TESTNET_DEPLOYER_PRIVATEKEY",
+          "0x60ddfe7f579ab6867cbe7a2dc03853dc141d7a4ab6dbefc0dae2d2b1bd4e487f",
+        ),
+      ],
     },
-    mocha: { timeout: 12000000 },
-    rpc: {
-        host: "localhost",
-        port: 8545
+    mainnet: {
+      url: getSecret("RPC_ENDPOINT"),
+      gasPrice: process.env.GAS_PRICE ? parseInt(process.env.GAS_PRICE) : 20000000000,
+      accounts: [
+        getSecret(
+          "DEPLOYER_PRIVATEKEY",
+          "0x60ddfe7f579ab6867cbe7a2dc03853dc141d7a4ab6dbefc0dae2d2b1bd4e487f",
+        ),
+        getSecret(
+          "ACCOUNT2_PRIVATEKEY",
+          "0x3ec7cedbafd0cb9ec05bf9f7ccfa1e8b42b3e3a02c75addfccbfeb328d1b383b",
+        ),
+      ],
     },
-    gasReporter: {
-        enabled: (process.env.REPORT_GAS) ? true : false
-    }
+    testnet: {
+      url: getSecret("TESTNET_RPC_ENDPOINT"),
+      accounts: [
+        getSecret(
+          "TESTNET_DEPLOYER_PRIVATEKEY",
+          "0x60ddfe7f579ab6867cbe7a2dc03853dc141d7a4ab6dbefc0dae2d2b1bd4e487f",
+        ),
+      ],
+    },
+  },
+  etherscan: {
+    apiKey: getSecret("ETHERSCAN_API_KEY"),
+  },
+  mocha: { timeout: 12000000 },
+  rpc: {
+    host: "localhost",
+    port: 8545,
+  },
+  gasReporter: {
+    enabled: process.env.REPORT_GAS ? true : false,
+  },
 };

@@ -8,11 +8,10 @@ import "./Dependencies/Ownable.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
-
 contract CollSurplusPool is Ownable, CheckContract, ICollSurplusPool {
     using SafeMath for uint256;
 
-    string constant public NAME = "CollSurplusPool";
+    string public constant NAME = "CollSurplusPool";
 
     address public borrowerOperationsAddress;
     address public troveManagerAddress;
@@ -21,7 +20,7 @@ contract CollSurplusPool is Ownable, CheckContract, ICollSurplusPool {
     // deposited FIL tracker
     uint256 internal FIL;
     // Collateral surplus claimable by trove owners
-    mapping (address => uint) internal balances;
+    mapping(address => uint) internal balances;
 
     // --- Events ---
 
@@ -31,18 +30,14 @@ contract CollSurplusPool is Ownable, CheckContract, ICollSurplusPool {
 
     event CollBalanceUpdated(address indexed _account, uint _newBalance);
     event EtherSent(address _to, uint _amount);
-    
+
     // --- Contract setters ---
 
     function setAddresses(
         address _borrowerOperationsAddress,
         address _troveManagerAddress,
         address _activePoolAddress
-    )
-        external
-        override
-        onlyOwner
-    {
+    ) external override onlyOwner {
         checkContract(_borrowerOperationsAddress);
         checkContract(_troveManagerAddress);
         checkContract(_activePoolAddress);
@@ -90,7 +85,7 @@ contract CollSurplusPool is Ownable, CheckContract, ICollSurplusPool {
         FIL = FIL.sub(claimableColl);
         emit EtherSent(_account, claimableColl);
 
-        (bool success, ) = _account.call{ value: claimableColl }("");
+        (bool success, ) = _account.call{value: claimableColl}("");
         require(success, "CollSurplusPool: sending FIL failed");
     }
 
@@ -99,19 +94,16 @@ contract CollSurplusPool is Ownable, CheckContract, ICollSurplusPool {
     function _requireCallerIsBorrowerOperations() internal view {
         require(
             msg.sender == borrowerOperationsAddress,
-            "CollSurplusPool: Caller is not Borrower Operations");
+            "CollSurplusPool: Caller is not Borrower Operations"
+        );
     }
 
     function _requireCallerIsTroveManager() internal view {
-        require(
-            msg.sender == troveManagerAddress,
-            "CollSurplusPool: Caller is not TroveManager");
+        require(msg.sender == troveManagerAddress, "CollSurplusPool: Caller is not TroveManager");
     }
 
     function _requireCallerIsActivePool() internal view {
-        require(
-            msg.sender == activePoolAddress,
-            "CollSurplusPool: Caller is not Active Pool");
+        require(msg.sender == activePoolAddress, "CollSurplusPool: Caller is not Active Pool");
     }
 
     // --- Fallback function ---

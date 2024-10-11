@@ -19,11 +19,15 @@ contract DebtTokenCaller {
         debtToken.burn(_account, _amount);
     }
 
-    function debtTokenSendToPool(address _sender,  address _poolAddress, uint256 _amount) external {
+    function debtTokenSendToPool(address _sender, address _poolAddress, uint256 _amount) external {
         debtToken.sendToPool(_sender, _poolAddress, _amount);
     }
 
-    function debtTokenReturnFromPool(address _poolAddress, address _receiver, uint256 _amount ) external {
+    function debtTokenReturnFromPool(
+        address _poolAddress,
+        address _receiver,
+        uint256 _amount
+    ) external {
         debtToken.returnFromPool(_poolAddress, _receiver, _amount);
     }
 }
