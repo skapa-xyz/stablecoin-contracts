@@ -1,3 +1,4 @@
+/* eslint-disable no-loss-of-precision */
 const Decimal = require("decimal.js");
 const deploymentHelper = require("../utils/deploymentHelpers.js");
 const { BNConverter } = require("../utils/BNConverter.js");
@@ -632,7 +633,7 @@ contract("Fee arithmetic tests", async (accounts) => {
         const exponent = timeValues.SECONDS_IN_ONE_MONTH * 3;
 
         // Use a high base to fully test high exponent, without prematurely decaying to 0
-        const base = th.randDecayFactor("0.999999", "0.999999999999999999");
+        const base = th.randDecayFactor(0.999999, 0.999999999999999999);
         const baseAsDecimal = BNConverter.makeDecimal(base, 18);
 
         // Calculate actual expected value
@@ -660,7 +661,7 @@ contract("Fee arithmetic tests", async (accounts) => {
         const exponent = timeValues.SECONDS_IN_ONE_MONTH;
 
         // Use a high base to fully test high exponent, without prematurely decaying to 0
-        const base = th.randDecayFactor("0.999995", "0.999999999999999999");
+        const base = th.randDecayFactor(0.999995, 0.999999999999999999);
         const baseAsDecimal = BNConverter.makeDecimal(base, 18);
 
         // Calculate actual expected value
@@ -688,7 +689,7 @@ contract("Fee arithmetic tests", async (accounts) => {
         const exponent = timeValues.MINUTES_IN_ONE_MONTH;
 
         // Use a high base to fully test high exponent, without prematurely decaying to 0
-        const base = th.randDecayFactor("0.9997", "0.999999999999999999");
+        const base = th.randDecayFactor(0.9997, 0.999999999999999999);
         const baseAsDecimal = BNConverter.makeDecimal(base, 18);
 
         // Calculate actual expected value
@@ -716,7 +717,7 @@ contract("Fee arithmetic tests", async (accounts) => {
         const exponent = timeValues.MINUTES_IN_ONE_YEAR;
 
         // Use a high base to fully test high exponent, without prematurely decaying to 0
-        const base = th.randDecayFactor("0.99999", "0.999999999999999999");
+        const base = th.randDecayFactor(0.99999, 0.999999999999999999);
         const baseAsDecimal = BNConverter.makeDecimal(base, 18);
 
         // Calculate actual expected value
@@ -744,7 +745,7 @@ contract("Fee arithmetic tests", async (accounts) => {
         const exponent = timeValues.MINUTES_IN_ONE_YEAR * 5;
 
         // Use a high base to fully test high exponent, without prematurely decaying to 0
-        const base = th.randDecayFactor("0.99999", "0.999999999999999999");
+        const base = th.randDecayFactor(0.99999, 0.999999999999999999);
         const baseAsDecimal = BNConverter.makeDecimal(base, 18);
 
         // Calculate actual expected value
@@ -772,7 +773,7 @@ contract("Fee arithmetic tests", async (accounts) => {
         const exponent = timeValues.MINUTES_IN_ONE_YEAR * 10;
 
         // Use a high base to fully test high exponent, without prematurely decaying to 0
-        const base = th.randDecayFactor("0.99999", "0.999999999999999999");
+        const base = th.randDecayFactor(0.99999, 0.999999999999999999);
         const baseAsDecimal = BNConverter.makeDecimal(base, 18);
 
         // Calculate actual expected value
@@ -800,7 +801,7 @@ contract("Fee arithmetic tests", async (accounts) => {
         const exponent = timeValues.MINUTES_IN_ONE_YEAR * 100;
 
         // Use a high base to fully test high exponent, without prematurely decaying to 0
-        const base = th.randDecayFactor("0.999999", "0.999999999999999999");
+        const base = th.randDecayFactor(0.999999, 0.999999999999999999);
         const baseAsDecimal = BNConverter.makeDecimal(base, 18);
 
         // Calculate actual expected value
@@ -837,7 +838,7 @@ contract("Fee arithmetic tests", async (accounts) => {
 
       // test full range
       for (let i = 1; i <= 1000; i++) {
-        const base = th.randDecayFactor("0.000000000000000001", "0.999999999999999999");
+        const base = th.randDecayFactor(0.000000000000000001, 0.999999999999999999);
         const baseAsDecimal = BNConverter.makeDecimal(base, 18);
 
         // Calculate actual expected value
@@ -856,7 +857,7 @@ contract("Fee arithmetic tests", async (accounts) => {
 
       // Use a high base to fully test high exponent, without prematurely decaying to 0
       for (let i = 1; i <= 1000; i++) {
-        const base = th.randDecayFactor("0.9999999999999", "0.999999999999999999");
+        const base = th.randDecayFactor(0.9999999999999, 0.999999999999999999);
         const baseAsDecimal = BNConverter.makeDecimal(base, 18);
 
         // Calculate actual expected value
