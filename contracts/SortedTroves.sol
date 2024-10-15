@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.11;
+pragma solidity 0.7.6;
 
 import "./Interfaces/ISortedTroves.sol";
 import "./Interfaces/ITroveManager.sol";
@@ -48,11 +48,6 @@ contract SortedTroves is Ownable, CheckContract, ISortedTroves {
 
     string public constant NAME = "SortedTroves";
 
-    event TroveManagerAddressChanged(address _troveManagerAddress);
-    event BorrowerOperationsAddressChanged(address _borrowerOperationsAddress);
-    event NodeAdded(address _id, uint _NICR);
-    event NodeRemoved(address _id);
-
     address public borrowerOperationsAddress;
 
     ITroveManager public troveManager;
@@ -82,7 +77,7 @@ contract SortedTroves is Ownable, CheckContract, ISortedTroves {
         address _troveManagerAddress,
         address _borrowerOperationsAddress
     ) external override onlyOwner {
-        require(_size > 0, "SortedTroves: Size can’t be zero");
+        require(_size > 0, "SortedTroves: Size can't be zero");
         checkContract(_troveManagerAddress);
         checkContract(_borrowerOperationsAddress);
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.11;
+pragma solidity 0.7.6;
 
 import "./Interfaces/IPriceFeed.sol";
 import "./Interfaces/ITellorCaller.sol";
@@ -66,19 +66,8 @@ contract PriceFeed is Ownable, CheckContract, BaseMath, IPriceFeed {
         bool success;
     }
 
-    enum Status {
-        chainlinkWorking,
-        usingTellorChainlinkUntrusted,
-        bothOraclesUntrusted,
-        usingTellorChainlinkFrozen,
-        usingChainlinkTellorUntrusted
-    }
-
     // The current status of the PricFeed, which determines the conditions for the next price fetch attempt
     Status public status;
-
-    event LastGoodPriceUpdated(uint _lastGoodPrice);
-    event PriceFeedStatusChanged(Status newStatus);
 
     // --- Dependency setters ---
 
@@ -117,7 +106,7 @@ contract PriceFeed is Ownable, CheckContract, BaseMath, IPriceFeed {
      * it uses the last good price seen by Liquity.
      *
      */
-    function fetchPrice() external override returns (uint) {
+    function fetchPrice() external override returns (uint price) {
         // Get current and previous price data from Chainlink, and current price data from Tellor
         ChainlinkResponse memory chainlinkResponse = _getCurrentChainlinkResponse();
         TellorResponse memory tellorResponse = _getCurrentTellorResponse();

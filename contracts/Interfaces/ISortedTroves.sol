@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.11;
+pragma solidity 0.7.6;
 
 // Common interface for the SortedTroves Doubly Linked List.
 interface ISortedTroves {
     // --- Events ---
 
-    event SortedTrovesAddressChanged(address _sortedDoublyLLAddress);
+    event TroveManagerAddressChanged(address _troveManagerAddress);
     event BorrowerOperationsAddressChanged(address _borrowerOperationsAddress);
     event NodeAdded(address _id, uint _NICR);
     event NodeRemoved(address _id);

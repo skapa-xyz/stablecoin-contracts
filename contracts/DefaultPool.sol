@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.11;
+pragma solidity 0.7.6;
 
 import "./Interfaces/IDefaultPool.sol";
 import "./Dependencies/SafeMath.sol";
@@ -24,10 +24,6 @@ contract DefaultPool is Ownable, CheckContract, IDefaultPool {
     address public activePoolAddress;
     uint256 internal FIL; // deposited FIL tracker
     uint256 internal debt; // debt
-
-    event TroveManagerAddressChanged(address _newTroveManagerAddress);
-    event DefaultPoolDebtUpdated(uint _debt);
-    event DefaultPoolFILBalanceUpdated(uint _FIL);
 
     // --- Dependency setters ---
 

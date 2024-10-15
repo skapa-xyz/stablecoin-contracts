@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.11;
+pragma solidity 0.7.6;
 
 import "./ILiquityBase.sol";
 import "./IStabilityPool.sol";
@@ -41,9 +41,14 @@ interface ITroveManager is ILiquityBase {
         uint _debt,
         uint _coll,
         uint stake,
-        uint8 operation
+        TroveManagerOperation _operation
     );
-    event TroveLiquidated(address indexed _borrower, uint _debt, uint _coll, uint8 operation);
+    event TroveLiquidated(
+        address indexed _borrower,
+        uint _debt,
+        uint _coll,
+        TroveManagerOperation _operation
+    );
     event BaseRateUpdated(uint _baseRate);
     event LastFeeOpTimeUpdated(uint _lastFeeOpTime);
     event TotalStakesUpdated(uint _newTotalStakes);
@@ -51,6 +56,21 @@ interface ITroveManager is ILiquityBase {
     event LTermsUpdated(uint _L_FIL, uint _L_Debt);
     event TroveSnapshotsUpdated(uint _L_FIL, uint _L_Debt);
     event TroveIndexUpdated(address _borrower, uint _newIndex);
+
+    enum Status {
+        nonExistent,
+        active,
+        closedByOwner,
+        closedByLiquidation,
+        closedByRedemption
+    }
+
+    enum TroveManagerOperation {
+        applyPendingRewards,
+        liquidateInNormalMode,
+        liquidateInRecoveryMode,
+        redeemCollateral
+    }
 
     // --- Functions ---
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.11;
+pragma solidity 0.7.6;
 
 import "./Interfaces/ICollSurplusPool.sol";
 import "./Dependencies/SafeMath.sol";
@@ -21,15 +21,6 @@ contract CollSurplusPool is Ownable, CheckContract, ICollSurplusPool {
     uint256 internal FIL;
     // Collateral surplus claimable by trove owners
     mapping(address => uint) internal balances;
-
-    // --- Events ---
-
-    event BorrowerOperationsAddressChanged(address _newBorrowerOperationsAddress);
-    event TroveManagerAddressChanged(address _newTroveManagerAddress);
-    event ActivePoolAddressChanged(address _newActivePoolAddress);
-
-    event CollBalanceUpdated(address indexed _account, uint _newBalance);
-    event EtherSent(address _to, uint _amount);
 
     // --- Contract setters ---
 

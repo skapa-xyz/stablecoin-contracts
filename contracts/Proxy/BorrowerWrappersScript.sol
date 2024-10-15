@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.11;
+pragma solidity 0.7.6;
 
 import "../Dependencies/SafeMath.sol";
 import "../Dependencies/LiquityMath.sol";
@@ -32,7 +32,6 @@ contract BorrowerWrappersScript is BorrowerOperationsScript, FILTransferScript, 
         address _troveManagerAddress,
         address _lqtyStakingAddress
     )
-        public
         BorrowerOperationsScript(IBorrowerOperations(_borrowerOperationsAddress))
         LQTYStakingScript(_lqtyStakingAddress)
     {

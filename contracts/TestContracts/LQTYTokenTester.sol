@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.11;
+pragma solidity 0.7.6;
 
 import "../LQTY/LQTYToken.sol";
 
@@ -13,7 +13,6 @@ contract LQTYTokenTester is LQTYToken {
         address _lpRewardsAddress,
         address _multisigAddress
     )
-        public
         LQTYToken(
             _communityIssuanceAddress,
             _lqtyStakingAddress,
@@ -45,6 +44,7 @@ contract LQTYTokenTester is LQTYToken {
         uint256 amount
     ) external returns (bool) {
         _approve(owner, spender, amount);
+        return true;
     }
 
     function callInternalTransfer(
@@ -53,6 +53,7 @@ contract LQTYTokenTester is LQTYToken {
         uint256 amount
     ) external returns (bool) {
         _transfer(sender, recipient, amount);
+        return true;
     }
 
     function getChainId() external pure returns (uint256 chainID) {

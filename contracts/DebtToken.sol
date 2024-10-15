@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.11;
+pragma solidity 0.7.6;
 
 import "./Interfaces/IDebtToken.sol";
 import "./Dependencies/SafeMath.sol";
@@ -61,16 +61,11 @@ contract DebtToken is CheckContract, IDebtToken {
     address public immutable stabilityPoolAddress;
     address public immutable borrowerOperationsAddress;
 
-    // --- Events ---
-    event TroveManagerAddressChanged(address _troveManagerAddress);
-    event StabilityPoolAddressChanged(address _newStabilityPoolAddress);
-    event BorrowerOperationsAddressChanged(address _newBorrowerOperationsAddress);
-
     constructor(
         address _troveManagerAddress,
         address _stabilityPoolAddress,
         address _borrowerOperationsAddress
-    ) public {
+    ) {
         checkContract(_troveManagerAddress);
         checkContract(_stabilityPoolAddress);
         checkContract(_borrowerOperationsAddress);
@@ -201,7 +196,7 @@ contract DebtToken is CheckContract, IDebtToken {
         bytes32 r,
         bytes32 s
     ) external override {
-        require(deadline >= now, "DebtToken: expired deadline");
+        require(deadline >= block.timestamp, "DebtToken: expired deadline");
         bytes32 digest = keccak256(
             abi.encodePacked(
                 "\x19\x01",
@@ -230,11 +225,11 @@ contract DebtToken is CheckContract, IDebtToken {
     }
 
     function _buildDomainSeparator(
-        bytes32 typeHash,
-        bytes32 name,
-        bytes32 version
+        bytes32 _typeHash,
+        bytes32 _name,
+        bytes32 _version
     ) private view returns (bytes32) {
-        return keccak256(abi.encode(typeHash, name, version, _chainID(), address(this)));
+        return keccak256(abi.encode(_typeHash, _name, _version, _chainID(), address(this)));
     }
 
     // --- Internal operations ---
@@ -317,23 +312,23 @@ contract DebtToken is CheckContract, IDebtToken {
 
     // --- Optional functions ---
 
-    function name() external view override returns (string memory) {
+    function name() external pure override returns (string memory) {
         return _NAME;
     }
 
-    function symbol() external view override returns (string memory) {
+    function symbol() external pure override returns (string memory) {
         return _SYMBOL;
     }
 
-    function decimals() external view override returns (uint8) {
+    function decimals() external pure override returns (uint8) {
         return _DECIMALS;
     }
 
-    function version() external view override returns (string memory) {
+    function version() external pure override returns (string memory) {
         return _VERSION;
     }
 
-    function permitTypeHash() external view override returns (bytes32) {
+    function permitTypeHash() external pure override returns (bytes32) {
         return _PERMIT_TYPEHASH;
     }
 }

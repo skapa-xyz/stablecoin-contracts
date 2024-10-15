@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.11;
+pragma solidity 0.7.6;
 
 import "../DebtToken.sol";
 
@@ -12,7 +12,7 @@ contract DebtTokenTester is DebtToken {
         address _troveManagerAddress,
         address _stabilityPoolAddress,
         address _borrowerOperationsAddress
-    ) public DebtToken(_troveManagerAddress, _stabilityPoolAddress, _borrowerOperationsAddress) {}
+    ) DebtToken(_troveManagerAddress, _stabilityPoolAddress, _borrowerOperationsAddress) {}
 
     function unprotectedMint(address _account, uint256 _amount) external {
         // No check on caller here
@@ -52,6 +52,7 @@ contract DebtTokenTester is DebtToken {
         uint256 amount
     ) external returns (bool) {
         _approve(owner, spender, amount);
+        return true;
     }
 
     function getChainId() external pure returns (uint256 chainID) {

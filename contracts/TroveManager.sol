@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.11;
+pragma solidity 0.7.6;
 
 import "./Interfaces/ITroveManager.sol";
 import "./Interfaces/IStabilityPool.sol";
@@ -15,6 +15,8 @@ import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
 contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
+    using SafeMath for uint;
+
     string public constant NAME = "TroveManager";
 
     // --- Connected contract declarations ---
@@ -60,14 +62,6 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
 
     // The timestamp of the latest fee operation (redemption or new debt token issuance)
     uint public lastFeeOperationTime;
-
-    enum Status {
-        nonExistent,
-        active,
-        closedByOwner,
-        closedByLiquidation,
-        closedByRedemption
-    }
 
     // Store the necessary data for a trove
     struct Trove {
@@ -196,60 +190,6 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
         uint debtLot;
         uint FILLot;
         bool cancelledPartial;
-    }
-
-    // --- Events ---
-
-    event BorrowerOperationsAddressChanged(address _newBorrowerOperationsAddress);
-    event PriceFeedAddressChanged(address _newPriceFeedAddress);
-    event DebtTokenAddressChanged(address _newDebtTokenAddress);
-    event ActivePoolAddressChanged(address _activePoolAddress);
-    event DefaultPoolAddressChanged(address _defaultPoolAddress);
-    event StabilityPoolAddressChanged(address _stabilityPoolAddress);
-    event GasPoolAddressChanged(address _gasPoolAddress);
-    event CollSurplusPoolAddressChanged(address _collSurplusPoolAddress);
-    event SortedTrovesAddressChanged(address _sortedTrovesAddress);
-    event LQTYTokenAddressChanged(address _lqtyTokenAddress);
-    event LQTYStakingAddressChanged(address _lqtyStakingAddress);
-
-    event Liquidation(
-        uint _liquidatedDebt,
-        uint _liquidatedColl,
-        uint _collGasCompensation,
-        uint _debtGasCompensation
-    );
-    event Redemption(
-        uint _attemptedDebtTokenAmount,
-        uint _actualDebtTokenAmount,
-        uint _FILSent,
-        uint _FILFee
-    );
-    event TroveUpdated(
-        address indexed _borrower,
-        uint _debt,
-        uint _coll,
-        uint _stake,
-        TroveManagerOperation _operation
-    );
-    event TroveLiquidated(
-        address indexed _borrower,
-        uint _debt,
-        uint _coll,
-        TroveManagerOperation _operation
-    );
-    event BaseRateUpdated(uint _baseRate);
-    event LastFeeOpTimeUpdated(uint _lastFeeOpTime);
-    event TotalStakesUpdated(uint _newTotalStakes);
-    event SystemSnapshotsUpdated(uint _totalStakesSnapshot, uint _totalCollateralSnapshot);
-    event LTermsUpdated(uint _L_FIL, uint _L_Debt);
-    event TroveSnapshotsUpdated(uint _L_FIL, uint _L_Debt);
-    event TroveIndexUpdated(address _borrower, uint _newIndex);
-
-    enum TroveManagerOperation {
-        applyPendingRewards,
-        liquidateInNormalMode,
-        liquidateInRecoveryMode,
-        redeemCollateral
     }
 
     // --- Dependency setter ---

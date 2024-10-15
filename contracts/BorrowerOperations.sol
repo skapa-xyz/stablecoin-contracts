@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.11;
+pragma solidity 0.7.6;
 
 import "./Interfaces/IBorrowerOperations.sol";
 import "./Interfaces/ITroveManager.sol";
@@ -14,6 +14,8 @@ import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
 contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOperations {
+    using SafeMath for uint;
+
     string public constant NAME = "BorrowerOperations";
 
     // --- Connected contract declarations ---
@@ -71,33 +73,6 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
         IActivePool activePool;
         IDebtToken debtToken;
     }
-
-    enum BorrowerOperation {
-        openTrove,
-        closeTrove,
-        adjustTrove
-    }
-
-    event TroveManagerAddressChanged(address _newTroveManagerAddress);
-    event ActivePoolAddressChanged(address _activePoolAddress);
-    event DefaultPoolAddressChanged(address _defaultPoolAddress);
-    event StabilityPoolAddressChanged(address _stabilityPoolAddress);
-    event GasPoolAddressChanged(address _gasPoolAddress);
-    event CollSurplusPoolAddressChanged(address _collSurplusPoolAddress);
-    event PriceFeedAddressChanged(address _newPriceFeedAddress);
-    event SortedTrovesAddressChanged(address _sortedTrovesAddress);
-    event DebtTokenAddressChanged(address _debtTokenAddress);
-    event LQTYStakingAddressChanged(address _lqtyStakingAddress);
-
-    event TroveCreated(address indexed _borrower, uint arrayIndex);
-    event TroveUpdated(
-        address indexed _borrower,
-        uint _debt,
-        uint _coll,
-        uint stake,
-        BorrowerOperation operation
-    );
-    event DebtTokenBorrowingFeePaid(address indexed _borrower, uint _debtTokenFee);
 
     // --- Dependency setters ---
 

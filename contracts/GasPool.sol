@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.11;
+pragma solidity 0.7.6;
 
 /**
  * The purpose of this contract is to hold debt tokens for gas compensation:

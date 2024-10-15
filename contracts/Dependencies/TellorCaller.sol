@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.11;
+pragma solidity 0.7.6;
 
 import "../Interfaces/ITellorCaller.sol";
 import "./ITellor.sol";
@@ -24,7 +24,7 @@ contract TellorCaller is ITellorCaller {
 
     ITellor public tellor;
 
-    constructor(address _tellorMasterAddress) public {
+    constructor(address _tellorMasterAddress) {
         tellor = ITellor(_tellorMasterAddress);
         bytes memory _queryData = abi.encode("SpotPrice", abi.encode("fil", "usd"));
         btcQueryId = keccak256(_queryData);

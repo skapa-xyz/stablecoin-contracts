@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.11;
+pragma solidity 0.7.6;
 
 import "../TroveManager.sol";
+import "../Interfaces/ITroveManager.sol";
 import "../BorrowerOperations.sol";
 import "../ActivePool.sol";
 import "../DefaultPool.sol";
@@ -43,7 +44,7 @@ contract EchidnaTester {
 
     uint private numberOfTroves;
 
-    constructor() public payable {
+    constructor() payable {
         troveManager = new TroveManager();
         borrowerOperations = new BorrowerOperations();
         activePool = new ActivePool();
@@ -356,11 +357,13 @@ contract EchidnaTester {
     function transferExt(uint _i, address recipient, uint256 amount) external returns (bool) {
         uint actor = _i % NUMBER_OF_ACTORS;
         echidnaProxies[actor].transferPrx(recipient, amount);
+        return true;
     }
 
     function approveExt(uint _i, address spender, uint256 amount) external returns (bool) {
         uint actor = _i % NUMBER_OF_ACTORS;
         echidnaProxies[actor].approvePrx(spender, amount);
+        return true;
     }
 
     function transferFromExt(
@@ -371,6 +374,7 @@ contract EchidnaTester {
     ) external returns (bool) {
         uint actor = _i % NUMBER_OF_ACTORS;
         echidnaProxies[actor].transferFromPrx(sender, recipient, amount);
+        return true;
     }
 
     function increaseAllowanceExt(
@@ -380,6 +384,7 @@ contract EchidnaTester {
     ) external returns (bool) {
         uint actor = _i % NUMBER_OF_ACTORS;
         echidnaProxies[actor].increaseAllowancePrx(spender, addedValue);
+        return true;
     }
 
     function decreaseAllowanceExt(
@@ -389,6 +394,7 @@ contract EchidnaTester {
     ) external returns (bool) {
         uint actor = _i % NUMBER_OF_ACTORS;
         echidnaProxies[actor].decreaseAllowancePrx(spender, subtractedValue);
+        return true;
     }
 
     // PriceFeed
@@ -445,8 +451,8 @@ contract EchidnaTester {
         while (currentTrove != address(0)) {
             // Status
             if (
-                TroveManager.Status(troveManager.getTroveStatus(currentTrove)) !=
-                TroveManager.Status.active
+                ITroveManager.Status(troveManager.getTroveStatus(currentTrove)) !=
+                ITroveManager.Status.active
             ) {
                 return false;
             }

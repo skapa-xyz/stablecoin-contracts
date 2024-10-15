@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.11;
+pragma solidity 0.7.6;
 pragma experimental ABIEncoderV2;
 
 import "./IPyth.sol";
@@ -16,7 +16,7 @@ contract PythCaller is AggregatorV3Interface {
     IPyth public pyth;
     string private _description;
 
-    constructor(address pyth_, bytes32 priceId_, string memory description_) public {
+    constructor(address pyth_, bytes32 priceId_, string memory description_) {
         priceId = priceId_;
         pyth = IPyth(pyth_);
         _description = description_;
@@ -43,7 +43,7 @@ contract PythCaller is AggregatorV3Interface {
         return _description;
     }
 
-    function version() public view override returns (uint256) {
+    function version() public pure override returns (uint256) {
         return 1;
     }
 
