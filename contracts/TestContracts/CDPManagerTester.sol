@@ -8,6 +8,11 @@ import "../TroveManager.sol";
 for testing the parent's internal functions. */
 
 contract TroveManagerTester is TroveManager {
+    constructor(
+        uint _gasCompensation,
+        uint _minNetDebt
+    ) TroveManager(_gasCompensation, _minNetDebt) {}
+
     function computeICR(uint _coll, uint _debt, uint _price) external pure returns (uint) {
         return LiquityMath._computeCR(_coll, _debt, _price);
     }
@@ -16,11 +21,11 @@ contract TroveManagerTester is TroveManager {
         return _getCollGasCompensation(_coll);
     }
 
-    function getGasCompensation() external pure returns (uint) {
+    function getGasCompensation() external view returns (uint) {
         return GAS_COMPENSATION;
     }
 
-    function getCompositeDebt(uint _debt) external pure returns (uint) {
+    function getCompositeDebt(uint _debt) external view returns (uint) {
         return _getCompositeDebt(_debt);
     }
 
@@ -48,7 +53,7 @@ contract TroveManagerTester is TroveManager {
         return _getRedemptionFee(_FILDrawn);
     }
 
-    function getActualDebtFromComposite(uint _debtVal) external pure returns (uint) {
+    function getActualDebtFromComposite(uint _debtVal) external view returns (uint) {
         return _getNetDebt(_debtVal);
     }
 

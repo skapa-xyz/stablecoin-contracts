@@ -21,6 +21,13 @@ contract HintHelpers is LiquityBase, Ownable, CheckContract {
     event SortedTrovesAddressChanged(address _sortedTrovesAddress);
     event TroveManagerAddressChanged(address _troveManagerAddress);
 
+    // --- Functions ---
+
+    constructor(
+        uint _gasCompensation,
+        uint _minNetDebt
+    ) LiquityBase(_gasCompensation, _minNetDebt) {}
+
     // --- Dependency setters ---
 
     function setAddresses(
@@ -30,6 +37,8 @@ contract HintHelpers is LiquityBase, Ownable, CheckContract {
         checkContract(_sortedTrovesAddress);
         checkContract(_troveManagerAddress);
 
+        _requireSameInitialParameters(_troveManagerAddress);
+
         sortedTroves = ISortedTroves(_sortedTrovesAddress);
         troveManager = ITroveManager(_troveManagerAddress);
 
@@ -38,8 +47,6 @@ contract HintHelpers is LiquityBase, Ownable, CheckContract {
 
         _renounceOwnership();
     }
-
-    // --- Functions ---
 
     /* getRedemptionHints() - Helper function for finding the right hints to pass to redeemCollateral().
      *

@@ -203,7 +203,7 @@ contract("Fee arithmetic tests", async (accounts) => {
       params: [],
     });
 
-    troveManagerTester = await TroveManagerTester.new();
+    troveManagerTester = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     TroveManagerTester.setAsDeployed(troveManagerTester);
 
     mathTester = await LiquityMathTester.new();
@@ -211,7 +211,7 @@ contract("Fee arithmetic tests", async (accounts) => {
   });
 
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployLiquityCore();
+    contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     const LQTYContracts = await deploymentHelper.deployLQTYContracts(
       bountyAddress,
       lpRewardsAddress,

@@ -19,7 +19,7 @@ contract("Gas costs for math functions", async (accounts) => {
   let mathTester;
 
   before(async () => {
-    troveManagerTester = await TroveManagerTester.new();
+    troveManagerTester = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     TroveManagerTester.setAsDeployed(troveManagerTester);
 
     mathTester = await LiquityMathTester.new();
@@ -27,7 +27,7 @@ contract("Gas costs for math functions", async (accounts) => {
   });
 
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployLiquityCore();
+    contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     const LQTYContracts = await deploymentHelper.deployLQTYContracts(
       bountyAddress,
       lpRewardsAddress,

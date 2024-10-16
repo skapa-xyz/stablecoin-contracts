@@ -107,7 +107,10 @@ const logContractBytecodeLengths = (contractABIs) => {
 async function main() {
   const coreContracts = await dh.deployLiquityCoreHardhat();
   const LQTYContracts = await dh.deployLQTYContractsHardhat(ARBITRARY_ADDRESS, ARBITRARY_ADDRESS);
-  const testerContracts = await dh.deployTesterContractsHardhat();
+  const testerContracts = await dh.deployTesterContractsHardhat(
+    th.GAS_COMPENSATION,
+    th.MIN_NET_DEBT,
+  );
 
   await dh.connectCoreContracts(coreContracts, LQTYContracts);
   await dh.connectLQTYContracts(LQTYContracts);

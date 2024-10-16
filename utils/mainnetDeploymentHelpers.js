@@ -64,12 +64,12 @@ class MainnetDeploymentHelper {
     return contract;
   }
 
-  async deployLiquityCoreMainnet(
-    tellorMasterAddr,
-    pythPriceFeedAddr,
-    pythPriceId,
-    deploymentState,
-  ) {
+  async deployLiquityCoreMainnet(deploymentState) {
+    const tellorMasterAddr = this.configParams.externalAddrs.TELLOR_MASTER;
+    const pythPriceFeedAddr = this.configParams.externalAddrs.PYTH_PRICE_FEED;
+    const pythPriceId = this.configParams.externalAddrs.PYTH_PRICE_ID;
+    const protocolBaseParams = [this.configParams.GAS_COMPENSATION, this.configParams.MIN_NET_DEBT];
+
     // Get contract factories
     const priceFeedFactory = await this.getFactory("PriceFeed");
     const sortedTrovesFactory = await this.getFactory("SortedTroves");
@@ -96,12 +96,14 @@ class MainnetDeploymentHelper {
       troveManagerFactory,
       "troveManager",
       deploymentState,
+      protocolBaseParams,
     );
     const activePool = await this.loadOrDeploy(activePoolFactory, "activePool", deploymentState);
     const stabilityPool = await this.loadOrDeploy(
       stabilityPoolFactory,
       "stabilityPool",
       deploymentState,
+      protocolBaseParams,
     );
     const gasPool = await this.loadOrDeploy(gasPoolFactory, "gasPool", deploymentState);
     const defaultPool = await this.loadOrDeploy(defaultPoolFactory, "defaultPool", deploymentState);
@@ -114,8 +116,14 @@ class MainnetDeploymentHelper {
       borrowerOperationsFactory,
       "borrowerOperations",
       deploymentState,
+      protocolBaseParams,
     );
-    const hintHelpers = await this.loadOrDeploy(hintHelpersFactory, "hintHelpers", deploymentState);
+    const hintHelpers = await this.loadOrDeploy(
+      hintHelpersFactory,
+      "hintHelpers",
+      deploymentState,
+      protocolBaseParams,
+    );
     const tellorCaller = await this.loadOrDeploy(
       tellorCallerFactory,
       "tellorCaller",

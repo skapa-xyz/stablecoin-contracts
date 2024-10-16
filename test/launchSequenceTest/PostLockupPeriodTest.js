@@ -85,7 +85,7 @@ contract("After the initial lockup period has passed", async (accounts) => {
       lpRewardsAddress,
       multisig,
     );
-    coreContracts = await deploymentHelper.deployLiquityCore();
+    coreContracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
 
     lqtyStaking = LQTYContracts.lqtyStaking;
     lqtyToken = LQTYContracts.lqtyToken;

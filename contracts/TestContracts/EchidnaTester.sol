@@ -44,12 +44,12 @@ contract EchidnaTester {
 
     uint private numberOfTroves;
 
-    constructor() payable {
-        troveManager = new TroveManager();
-        borrowerOperations = new BorrowerOperations();
+    constructor(uint _gasCompensation, uint _minNetDebt) payable {
+        troveManager = new TroveManager(_gasCompensation, _minNetDebt);
+        borrowerOperations = new BorrowerOperations(_gasCompensation, _minNetDebt);
         activePool = new ActivePool();
         defaultPool = new DefaultPool();
-        stabilityPool = new StabilityPool();
+        stabilityPool = new StabilityPool(_gasCompensation, _minNetDebt);
         gasPool = new GasPool();
         debtToken = new DebtToken(
             address(troveManager),

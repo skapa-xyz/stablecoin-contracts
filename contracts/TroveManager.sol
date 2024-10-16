@@ -192,6 +192,13 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
         bool cancelledPartial;
     }
 
+    // --- Functions ---
+
+    constructor(
+        uint _gasCompensation,
+        uint _minNetDebt
+    ) LiquityBase(_gasCompensation, _minNetDebt) {}
+
     // --- Dependency setter ---
 
     function setAddresses(
@@ -218,6 +225,9 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
         checkContract(_sortedTrovesAddress);
         checkContract(_lqtyTokenAddress);
         checkContract(_lqtyStakingAddress);
+
+        _requireSameInitialParameters(_borrowerOperationsAddress);
+        _requireSameInitialParameters(_stabilityPoolAddress);
 
         borrowerOperationsAddress = _borrowerOperationsAddress;
         activePool = IActivePool(_activePoolAddress);
@@ -499,7 +509,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
         uint _entireTroveDebt,
         uint _entireTroveColl,
         uint _price
-    ) internal pure returns (LiquidationValues memory singleLiquidation) {
+    ) internal view returns (LiquidationValues memory singleLiquidation) {
         singleLiquidation.entireTroveDebt = _entireTroveDebt;
         singleLiquidation.entireTroveColl = _entireTroveColl;
         uint cappedCollPortion = _entireTroveDebt.mul(MCR).div(_price);

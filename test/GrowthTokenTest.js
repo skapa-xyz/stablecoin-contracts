@@ -144,7 +144,7 @@ contract("LQTY Token", async (accounts) => {
   };
 
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployLiquityCore();
+    contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     const LQTYContracts = await deploymentHelper.deployLQTYTesterContractsHardhat(
       bountyAddress,
       lpRewardsAddress,

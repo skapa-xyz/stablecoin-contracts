@@ -42,12 +42,7 @@ async function mainnetDeploy(configParams) {
   console.log(`deployer's FIL balance before deployments: ${deployerFILBalance}`);
 
   // Deploy core logic contracts
-  const liquityCore = await mdh.deployLiquityCoreMainnet(
-    configParams.externalAddrs.TELLOR_MASTER,
-    configParams.externalAddrs.PYTH_PRICE_FEED,
-    configParams.externalAddrs.PYTH_PRICE_ID,
-    deploymentState,
-  );
+  const liquityCore = await mdh.deployLiquityCoreMainnet(deploymentState);
   await mdh.logContractObjects(liquityCore);
 
   // // Check Uniswap Pair DebtToken-FIL pair before pair creation
@@ -161,17 +156,8 @@ async function mainnetDeploy(configParams) {
         ),
       );
 
-      // There is no `logs` in the txReceipt object for a Filecoin deployment. Instead, `queryFilter` is used to get the events
-      // const filter = LQTYContracts.lockupContractFactory.filters.LockupContractDeployedThroughFactory()
-      // const events = await LQTYContracts.lockupContractFactory.queryFilter(filter, txReceipt.blockNumber)
-      // console.log('events:', events)
-
-      const address2 = await txReceipt.logs[0].address; // The deployment event emitted from the LC itself is is the first of two events, so this is its address
-      console.log(`address2: ${address2}`);
-      // const address = events[0].args._lockupContractAddress
       const address =
         await LQTYContracts.lockupContractFactory.beneficiaryToLockupContract(investorAddr);
-      console.log(`address: ${address}`);
       lockupContracts[investor] = new ethers.Contract(
         address,
         lockupContractEthersFactory.interface,

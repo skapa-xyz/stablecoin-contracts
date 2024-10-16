@@ -7,6 +7,11 @@ import "../BorrowerOperations.sol";
 /* Tester contract inherits from BorrowerOperations, and provides external functions 
 for testing the parent's internal functions. */
 contract BorrowerOperationsTester is BorrowerOperations {
+    constructor(
+        uint _gasCompensation,
+        uint _minNetDebt
+    ) BorrowerOperations(_gasCompensation, _minNetDebt) {}
+
     function getNewICRFromTroveChange(
         uint _coll,
         uint _debt,

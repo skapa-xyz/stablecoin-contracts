@@ -123,7 +123,10 @@ contract("Deploying the LQTY contracts: LCF, CI, LQTYStaking, and LQTYToken ", a
       assert.isTrue(LQTYBalance.eq(expectedCISupplyCap));
 
       // Deploy core contracts, just to get the Stability Pool address
-      const coreContracts = await deploymentHelper.deployLiquityCore();
+      const coreContracts = await deploymentHelper.deployLiquityCore(
+        th.GAS_COMPENSATION,
+        th.MIN_NET_DEBT,
+      );
 
       const tx = await communityIssuance.setAddresses(
         lqtyToken.address,
@@ -142,7 +145,10 @@ contract("Deploying the LQTY contracts: LCF, CI, LQTYStaking, and LQTYToken ", a
       assert.equal(LQTYBalance, "0");
 
       // Deploy core contracts, just to get the Stability Pool address
-      const coreContracts = await deploymentHelper.deployLiquityCore();
+      const coreContracts = await deploymentHelper.deployLiquityCore(
+        th.GAS_COMPENSATION,
+        th.MIN_NET_DEBT,
+      );
 
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
       await lqtyToken.transfer(newCI.address, "31999999999999999999999999", { from: multisig }); // 1e-18 less than CI expects (32 million)
@@ -166,7 +172,10 @@ contract("Deploying the LQTY contracts: LCF, CI, LQTYStaking, and LQTYToken ", a
   describe("Connecting LQTYToken to LCF, CI and LQTYStaking", async (accounts) => {
     it("sets the correct LQTYToken address in LQTYStaking", async () => {
       // Deploy core contracts and set the LQTYToken address in the CI and LQTYStaking
-      const coreContracts = await deploymentHelper.deployLiquityCore();
+      const coreContracts = await deploymentHelper.deployLiquityCore(
+        th.GAS_COMPENSATION,
+        th.MIN_NET_DEBT,
+      );
       await deploymentHelper.connectLQTYContractsToCore(LQTYContracts, coreContracts);
 
       const lqtyTokenAddress = lqtyToken.address;
@@ -184,7 +193,10 @@ contract("Deploying the LQTY contracts: LCF, CI, LQTYStaking, and LQTYToken ", a
 
     it("sets the correct LQTYToken address in CommunityIssuance", async () => {
       // Deploy core contracts and set the LQTYToken address in the CI and LQTYStaking
-      const coreContracts = await deploymentHelper.deployLiquityCore();
+      const coreContracts = await deploymentHelper.deployLiquityCore(
+        th.GAS_COMPENSATION,
+        th.MIN_NET_DEBT,
+      );
       await deploymentHelper.connectLQTYContractsToCore(LQTYContracts, coreContracts);
 
       const lqtyTokenAddress = lqtyToken.address;

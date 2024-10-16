@@ -45,13 +45,13 @@ contract("LQTY community issuance arithmetic tests", async (accounts) => {
   before(async () => {});
 
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployLiquityCore();
+    contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     const LQTYContracts = await deploymentHelper.deployLQTYTesterContractsHardhat(
       bountyAddress,
       lpRewardsAddress,
       multisig,
     );
-    contracts.stabilityPool = await StabilityPool.new();
+    contracts.stabilityPool = await StabilityPool.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     contracts = await deploymentHelper.deployDebtToken(contracts);
 
     stabilityPool = contracts.stabilityPool;

@@ -74,6 +74,13 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
         IDebtToken debtToken;
     }
 
+    // --- Functions ---
+
+    constructor(
+        uint _gasCompensation,
+        uint _minNetDebt
+    ) LiquityBase(_gasCompensation, _minNetDebt) {}
+
     // --- Dependency setters ---
 
     function setAddresses(
@@ -101,6 +108,9 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
         checkContract(_sortedTrovesAddress);
         checkContract(_debtTokenAddress);
         checkContract(_lqtyStakingAddress);
+
+        _requireSameInitialParameters(_troveManagerAddress);
+        _requireSameInitialParameters(_stabilityPoolAddress);
 
         troveManager = ITroveManager(_troveManagerAddress);
         activePool = IActivePool(_activePoolAddress);
@@ -695,14 +705,14 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
         );
     }
 
-    function _requireAtLeastMinNetDebt(uint _netDebt) internal pure {
+    function _requireAtLeastMinNetDebt(uint _netDebt) internal view {
         require(
             _netDebt >= MIN_NET_DEBT,
             "BorrowerOps: Trove's net debt must be greater than minimum"
         );
     }
 
-    function _requireValidDebtRepayment(uint _currentDebt, uint _debtRepayment) internal pure {
+    function _requireValidDebtRepayment(uint _currentDebt, uint _debtRepayment) internal view {
         require(
             _debtRepayment <= _currentDebt.sub(GAS_COMPENSATION),
             "BorrowerOps: Amount repaid must not be larger than the Trove's debt"
@@ -822,7 +832,7 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
         return newTCR;
     }
 
-    function getCompositeDebt(uint _debt) external pure override returns (uint) {
+    function getCompositeDebt(uint _debt) external view override returns (uint) {
         return _getCompositeDebt(_debt);
     }
 }

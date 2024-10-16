@@ -83,9 +83,12 @@ contract("BorrowerOperations", async (accounts) => {
 
   const testCorpus = ({ withProxy = false }) => {
     beforeEach(async () => {
-      contracts = await deploymentHelper.deployLiquityCore();
-      contracts.borrowerOperations = await BorrowerOperationsTester.new();
-      contracts.troveManager = await TroveManagerTester.new();
+      contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+      contracts.borrowerOperations = await BorrowerOperationsTester.new(
+        th.GAS_COMPENSATION,
+        th.MIN_NET_DEBT,
+      );
+      contracts.troveManager = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
       contracts = await deploymentHelper.deployDebtTokenTester(contracts);
       const LQTYContracts = await deploymentHelper.deployLQTYTesterContractsHardhat(
         bountyAddress,

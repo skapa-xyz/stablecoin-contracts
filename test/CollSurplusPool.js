@@ -27,8 +27,8 @@ contract("CollSurplusPool", async (accounts) => {
   const openTrove = async (params) => th.openTrove(contracts, params);
 
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployLiquityCore();
-    contracts.troveManager = await TroveManagerTester.new();
+    contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+    contracts.troveManager = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     contracts.debtToken = await DebtToken.new(
       contracts.troveManager.address,
       contracts.stabilityPool.address,

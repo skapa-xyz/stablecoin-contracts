@@ -1,4 +1,7 @@
 const deploymentHelper = require("../utils/deploymentHelpers.js");
+const testHelpers = require("../utils/testHelpers.js");
+
+const th = testHelpers.TestHelper;
 
 contract(
   "Deployment script - Sets correct contract addresses dependencies after deployment",
@@ -22,7 +25,10 @@ contract(
     let lockupContractFactory;
 
     before(async () => {
-      const coreContracts = await deploymentHelper.deployLiquityCore();
+      const coreContracts = await deploymentHelper.deployLiquityCore(
+        th.GAS_COMPENSATION,
+        th.MIN_NET_DEBT,
+      );
       const LQTYContracts = await deploymentHelper.deployLQTYContracts(
         bountyAddress,
         lpRewardsAddress,

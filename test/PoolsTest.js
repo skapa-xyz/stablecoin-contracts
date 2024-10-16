@@ -1,6 +1,7 @@
 const StabilityPool = artifacts.require("./StabilityPool.sol");
 const ActivePool = artifacts.require("./ActivePool.sol");
 const DefaultPool = artifacts.require("./DefaultPool.sol");
+const LiquityBase = artifacts.require("./LiquityBase.sol");
 const NonPayable = artifacts.require("./NonPayable.sol");
 
 const testHelpers = require("../utils/testHelpers.js");
@@ -19,9 +20,11 @@ contract("StabilityPool", async (accounts) => {
   const [owner, alice] = accounts;
 
   beforeEach(async () => {
-    stabilityPool = await StabilityPool.new();
-    const mockActivePoolAddress = (await NonPayable.new()).address;
-    const dumbContractAddress = (await NonPayable.new()).address;
+    stabilityPool = await StabilityPool.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+    const mockActivePoolAddress = (await LiquityBase.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT))
+      .address;
+    const dumbContractAddress = (await LiquityBase.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT))
+      .address;
     await stabilityPool.setAddresses(
       dumbContractAddress,
       dumbContractAddress,
@@ -51,7 +54,8 @@ contract("ActivePool", async (accounts) => {
   beforeEach(async () => {
     activePool = await ActivePool.new();
     mockBorrowerOperations = await NonPayable.new();
-    const dumbContractAddress = (await NonPayable.new()).address;
+    const dumbContractAddress = (await LiquityBase.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT))
+      .address;
     await activePool.setAddresses(
       mockBorrowerOperations.address,
       dumbContractAddress,

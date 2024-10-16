@@ -39,8 +39,14 @@ contract(
     let lockupContractFactory;
 
     before(async () => {
-      coreContracts = await deploymentHelper.deployLiquityCore();
-      coreContracts.troveManager = await TroveManagerTester.new();
+      coreContracts = await deploymentHelper.deployLiquityCore(
+        th.GAS_COMPENSATION,
+        th.MIN_NET_DEBT,
+      );
+      coreContracts.troveManager = await TroveManagerTester.new(
+        th.GAS_COMPENSATION,
+        th.MIN_NET_DEBT,
+      );
       coreContracts = await deploymentHelper.deployDebtTokenTester(coreContracts);
       const LQTYContracts = await deploymentHelper.deployLQTYTesterContractsHardhat(
         bountyAddress,

@@ -235,6 +235,13 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
     uint public lastFILError_Offset;
     uint public lastDebtTokenLossError_Offset;
 
+    // --- Functions ---
+
+    constructor(
+        uint _gasCompensation,
+        uint _minNetDebt
+    ) LiquityBase(_gasCompensation, _minNetDebt) {}
+
     // --- Contract setters ---
 
     function setAddresses(
@@ -253,6 +260,9 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
         checkContract(_sortedTrovesAddress);
         checkContract(_priceFeedAddress);
         checkContract(_communityIssuanceAddress);
+
+        _requireSameInitialParameters(_borrowerOperationsAddress);
+        _requireSameInitialParameters(_troveManagerAddress);
 
         borrowerOperations = IBorrowerOperations(_borrowerOperationsAddress);
         troveManager = ITroveManager(_troveManagerAddress);

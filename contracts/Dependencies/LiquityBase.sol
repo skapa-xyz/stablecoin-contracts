@@ -24,16 +24,15 @@ contract LiquityBase is BaseMath, ILiquityBase {
     // Critical system collateral ratio. If the system's total collateral ratio (TCR) falls below the CCR, Recovery Mode is triggered.
     uint public constant CCR = 1500000000000000000; // 150%
 
-    // Amount of debt tokens to be locked in gas pool on opening troves
-    uint public constant GAS_COMPENSATION = 200e18;
-
-    // Minimum amount of net debt a trove must have
-    uint public constant MIN_NET_DEBT = 1800e18;
-    // uint constant public MIN_NET_DEBT = 0;
-
     uint public constant PERCENT_DIVISOR = 200; // dividing by 200 yields 0.5%
 
     uint public constant BORROWING_FEE_FLOOR = (DECIMAL_PRECISION / 1000) * 5; // 0.5%
+
+    // Amount of debt tokens to be locked in gas pool on opening troves
+    uint public immutable GAS_COMPENSATION;
+
+    // Minimum amount of net debt a trove must have
+    uint public immutable MIN_NET_DEBT;
 
     IActivePool public activePool;
 
@@ -41,14 +40,19 @@ contract LiquityBase is BaseMath, ILiquityBase {
 
     IPriceFeed public override priceFeed;
 
+    constructor(uint _gasCompensation, uint _minNetDebt) {
+        GAS_COMPENSATION = _gasCompensation;
+        MIN_NET_DEBT = _minNetDebt;
+    }
+
     // --- Gas compensation functions ---
 
     // Returns the composite debt (drawn debt + gas compensation) of a trove, for the purpose of ICR calculation
-    function _getCompositeDebt(uint _debt) internal pure returns (uint) {
+    function _getCompositeDebt(uint _debt) internal view returns (uint) {
         return _debt.add(GAS_COMPENSATION);
     }
 
-    function _getNetDebt(uint _debt) internal pure returns (uint) {
+    function _getNetDebt(uint _debt) internal view returns (uint) {
         return _debt.sub(GAS_COMPENSATION);
     }
 
@@ -89,5 +93,16 @@ contract LiquityBase is BaseMath, ILiquityBase {
     function _requireUserAcceptsFee(uint _fee, uint _amount, uint _maxFeePercentage) internal pure {
         uint feePercentage = _fee.mul(DECIMAL_PRECISION).div(_amount);
         require(feePercentage <= _maxFeePercentage, "Fee exceeded provided maximum");
+    }
+
+    function _requireSameInitialParameters(address contractAddress) internal view {
+        require(
+            LiquityBase(contractAddress).GAS_COMPENSATION() == GAS_COMPENSATION,
+            "GAS_COMPENSATION mismatch"
+        );
+        require(
+            LiquityBase(contractAddress).MIN_NET_DEBT() == MIN_NET_DEBT,
+            "MIN_NET_DEBT mismatch"
+        );
     }
 }

@@ -8,7 +8,8 @@ const { pack } = require("@ethersproject/solidity");
 const { hexlify } = require("@ethersproject/bytes");
 const { ecsign } = require("ethereumjs-util");
 
-const { toBN, assertRevert, assertAssert, dec, ZERO_ADDRESS } = testHelpers.TestHelper;
+const { toBN, assertRevert, assertAssert, dec, ZERO_ADDRESS, GAS_COMPENSATION, MIN_NET_DEBT } =
+  testHelpers.TestHelper;
 
 const sign = (digest, privateKey) => {
   return ecsign(Buffer.from(digest.slice(2), "hex"), Buffer.from(privateKey.slice(2), "hex"));
@@ -91,7 +92,10 @@ contract("DebtToken", async (accounts) => {
 
   const testCorpus = ({ withProxy = false }) => {
     beforeEach(async () => {
-      const contracts = await deploymentHelper.deployTesterContractsHardhat();
+      const contracts = await deploymentHelper.deployTesterContractsHardhat(
+        GAS_COMPENSATION,
+        MIN_NET_DEBT,
+      );
 
       const LQTYContracts = await deploymentHelper.deployLQTYContracts(
         bountyAddress,

@@ -36,7 +36,7 @@ contract("Gas cost tests", async (accounts) => {
   let data = [];
 
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployLiquityCore();
+    contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     const LQTYContracts = await deploymentHelper.deployLQTYContracts(
       bountyAddress,
       lpRewardsAddress,

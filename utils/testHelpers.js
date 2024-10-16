@@ -1556,6 +1556,8 @@ TestHelper.ZERO_ADDRESS = "0x" + "0".repeat(40);
 TestHelper.maxBytes32 = "0x" + "f".repeat(64);
 TestHelper._100pct = "1000000000000000000";
 TestHelper.latestRandomSeed = 31337;
+TestHelper.GAS_COMPENSATION = TestHelper.dec(200, 18);
+TestHelper.MIN_NET_DEBT = TestHelper.dec(1800, 18);
 
 module.exports = {
   TestHelper,

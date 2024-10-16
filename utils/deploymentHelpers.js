@@ -60,15 +60,15 @@ const ZERO_ADDRESS = "0x" + "0".repeat(40);
 const maxBytes32 = "0x" + "f".repeat(64);
 
 class DeploymentHelper {
-  static async deployLiquityCore() {
+  static async deployLiquityCore(gasCompensation, minNetDebt) {
     const cmdLineArgs = process.argv;
     const frameworkPath = cmdLineArgs[1];
     // console.log(`Framework used:  ${frameworkPath}`)
 
     if (frameworkPath.includes("hardhat")) {
-      return this.deployLiquityCoreHardhat();
+      return this.deployLiquityCoreHardhat(gasCompensation, minNetDebt);
     } else if (frameworkPath.includes("truffle")) {
-      return this.deployLiquityCoreTruffle();
+      return this.deployLiquityCoreTruffle(gasCompensation, minNetDebt);
     }
   }
 
@@ -84,18 +84,18 @@ class DeploymentHelper {
     }
   }
 
-  static async deployLiquityCoreHardhat() {
+  static async deployLiquityCoreHardhat(gasCompensation, minNetDebt) {
     const priceFeedTestnet = await PriceFeedTestnet.new();
     const sortedTroves = await SortedTroves.new();
-    const troveManager = await TroveManager.new();
+    const troveManager = await TroveManager.new(gasCompensation, minNetDebt);
     const activePool = await ActivePool.new();
-    const stabilityPool = await StabilityPool.new();
+    const stabilityPool = await StabilityPool.new(gasCompensation, minNetDebt);
     const gasPool = await GasPool.new();
     const defaultPool = await DefaultPool.new();
     const collSurplusPool = await CollSurplusPool.new();
     const functionCaller = await FunctionCaller.new();
-    const borrowerOperations = await BorrowerOperations.new();
-    const hintHelpers = await HintHelpers.new();
+    const borrowerOperations = await BorrowerOperations.new(gasCompensation, minNetDebt);
+    const hintHelpers = await HintHelpers.new(gasCompensation, minNetDebt);
     const debtToken = await DebtToken.new(
       troveManager.address,
       stabilityPool.address,
@@ -131,7 +131,7 @@ class DeploymentHelper {
     return coreContracts;
   }
 
-  static async deployTesterContractsHardhat() {
+  static async deployTesterContractsHardhat(gasCompensation, minNetDebt) {
     const testerContracts = {};
 
     // Contract without testers (yet)
@@ -141,14 +141,17 @@ class DeploymentHelper {
     testerContracts.communityIssuance = await CommunityIssuanceTester.new();
     testerContracts.activePool = await ActivePoolTester.new();
     testerContracts.defaultPool = await DefaultPoolTester.new();
-    testerContracts.stabilityPool = await StabilityPoolTester.new();
+    testerContracts.stabilityPool = await StabilityPoolTester.new(gasCompensation, minNetDebt);
     testerContracts.gasPool = await GasPool.new();
     testerContracts.collSurplusPool = await CollSurplusPool.new();
     testerContracts.math = await LiquityMathTester.new();
-    testerContracts.borrowerOperations = await BorrowerOperationsTester.new();
-    testerContracts.troveManager = await TroveManagerTester.new();
+    testerContracts.borrowerOperations = await BorrowerOperationsTester.new(
+      gasCompensation,
+      minNetDebt,
+    );
+    testerContracts.troveManager = await TroveManagerTester.new(gasCompensation, minNetDebt);
     testerContracts.functionCaller = await FunctionCaller.new();
-    testerContracts.hintHelpers = await HintHelpers.new();
+    testerContracts.hintHelpers = await HintHelpers.new(gasCompensation, minNetDebt);
     testerContracts.debtToken = await DebtTokenTester.new(
       testerContracts.troveManager.address,
       testerContracts.stabilityPool.address,
@@ -215,18 +218,18 @@ class DeploymentHelper {
     return LQTYContracts;
   }
 
-  static async deployLiquityCoreTruffle() {
+  static async deployLiquityCoreTruffle(gasCompensation, minNetDebt) {
     const priceFeedTestnet = await PriceFeedTestnet.new();
     const sortedTroves = await SortedTroves.new();
-    const troveManager = await TroveManager.new();
+    const troveManager = await TroveManager.new(gasCompensation, minNetDebt);
     const activePool = await ActivePool.new();
-    const stabilityPool = await StabilityPool.new();
+    const stabilityPool = await StabilityPool.new(gasCompensation, minNetDebt);
     const gasPool = await GasPool.new();
     const defaultPool = await DefaultPool.new();
     const collSurplusPool = await CollSurplusPool.new();
     const functionCaller = await FunctionCaller.new();
-    const borrowerOperations = await BorrowerOperations.new();
-    const hintHelpers = await HintHelpers.new();
+    const borrowerOperations = await BorrowerOperations.new(gasCompensation, minNetDebt);
+    const hintHelpers = await HintHelpers.new(gasCompensation, minNetDebt);
     const debtToken = await DebtToken.new(
       troveManager.address,
       stabilityPool.address,

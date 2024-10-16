@@ -44,7 +44,10 @@ contract("Gas cost tests", async (accounts) => {
   let data = [];
 
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployTesterContractsHardhat();
+    contracts = await deploymentHelper.deployTesterContractsHardhat(
+      th.GAS_COMPENSATION,
+      th.MIN_NET_DEBT,
+    );
     const LQTYContracts = await deploymentHelper.deployLQTYContracts(
       bountyAddress,
       lpRewardsAddress,
