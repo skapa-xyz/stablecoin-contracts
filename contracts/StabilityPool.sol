@@ -433,7 +433,7 @@ contract StabilityPool is ProtocolBase, Ownable, CheckContract, IStabilityPool {
 
         FIL = FIL.sub(depositorFILGain);
         emit StabilityPoolFILBalanceUpdated(FIL);
-        emit EtherSent(msg.sender, depositorFILGain);
+        emit FILSent(msg.sender, depositorFILGain);
 
         borrowerOperations.moveFILGainToTrove{value: depositorFILGain}(
             msg.sender,
@@ -872,7 +872,7 @@ contract StabilityPool is ProtocolBase, Ownable, CheckContract, IStabilityPool {
         uint newFIL = FIL.sub(_amount);
         FIL = newFIL;
         emit StabilityPoolFILBalanceUpdated(newFIL);
-        emit EtherSent(msg.sender, _amount);
+        emit FILSent(msg.sender, _amount);
 
         (bool success, ) = msg.sender.call{value: _amount}("");
         require(success, "StabilityPool: sending FIL failed");

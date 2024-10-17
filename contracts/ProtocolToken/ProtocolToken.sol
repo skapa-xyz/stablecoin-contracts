@@ -52,7 +52,7 @@ contract ProtocolToken is CheckContract, IProtocolToken {
 
     // --- ERC20 Data ---
 
-    string internal constant _NAME = "SCR";
+    string internal constant _NAME = "Secured Finance";
     string internal constant _SYMBOL = "SCR";
     string internal constant _VERSION = "1";
     uint8 internal constant _DECIMALS = 18;

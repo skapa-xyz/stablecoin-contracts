@@ -203,7 +203,7 @@ contract ProtocolTokenStaking is IProtocolTokenStaking, Ownable, CheckContract, 
     }
 
     function _sendFILGainToUser(uint FILGain) internal {
-        emit EtherSent(msg.sender, FILGain);
+        emit FILSent(msg.sender, FILGain);
         (bool success, ) = msg.sender.call{value: FILGain}("");
         require(success, "ProtocolTokenStaking: Failed to send accumulated FILGain");
     }

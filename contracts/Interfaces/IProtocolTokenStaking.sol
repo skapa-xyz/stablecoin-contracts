@@ -16,7 +16,7 @@ interface IProtocolTokenStaking {
     event F_FILUpdated(uint _F_FIL);
     event F_DebtTokenUpdated(uint _F_DebtToken);
     event TotalProtocolTokenStakedUpdated(uint _totalProtocolTokenStaked);
-    event EtherSent(address _account, uint _amount);
+    event FILSent(address _account, uint _amount);
     event StakerSnapshotsUpdated(address _staker, uint _F_FIL, uint _F_DebtToken);
 
     // --- Functions ---

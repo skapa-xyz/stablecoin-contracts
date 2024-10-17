@@ -183,7 +183,7 @@ contract("ProtocolToken", async (accounts) => {
 
   it("name(): returns the token's name", async () => {
     const name = await protocolTokenTester.name();
-    assert.equal(name, "SCR");
+    assert.equal(name, "Secured Finance");
   });
 
   it("symbol(): returns the token's symbol", async () => {

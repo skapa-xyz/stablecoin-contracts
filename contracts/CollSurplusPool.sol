@@ -74,7 +74,7 @@ contract CollSurplusPool is Ownable, CheckContract, ICollSurplusPool {
         emit CollBalanceUpdated(_account, 0);
 
         FIL = FIL.sub(claimableColl);
-        emit EtherSent(_account, claimableColl);
+        emit FILSent(_account, claimableColl);
 
         (bool success, ) = _account.call{value: claimableColl}("");
         require(success, "CollSurplusPool: sending FIL failed");

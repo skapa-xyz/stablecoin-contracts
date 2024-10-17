@@ -74,7 +74,7 @@ contract ActivePool is Ownable, CheckContract, IActivePool {
         _requireCallerIsBOorTroveMorSP();
         FIL = FIL.sub(_amount);
         emit ActivePoolFILBalanceUpdated(FIL);
-        emit EtherSent(_account, _amount);
+        emit FILSent(_account, _amount);
 
         (bool success, ) = _account.call{value: _amount}("");
         require(success, "ActivePool: sending FIL failed");

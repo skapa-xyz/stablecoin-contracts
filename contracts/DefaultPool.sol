@@ -65,7 +65,7 @@ contract DefaultPool is Ownable, CheckContract, IDefaultPool {
         address activePool = activePoolAddress; // cache to save an SLOAD
         FIL = FIL.sub(_amount);
         emit DefaultPoolFILBalanceUpdated(FIL);
-        emit EtherSent(activePool, _amount);
+        emit FILSent(activePool, _amount);
 
         (bool success, ) = activePool.call{value: _amount}("");
         require(success, "DefaultPool: sending FIL failed");

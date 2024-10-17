@@ -10,7 +10,7 @@ interface ICollSurplusPool {
     event ActivePoolAddressChanged(address _newActivePoolAddress);
 
     event CollBalanceUpdated(address indexed _account, uint _newBalance);
-    event EtherSent(address _to, uint _amount);
+    event FILSent(address _to, uint _amount);
 
     // --- Contract setters ---
 

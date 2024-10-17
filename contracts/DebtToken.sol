@@ -28,8 +28,8 @@ contract DebtToken is CheckContract, IDebtToken {
     using SafeMath for uint256;
 
     uint256 private _totalSupply;
-    string internal constant _NAME = "USD Stablecoin backed by Filecoin";
-    string internal constant _SYMBOL = "USDSF";
+    string internal constant _NAME = "USD for Filecoin Community";
+    string internal constant _SYMBOL = "USDFC";
     string internal constant _VERSION = "1";
     uint8 internal constant _DECIMALS = 18;
 

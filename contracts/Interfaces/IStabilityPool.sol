@@ -69,7 +69,7 @@ interface IStabilityPool {
     event FILGainWithdrawn(address indexed _depositor, uint _FIL, uint _debtTokenLoss);
     event ProtocolTokenPaidToDepositor(address indexed _depositor, uint _protocolToken);
     event ProtocolTokenPaidToFrontEnd(address indexed _frontEnd, uint _protocolToken);
-    event EtherSent(address _to, uint _amount);
+    event FILSent(address _to, uint _amount);
 
     // --- Functions ---
 

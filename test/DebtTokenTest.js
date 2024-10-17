@@ -156,12 +156,12 @@ contract("DebtToken", async (accounts) => {
 
     it("name(): returns the token's name", async () => {
       const name = await debtTokenTester.name();
-      assert.equal(name, "USD Stablecoin backed by Filecoin");
+      assert.equal(name, "USD for Filecoin Community");
     });
 
     it("symbol(): returns the token's symbol", async () => {
       const symbol = await debtTokenTester.symbol();
-      assert.equal(symbol, "USDSF");
+      assert.equal(symbol, "USDFC");
     });
 
     it("decimal(): returns the number of decimal digits used", async () => {
