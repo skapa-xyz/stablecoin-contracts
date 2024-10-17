@@ -2,9 +2,9 @@
 
 pragma solidity 0.7.6;
 
-import "../LQTY/LQTYStaking.sol";
+import "../ProtocolToken/ProtocolTokenStaking.sol";
 
-contract LQTYStakingTester is LQTYStaking {
+contract ProtocolTokenStakingTester is ProtocolTokenStaking {
     function requireCallerIsTroveManager() external view {
         _requireCallerIsTroveManager();
     }

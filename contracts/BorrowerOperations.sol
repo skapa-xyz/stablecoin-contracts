@@ -7,7 +7,7 @@ import "./Interfaces/ITroveManager.sol";
 import "./Interfaces/IDebtToken.sol";
 import "./Interfaces/ICollSurplusPool.sol";
 import "./Interfaces/ISortedTroves.sol";
-import "./Interfaces/ILQTYStaking.sol";
+import "./Interfaces/IProtocolTokenStaking.sol";
 import "./Dependencies/LiquityBase.sol";
 import "./Dependencies/Ownable.sol";
 import "./Dependencies/CheckContract.sol";
@@ -28,8 +28,8 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
 
     ICollSurplusPool collSurplusPool;
 
-    ILQTYStaking public lqtyStaking;
-    address public lqtyStakingAddress;
+    IProtocolTokenStaking public protocolTokenStaking;
+    address public protocolTokenStakingAddress;
 
     IDebtToken public debtToken;
 
@@ -93,7 +93,7 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
         address _priceFeedAddress,
         address _sortedTrovesAddress,
         address _debtTokenAddress,
-        address _lqtyStakingAddress
+        address _protocolTokenStakingAddress
     ) external override onlyOwner {
         // This makes impossible to open a trove with zero withdrawn debt token amount
         assert(MIN_NET_DEBT > 0);
@@ -107,7 +107,7 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
         checkContract(_priceFeedAddress);
         checkContract(_sortedTrovesAddress);
         checkContract(_debtTokenAddress);
-        checkContract(_lqtyStakingAddress);
+        checkContract(_protocolTokenStakingAddress);
 
         _requireSameInitialParameters(_troveManagerAddress);
         _requireSameInitialParameters(_stabilityPoolAddress);
@@ -121,8 +121,8 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
         priceFeed = IPriceFeed(_priceFeedAddress);
         sortedTroves = ISortedTroves(_sortedTrovesAddress);
         debtToken = IDebtToken(_debtTokenAddress);
-        lqtyStakingAddress = _lqtyStakingAddress;
-        lqtyStaking = ILQTYStaking(_lqtyStakingAddress);
+        protocolTokenStakingAddress = _protocolTokenStakingAddress;
+        protocolTokenStaking = IProtocolTokenStaking(_protocolTokenStakingAddress);
 
         emit TroveManagerAddressChanged(_troveManagerAddress);
         emit ActivePoolAddressChanged(_activePoolAddress);
@@ -133,7 +133,7 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
         emit PriceFeedAddressChanged(_priceFeedAddress);
         emit SortedTrovesAddressChanged(_sortedTrovesAddress);
         emit DebtTokenAddressChanged(_debtTokenAddress);
-        emit LQTYStakingAddressChanged(_lqtyStakingAddress);
+        emit ProtocolTokenStakingAddressChanged(_protocolTokenStakingAddress);
 
         _renounceOwnership();
     }
@@ -485,9 +485,9 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
 
         _requireUserAcceptsFee(debtTokenFee, _debtTokenAmount, _maxFeePercentage);
 
-        // Send fee to LQTY staking contract
-        lqtyStaking.increaseF_DebtToken(debtTokenFee);
-        _debtToken.mint(lqtyStakingAddress, debtTokenFee);
+        // Send fee to ProtocolTokenStaking contract
+        protocolTokenStaking.increaseF_DebtToken(debtTokenFee);
+        _debtToken.mint(protocolTokenStakingAddress, debtTokenFee);
 
         return debtTokenFee;
     }

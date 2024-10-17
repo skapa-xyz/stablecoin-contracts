@@ -1,6 +1,7 @@
 # Test coverage
 
 To check test coverage you can run:
+
 ```
 yarn coverage
 ```
@@ -12,6 +13,7 @@ You can see the coverage status at mainnet deployment [here](https://codecov.io/
 There’s also a [pull request](https://github.com/liquity/dev/pull/515) to increase the coverage, but it hasn’t been merged yet because it modifies some smart contracts (mostly removing unnecessary checks).
 
 # Test output
+
 The following is the output of a complete test run, made on commit [`a1824dd8`](https://github.com/liquity/dev/tree/a1824dd88f4928b424cae372d59c4455d5c9a2c2), from April 16th, 2021.
 
 ```
@@ -400,7 +402,7 @@ TCR: 11.892415157517211309
       ✓ LQTY multisig can't withraw from a LC which it funded (271ms)
       ✓ No one can withraw from a LC (78ms)
 
-  Contract: Deploying the LQTY contracts: LCF, CI, LQTYStaking, and LQTYToken 
+  Contract: Deploying the LQTY contracts: LCF, CI, LQTYStaking, and LQTYToken
     CommunityIssuance deployment
       ✓ Stores the deployer's address
     LQTYStaking deployment
@@ -455,7 +457,7 @@ TCR: 11.892415157517211309
       ✓ Anyone can deploy LCs with unlockTime = one year from deployment, directly and through factory (102ms)
       ✓ Anyone can deploy LCs with unlockTime > one year from deployment, directly and through factory (187ms)
       ✓ No one can deploy LCs with unlockTime < one year from deployment, directly or through factory (100ms)
-      Withdrawal Attempts on LCs before unlockTime has passed 
+      Withdrawal Attempts on LCs before unlockTime has passed
         ✓ Liquity multisig can't withdraw from a funded LC they deployed for another beneficiary through the Factory before the unlockTime
         ✓ Liquity multisig can't withdraw from a funded LC that someone else deployed before the unlockTime (52ms)
         ✓ Beneficiary can't withdraw from their funded LC before the unlockTime (219ms)
@@ -803,9 +805,9 @@ issuance fraction after: 949066037374286
 
   Contract: StabilityPool - LQTY Rewards
     LQTY Rewards
-totalLQTYIssued_1: 30370113195977152000000
-totalLQTYIssued_2: 30370113195977152000000
-      ✓ liquidation < 1 minute after a deposit does not change totalLQTYIssued (743ms)
+totalProtocolTokenIssued_1: 30370113195977152000000
+totalProtocolTokenIssued_2: 30370113195977152000000
+      ✓ liquidation < 1 minute after a deposit does not change totalProtocolTokenIssued (743ms)
       ✓ withdrawFromSP(): reward term G does not update when no LQTY is issued (634ms)
       ✓ withdrawFromSP(): Depositors with equal initial deposit withdraw correct LQTY gain. No liquidations. No front end. (1479ms)
       ✓ withdrawFromSP(): Depositors with varying initial deposit withdraw correct LQTY gain. No liquidations. No front end. (1345ms)

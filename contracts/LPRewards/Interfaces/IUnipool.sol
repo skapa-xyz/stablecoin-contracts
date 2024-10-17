@@ -4,7 +4,7 @@ pragma solidity 0.7.6;
 
 interface IUnipool {
     function setParams(
-        address _lqtyTokenAddress,
+        address _protocolTokenAddress,
         address _uniTokenAddress,
         uint256 _duration
     ) external;

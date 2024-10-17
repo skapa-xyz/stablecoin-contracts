@@ -14,17 +14,17 @@ contract("Deploying and funding One Year Lockup Contracts", async (accounts) => 
 
   const SECONDS_IN_ONE_MONTH = timeValues.SECONDS_IN_ONE_MONTH;
 
-  let LQTYContracts;
+  let protocolTokenContracts;
 
   // 1e24 = 1 million tokens with 18 decimal digits
-  const LQTYEntitlement_A = dec(1, 24);
-  const LQTYEntitlement_B = dec(2, 24);
-  const LQTYEntitlement_C = dec(3, 24);
-  const LQTYEntitlement_D = dec(4, 24);
-  const LQTYEntitlement_E = dec(5, 24);
+  const protocolTokenEntitlement_A = dec(1, 24);
+  const protocolTokenEntitlement_B = dec(2, 24);
+  const protocolTokenEntitlement_C = dec(3, 24);
+  const protocolTokenEntitlement_D = dec(4, 24);
+  const protocolTokenEntitlement_E = dec(5, 24);
 
-  let lqtyStaking;
-  let lqtyToken;
+  let protocolTokenStaking;
+  let protocolToken;
   let communityIssuance;
   let lockupContractFactory;
 
@@ -32,20 +32,20 @@ contract("Deploying and funding One Year Lockup Contracts", async (accounts) => 
 
   beforeEach(async () => {
     // Deploy all contracts from the first account
-    LQTYContracts = await deploymentHelper.deployLQTYContracts(
+    protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
       bountyAddress,
       lpRewardsAddress,
       multisig,
     );
-    await deploymentHelper.connectLQTYContracts(LQTYContracts);
+    await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
 
-    lqtyStaking = LQTYContracts.lqtyStaking;
-    lqtyToken = LQTYContracts.lqtyToken;
-    communityIssuance = LQTYContracts.communityIssuance;
-    lockupContractFactory = LQTYContracts.lockupContractFactory;
+    protocolTokenStaking = protocolTokenContracts.protocolTokenStaking;
+    protocolToken = protocolTokenContracts.protocolToken;
+    communityIssuance = protocolTokenContracts.communityIssuance;
+    lockupContractFactory = protocolTokenContracts.lockupContractFactory;
 
     oneYearFromSystemDeployment = await th.getTimeFromSystemDeployment(
-      lqtyToken,
+      protocolToken,
       web3,
       timeValues.SECONDS_IN_ONE_YEAR,
     );
@@ -54,8 +54,8 @@ contract("Deploying and funding One Year Lockup Contracts", async (accounts) => 
   // --- LCs ---
 
   describe("Deploying LCs", async (accounts) => {
-    it("LQTY Deployer can deploy LCs through the Factory", async () => {
-      // LQTY deployer deploys LCs
+    it("ProtocolToken Deployer can deploy LCs through the Factory", async () => {
+      // ProtocolToken deployer deploys LCs
       const LCDeploymentTx_A = await lockupContractFactory.deployLockupContract(
         A,
         oneYearFromSystemDeployment,
@@ -118,19 +118,19 @@ contract("Deploying and funding One Year Lockup Contracts", async (accounts) => 
       assert.isTrue(LCDeploymentTx_4.receipt.status);
     });
 
-    it("LQTY Deployer can deploy LCs directly", async () => {
-      // LQTY deployer deploys LCs
-      const LC_A = await LockupContract.new(lqtyToken.address, A, oneYearFromSystemDeployment, {
+    it("ProtocolToken Deployer can deploy LCs directly", async () => {
+      // ProtocolToken deployer deploys LCs
+      const LC_A = await LockupContract.new(protocolToken.address, A, oneYearFromSystemDeployment, {
         from: liquityAG,
       });
       const LC_A_txReceipt = await web3.eth.getTransactionReceipt(LC_A.transactionHash);
 
-      const LC_B = await LockupContract.new(lqtyToken.address, B, oneYearFromSystemDeployment, {
+      const LC_B = await LockupContract.new(protocolToken.address, B, oneYearFromSystemDeployment, {
         from: liquityAG,
       });
       const LC_B_txReceipt = await web3.eth.getTransactionReceipt(LC_B.transactionHash);
 
-      const LC_C = await LockupContract.new(lqtyToken.address, C, oneYearFromSystemDeployment, {
+      const LC_C = await LockupContract.new(protocolToken.address, C, oneYearFromSystemDeployment, {
         from: liquityAG,
       });
       const LC_C_txReceipt = await web3.eth.getTransactionReceipt(LC_C.transactionHash);
@@ -143,17 +143,17 @@ contract("Deploying and funding One Year Lockup Contracts", async (accounts) => 
 
     it("Anyone can deploy LCs directly", async () => {
       // Various EOAs deploy LCs
-      const LC_A = await LockupContract.new(lqtyToken.address, A, oneYearFromSystemDeployment, {
+      const LC_A = await LockupContract.new(protocolToken.address, A, oneYearFromSystemDeployment, {
         from: D,
       });
       const LC_A_txReceipt = await web3.eth.getTransactionReceipt(LC_A.transactionHash);
 
-      const LC_B = await LockupContract.new(lqtyToken.address, B, oneYearFromSystemDeployment, {
+      const LC_B = await LockupContract.new(protocolToken.address, B, oneYearFromSystemDeployment, {
         from: E,
       });
       const LC_B_txReceipt = await web3.eth.getTransactionReceipt(LC_B.transactionHash);
 
-      const LC_C = await LockupContract.new(lqtyToken.address, C, oneYearFromSystemDeployment, {
+      const LC_C = await LockupContract.new(protocolToken.address, C, oneYearFromSystemDeployment, {
         from: F,
       });
       const LC_C_txReceipt = await web3.eth.getTransactionReceipt(LC_C.transactionHash);
@@ -362,11 +362,13 @@ contract("Deploying and funding One Year Lockup Contracts", async (accounts) => 
 
     it("Direct deployment of LC sets the unlockTime in the LC", async () => {
       // Deploy 3 LCs directly
-      const LC_A = await LockupContract.new(lqtyToken.address, A, oneYearFromSystemDeployment, {
+      const LC_A = await LockupContract.new(protocolToken.address, A, oneYearFromSystemDeployment, {
         from: liquityAG,
       });
-      const LC_B = await LockupContract.new(lqtyToken.address, B, "230582305895235", { from: B });
-      const LC_C = await LockupContract.new(lqtyToken.address, C, dec(20, 18), { from: E });
+      const LC_B = await LockupContract.new(protocolToken.address, B, "230582305895235", {
+        from: B,
+      });
+      const LC_C = await LockupContract.new(protocolToken.address, C, dec(20, 18), { from: E });
 
       // Grab contract addresses from deployment tx events
       const unlockTime_A = await LC_A.unlockTime();
@@ -412,11 +414,13 @@ contract("Deploying and funding One Year Lockup Contracts", async (accounts) => 
       const nearlyOneYear = toBN(oneYearFromSystemDeployment).sub(toBN("60")); // 1 minute short of 1 year
 
       // Deploy 3 LCs directly with unlockTime < 1 year from system deployment
-      const LCDeploymentPromise_A = LockupContract.new(lqtyToken.address, A, nearlyOneYear, {
+      const LCDeploymentPromise_A = LockupContract.new(protocolToken.address, A, nearlyOneYear, {
         from: liquityAG,
       });
-      const LCDeploymentPromise_B = LockupContract.new(lqtyToken.address, B, "37", { from: B });
-      const LCDeploymentPromise_C = LockupContract.new(lqtyToken.address, C, "43200", { from: E });
+      const LCDeploymentPromise_B = LockupContract.new(protocolToken.address, B, "37", { from: B });
+      const LCDeploymentPromise_C = LockupContract.new(protocolToken.address, C, "43200", {
+        from: E,
+      });
 
       // Confirm contract deployments revert
       await assertRevert(
@@ -435,7 +439,7 @@ contract("Deploying and funding One Year Lockup Contracts", async (accounts) => 
   });
 
   describe("Funding LCs", async (accounts) => {
-    it("LQTY transfer from LQTY deployer to their deployed LC increases the LQTY balance of the LC", async () => {
+    it("ProtocolToken transfer from ProtocolToken deployer to their deployed LC increases the ProtocolToken balance of the LC", async () => {
       // Deploy 5 LCs
       const deployedLCtx_A = await lockupContractFactory.deployLockupContract(
         A,
@@ -480,27 +484,27 @@ contract("Deploying and funding One Year Lockup Contracts", async (accounts) => 
       const LCAddress_D = await th.getLCAddressFromDeploymentTx(deployedLCtx_D);
       const LCAddress_E = await th.getLCAddressFromDeploymentTx(deployedLCtx_E);
 
-      assert.equal(await lqtyToken.balanceOf(LCAddress_A), "0");
-      assert.equal(await lqtyToken.balanceOf(LCAddress_B), "0");
-      assert.equal(await lqtyToken.balanceOf(LCAddress_C), "0");
-      assert.equal(await lqtyToken.balanceOf(LCAddress_D), "0");
-      assert.equal(await lqtyToken.balanceOf(LCAddress_E), "0");
+      assert.equal(await protocolToken.balanceOf(LCAddress_A), "0");
+      assert.equal(await protocolToken.balanceOf(LCAddress_B), "0");
+      assert.equal(await protocolToken.balanceOf(LCAddress_C), "0");
+      assert.equal(await protocolToken.balanceOf(LCAddress_D), "0");
+      assert.equal(await protocolToken.balanceOf(LCAddress_E), "0");
 
-      // Multisig transfers LQTY to each LC
-      await lqtyToken.transfer(LCAddress_A, LQTYEntitlement_A, { from: multisig });
-      await lqtyToken.transfer(LCAddress_B, LQTYEntitlement_B, { from: multisig });
-      await lqtyToken.transfer(LCAddress_C, LQTYEntitlement_C, { from: multisig });
-      await lqtyToken.transfer(LCAddress_D, LQTYEntitlement_D, { from: multisig });
-      await lqtyToken.transfer(LCAddress_E, LQTYEntitlement_E, { from: multisig });
+      // Multisig transfers ProtocolToken to each LC
+      await protocolToken.transfer(LCAddress_A, protocolTokenEntitlement_A, { from: multisig });
+      await protocolToken.transfer(LCAddress_B, protocolTokenEntitlement_B, { from: multisig });
+      await protocolToken.transfer(LCAddress_C, protocolTokenEntitlement_C, { from: multisig });
+      await protocolToken.transfer(LCAddress_D, protocolTokenEntitlement_D, { from: multisig });
+      await protocolToken.transfer(LCAddress_E, protocolTokenEntitlement_E, { from: multisig });
 
-      assert.equal(await lqtyToken.balanceOf(LCAddress_A), LQTYEntitlement_A);
-      assert.equal(await lqtyToken.balanceOf(LCAddress_B), LQTYEntitlement_B);
-      assert.equal(await lqtyToken.balanceOf(LCAddress_C), LQTYEntitlement_C);
-      assert.equal(await lqtyToken.balanceOf(LCAddress_D), LQTYEntitlement_D);
-      assert.equal(await lqtyToken.balanceOf(LCAddress_E), LQTYEntitlement_E);
+      assert.equal(await protocolToken.balanceOf(LCAddress_A), protocolTokenEntitlement_A);
+      assert.equal(await protocolToken.balanceOf(LCAddress_B), protocolTokenEntitlement_B);
+      assert.equal(await protocolToken.balanceOf(LCAddress_C), protocolTokenEntitlement_C);
+      assert.equal(await protocolToken.balanceOf(LCAddress_D), protocolTokenEntitlement_D);
+      assert.equal(await protocolToken.balanceOf(LCAddress_E), protocolTokenEntitlement_E);
     });
 
-    it("LQTY Multisig can transfer LQTY to LCs deployed through the factory by anyone", async () => {
+    it("ProtocolToken Multisig can transfer ProtocolToken to LCs deployed through the factory by anyone", async () => {
       // Various accts deploy 5 LCs
       const deployedLCtx_A = await lockupContractFactory.deployLockupContract(
         A,
@@ -545,27 +549,27 @@ contract("Deploying and funding One Year Lockup Contracts", async (accounts) => 
       const LCAddress_D = await th.getLCAddressFromDeploymentTx(deployedLCtx_D);
       const LCAddress_E = await th.getLCAddressFromDeploymentTx(deployedLCtx_E);
 
-      assert.equal(await lqtyToken.balanceOf(LCAddress_A), "0");
-      assert.equal(await lqtyToken.balanceOf(LCAddress_B), "0");
-      assert.equal(await lqtyToken.balanceOf(LCAddress_C), "0");
-      assert.equal(await lqtyToken.balanceOf(LCAddress_D), "0");
-      assert.equal(await lqtyToken.balanceOf(LCAddress_E), "0");
+      assert.equal(await protocolToken.balanceOf(LCAddress_A), "0");
+      assert.equal(await protocolToken.balanceOf(LCAddress_B), "0");
+      assert.equal(await protocolToken.balanceOf(LCAddress_C), "0");
+      assert.equal(await protocolToken.balanceOf(LCAddress_D), "0");
+      assert.equal(await protocolToken.balanceOf(LCAddress_E), "0");
 
-      // Multisig transfers LQTY to each LC
-      await lqtyToken.transfer(LCAddress_A, dec(1, 18), { from: multisig });
-      await lqtyToken.transfer(LCAddress_B, dec(2, 18), { from: multisig });
-      await lqtyToken.transfer(LCAddress_C, dec(3, 18), { from: multisig });
-      await lqtyToken.transfer(LCAddress_D, dec(4, 18), { from: multisig });
-      await lqtyToken.transfer(LCAddress_E, dec(5, 18), { from: multisig });
+      // Multisig transfers ProtocolToken to each LC
+      await protocolToken.transfer(LCAddress_A, dec(1, 18), { from: multisig });
+      await protocolToken.transfer(LCAddress_B, dec(2, 18), { from: multisig });
+      await protocolToken.transfer(LCAddress_C, dec(3, 18), { from: multisig });
+      await protocolToken.transfer(LCAddress_D, dec(4, 18), { from: multisig });
+      await protocolToken.transfer(LCAddress_E, dec(5, 18), { from: multisig });
 
-      assert.equal(await lqtyToken.balanceOf(LCAddress_A), dec(1, 18));
-      assert.equal(await lqtyToken.balanceOf(LCAddress_B), dec(2, 18));
-      assert.equal(await lqtyToken.balanceOf(LCAddress_C), dec(3, 18));
-      assert.equal(await lqtyToken.balanceOf(LCAddress_D), dec(4, 18));
-      assert.equal(await lqtyToken.balanceOf(LCAddress_E), dec(5, 18));
+      assert.equal(await protocolToken.balanceOf(LCAddress_A), dec(1, 18));
+      assert.equal(await protocolToken.balanceOf(LCAddress_B), dec(2, 18));
+      assert.equal(await protocolToken.balanceOf(LCAddress_C), dec(3, 18));
+      assert.equal(await protocolToken.balanceOf(LCAddress_D), dec(4, 18));
+      assert.equal(await protocolToken.balanceOf(LCAddress_E), dec(5, 18));
     });
 
-    // can't transfer LQTY to any LCs that were deployed directly
+    // can't transfer ProtocolToken to any LCs that were deployed directly
   });
 
   describe("Withdrawal attempts on funded, inactive LCs immediately after funding", async (accounts) => {
@@ -598,14 +602,14 @@ contract("Deploying and funding One Year Lockup Contracts", async (accounts) => 
       const LC_B = await th.getLCFromDeploymentTx(deployedLCtx_B);
       const LC_C = await th.getLCFromDeploymentTx(deployedLCtx_C);
 
-      // Multisig transfers LQTY to each LC
-      await lqtyToken.transfer(LC_A.address, LQTYEntitlement_A, { from: multisig });
-      await lqtyToken.transfer(LC_B.address, LQTYEntitlement_B, { from: multisig });
-      await lqtyToken.transfer(LC_C.address, LQTYEntitlement_C, { from: multisig });
+      // Multisig transfers ProtocolToken to each LC
+      await protocolToken.transfer(LC_A.address, protocolTokenEntitlement_A, { from: multisig });
+      await protocolToken.transfer(LC_B.address, protocolTokenEntitlement_B, { from: multisig });
+      await protocolToken.transfer(LC_C.address, protocolTokenEntitlement_C, { from: multisig });
 
-      assert.equal(await lqtyToken.balanceOf(LC_A.address), LQTYEntitlement_A);
-      assert.equal(await lqtyToken.balanceOf(LC_B.address), LQTYEntitlement_B);
-      assert.equal(await lqtyToken.balanceOf(LC_C.address), LQTYEntitlement_C);
+      assert.equal(await protocolToken.balanceOf(LC_A.address), protocolTokenEntitlement_A);
+      assert.equal(await protocolToken.balanceOf(LC_B.address), protocolTokenEntitlement_B);
+      assert.equal(await protocolToken.balanceOf(LC_C.address), protocolTokenEntitlement_C);
 
       const LCs = [LC_A, LC_B, LC_C];
 
@@ -613,7 +617,7 @@ contract("Deploying and funding One Year Lockup Contracts", async (accounts) => 
       for (LC of LCs) {
         try {
           const beneficiary = await LC.beneficiary();
-          const withdrawalAttemptTx = await LC.withdrawLQTY({ from: beneficiary });
+          const withdrawalAttemptTx = await LC.withdrawProtocolToken({ from: beneficiary });
           assert.isFalse(withdrawalAttemptTx.receipt.status);
         } catch (error) {
           assert.include(error.message, "revert");
@@ -621,7 +625,7 @@ contract("Deploying and funding One Year Lockup Contracts", async (accounts) => 
       }
     });
 
-    it("LQTY multisig can't withraw from a LC which it funded", async () => {
+    it("ProtocolToken multisig can't withraw from a LC which it funded", async () => {
       // Deploy 3 LCs
       const deployedLCtx_A = await lockupContractFactory.deployLockupContract(
         A,
@@ -650,21 +654,21 @@ contract("Deploying and funding One Year Lockup Contracts", async (accounts) => 
       const LC_B = await th.getLCFromDeploymentTx(deployedLCtx_B);
       const LC_C = await th.getLCFromDeploymentTx(deployedLCtx_C);
 
-      // Multisig transfers LQTY to each LC
-      await lqtyToken.transfer(LC_A.address, LQTYEntitlement_A, { from: multisig });
-      await lqtyToken.transfer(LC_B.address, LQTYEntitlement_B, { from: multisig });
-      await lqtyToken.transfer(LC_C.address, LQTYEntitlement_C, { from: multisig });
+      // Multisig transfers ProtocolToken to each LC
+      await protocolToken.transfer(LC_A.address, protocolTokenEntitlement_A, { from: multisig });
+      await protocolToken.transfer(LC_B.address, protocolTokenEntitlement_B, { from: multisig });
+      await protocolToken.transfer(LC_C.address, protocolTokenEntitlement_C, { from: multisig });
 
-      assert.equal(await lqtyToken.balanceOf(LC_A.address), LQTYEntitlement_A);
-      assert.equal(await lqtyToken.balanceOf(LC_B.address), LQTYEntitlement_B);
-      assert.equal(await lqtyToken.balanceOf(LC_C.address), LQTYEntitlement_C);
+      assert.equal(await protocolToken.balanceOf(LC_A.address), protocolTokenEntitlement_A);
+      assert.equal(await protocolToken.balanceOf(LC_B.address), protocolTokenEntitlement_B);
+      assert.equal(await protocolToken.balanceOf(LC_C.address), protocolTokenEntitlement_C);
 
       const LCs = [LC_A, LC_B, LC_C];
 
-      // LQTY multisig attempts to withdraw from LCs
+      // ProtocolToken multisig attempts to withdraw from LCs
       for (LC of LCs) {
         try {
-          const withdrawalAttemptTx = await LC.withdrawLQTY({ from: multisig });
+          const withdrawalAttemptTx = await LC.withdrawProtocolToken({ from: multisig });
           assert.isFalse(withdrawalAttemptTx.receipt.status);
         } catch (error) {
           assert.include(error.message, "revert");
@@ -676,35 +680,35 @@ contract("Deploying and funding One Year Lockup Contracts", async (accounts) => 
       // Deploy 3 LCs
       const deployedLCtx_A = await lockupContractFactory.deployLockupContract(
         A,
-        LQTYEntitlement_A,
+        protocolTokenEntitlement_A,
         { from: D },
       );
 
       // Grab contract objects from deployment tx events
       const LC_A = await th.getLCFromDeploymentTx(deployedLCtx_A);
 
-      // LiquityAG transfers LQTY to the LC
-      await lqtyToken.transfer(LC_A.address, LQTYEntitlement_A, { from: multisig });
+      // LiquityAG transfers ProtocolToken to the LC
+      await protocolToken.transfer(LC_A.address, protocolTokenEntitlement_A, { from: multisig });
 
-      assert.equal(await lqtyToken.balanceOf(LC_A.address), LQTYEntitlement_A);
+      assert.equal(await protocolToken.balanceOf(LC_A.address), protocolTokenEntitlement_A);
 
       // Various EOAs attempt to withdraw from LCs
       try {
-        const withdrawalAttemptTx = await LC_A.withdrawLQTY({ from: G });
+        const withdrawalAttemptTx = await LC_A.withdrawProtocolToken({ from: G });
         assert.isFalse(withdrawalAttemptTx.receipt.status);
       } catch (error) {
         assert.include(error.message, "revert");
       }
 
       try {
-        const withdrawalAttemptTx = await LC_A.withdrawLQTY({ from: H });
+        const withdrawalAttemptTx = await LC_A.withdrawProtocolToken({ from: H });
         assert.isFalse(withdrawalAttemptTx.receipt.status);
       } catch (error) {
         assert.include(error.message, "revert");
       }
 
       try {
-        const withdrawalAttemptTx = await LC_A.withdrawLQTY({ from: I });
+        const withdrawalAttemptTx = await LC_A.withdrawProtocolToken({ from: I });
         assert.isFalse(withdrawalAttemptTx.receipt.status);
       } catch (error) {
         assert.include(error.message, "revert");

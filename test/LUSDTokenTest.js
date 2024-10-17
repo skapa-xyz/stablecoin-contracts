@@ -97,20 +97,20 @@ contract("DebtToken", async (accounts) => {
         MIN_NET_DEBT,
       );
 
-      const LQTYContracts = await deploymentHelper.deployLQTYContracts(
+      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
         bountyAddress,
         lpRewardsAddress,
         multisig,
       );
 
-      await deploymentHelper.connectCoreContracts(contracts, LQTYContracts);
-      await deploymentHelper.connectLQTYContracts(LQTYContracts);
-      await deploymentHelper.connectLQTYContractsToCore(LQTYContracts, contracts);
+      await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
+      await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
+      await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
 
       debtTokenOriginal = contracts.debtToken;
       if (withProxy) {
         const users = [alice, bob, carol, dennis];
-        await deploymentHelper.deployProxyScripts(contracts, LQTYContracts, owner, users);
+        await deploymentHelper.deployProxyScripts(contracts, protocolTokenContracts, owner, users);
       }
 
       debtTokenTester = contracts.debtToken;

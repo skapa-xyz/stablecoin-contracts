@@ -34,7 +34,7 @@ contract("CollSurplusPool", async (accounts) => {
       contracts.stabilityPool.address,
       contracts.borrowerOperations.address,
     );
-    const LQTYContracts = await deploymentHelper.deployLQTYContracts(
+    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
       bountyAddress,
       lpRewardsAddress,
       multisig,
@@ -44,9 +44,9 @@ contract("CollSurplusPool", async (accounts) => {
     collSurplusPool = contracts.collSurplusPool;
     borrowerOperations = contracts.borrowerOperations;
 
-    await deploymentHelper.connectCoreContracts(contracts, LQTYContracts);
-    await deploymentHelper.connectLQTYContracts(LQTYContracts);
-    await deploymentHelper.connectLQTYContractsToCore(LQTYContracts, contracts);
+    await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
+    await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
+    await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
   });
 
   it("CollSurplusPool::getFIL(): Returns the FIL balance of the CollSurplusPool after redemption", async () => {

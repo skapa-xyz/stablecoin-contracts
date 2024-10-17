@@ -11,14 +11,14 @@ const FunctionCaller = artifacts.require("./TestContracts/FunctionCaller.sol");
 const BorrowerOperations = artifacts.require("./BorrowerOperations.sol");
 const HintHelpers = artifacts.require("./HintHelpers.sol");
 
-const LQTYStaking = artifacts.require("./LQTYStaking.sol");
-const LQTYToken = artifacts.require("./LQTYToken.sol");
+const ProtocolTokenStaking = artifacts.require("./ProtocolTokenStaking.sol");
+const ProtocolToken = artifacts.require("./ProtocolToken.sol");
 const LockupContractFactory = artifacts.require("./LockupContractFactory.sol");
 const CommunityIssuance = artifacts.require("./CommunityIssuance.sol");
 
 const Unipool = artifacts.require("./Unipool.sol");
 
-const LQTYTokenTester = artifacts.require("./LQTYTokenTester.sol");
+const ProtocolTokenTester = artifacts.require("./ProtocolTokenTester.sol");
 const CommunityIssuanceTester = artifacts.require("./CommunityIssuanceTester.sol");
 const StabilityPoolTester = artifacts.require("./StabilityPoolTester.sol");
 const ActivePoolTester = artifacts.require("./ActivePoolTester.sol");
@@ -34,7 +34,7 @@ const BorrowerWrappersScript = artifacts.require("BorrowerWrappersScript");
 const TroveManagerScript = artifacts.require("TroveManagerScript");
 const StabilityPoolScript = artifacts.require("StabilityPoolScript");
 const TokenScript = artifacts.require("TokenScript");
-const LQTYStakingScript = artifacts.require("LQTYStakingScript");
+const ProtocolStakingScript = artifacts.require("ProtocolStakingScript");
 const {
   buildUserProxies,
   BorrowerOperationsProxy,
@@ -43,16 +43,16 @@ const {
   StabilityPoolProxy,
   SortedTrovesProxy,
   TokenProxy,
-  LQTYStakingProxy,
+  ProtocolTokenStakingProxy,
 } = require("../utils/proxyHelpers.js");
 
 /* "Liquity core" consists of all contracts in the core Liquity system.
 
-LQTY contracts consist of only those contracts related to the LQTY Token:
+ProtocolToken contracts consist of only those contracts related to the ProtocolToken:
 
--the LQTY token
+-the ProtocolToken
 -the Lockup factory and lockup contracts
--the LQTYStaking contract
+-the ProtocolTokenStaking contract
 -the CommunityIssuance contract 
 */
 
@@ -72,15 +72,23 @@ class DeploymentHelper {
     }
   }
 
-  static async deployLQTYContracts(bountyAddress, lpRewardsAddress, multisigAddress) {
+  static async deployProtocolTokenContracts(bountyAddress, lpRewardsAddress, multisigAddress) {
     const cmdLineArgs = process.argv;
     const frameworkPath = cmdLineArgs[1];
     // console.log(`Framework used:  ${frameworkPath}`)
 
     if (frameworkPath.includes("hardhat")) {
-      return this.deployLQTYContractsHardhat(bountyAddress, lpRewardsAddress, multisigAddress);
+      return this.deployProtocolTokenContractsHardhat(
+        bountyAddress,
+        lpRewardsAddress,
+        multisigAddress,
+      );
     } else if (frameworkPath.includes("truffle")) {
-      return this.deployLQTYContractsTruffle(bountyAddress, lpRewardsAddress, multisigAddress);
+      return this.deployProtocolTokenContractsTruffle(
+        bountyAddress,
+        lpRewardsAddress,
+        multisigAddress,
+      );
     }
   }
 
@@ -160,62 +168,70 @@ class DeploymentHelper {
     return testerContracts;
   }
 
-  static async deployLQTYContractsHardhat(bountyAddress, lpRewardsAddress, multisigAddress) {
-    const lqtyStaking = await LQTYStaking.new();
+  static async deployProtocolTokenContractsHardhat(
+    bountyAddress,
+    lpRewardsAddress,
+    multisigAddress,
+  ) {
+    const protocolTokenStaking = await ProtocolTokenStaking.new();
     const lockupContractFactory = await LockupContractFactory.new();
     const communityIssuance = await CommunityIssuance.new();
 
-    LQTYStaking.setAsDeployed(lqtyStaking);
+    ProtocolTokenStaking.setAsDeployed(protocolTokenStaking);
     LockupContractFactory.setAsDeployed(lockupContractFactory);
     CommunityIssuance.setAsDeployed(communityIssuance);
 
-    // Deploy LQTY Token, passing Community Issuance and Factory addresses to the constructor
-    const lqtyToken = await LQTYToken.new(
+    // Deploy ProtocolToken, passing Community Issuance and Factory addresses to the constructor
+    const protocolToken = await ProtocolToken.new(
       communityIssuance.address,
-      lqtyStaking.address,
+      protocolTokenStaking.address,
       lockupContractFactory.address,
       bountyAddress,
       lpRewardsAddress,
       multisigAddress,
     );
-    LQTYToken.setAsDeployed(lqtyToken);
+    ProtocolToken.setAsDeployed(protocolToken);
 
-    const LQTYContracts = {
-      lqtyStaking,
+    const protocolTokenContracts = {
+      protocolTokenStaking,
       lockupContractFactory,
       communityIssuance,
-      lqtyToken,
+      protocolToken,
     };
-    return LQTYContracts;
+    return protocolTokenContracts;
   }
 
-  static async deployLQTYTesterContractsHardhat(bountyAddress, lpRewardsAddress, multisigAddress) {
-    const lqtyStaking = await LQTYStaking.new();
+  static async deployProtocolTokenTesterContractsHardhat(
+    bountyAddress,
+    lpRewardsAddress,
+    multisigAddress,
+  ) {
+    const protocolTokenStaking = await ProtocolTokenStaking.new();
     const lockupContractFactory = await LockupContractFactory.new();
     const communityIssuance = await CommunityIssuanceTester.new();
 
-    LQTYStaking.setAsDeployed(lqtyStaking);
+    ProtocolTokenStaking.setAsDeployed(protocolTokenStaking);
     LockupContractFactory.setAsDeployed(lockupContractFactory);
     CommunityIssuanceTester.setAsDeployed(communityIssuance);
 
-    // Deploy LQTY Token, passing Community Issuance and Factory addresses to the constructor
-    const lqtyToken = await LQTYTokenTester.new(
+    // Deploy ProtocolToken, passing Community Issuance and Factory addresses to the constructor
+    const protocolToken = await ProtocolTokenTester.new(
       communityIssuance.address,
-      lqtyStaking.address,
+      protocolTokenStaking.address,
       lockupContractFactory.address,
       bountyAddress,
       lpRewardsAddress,
       multisigAddress,
     );
-    LQTYTokenTester.setAsDeployed(lqtyToken);
+    ProtocolTokenTester.setAsDeployed(protocolToken);
 
-    const LQTYContracts = {
-      lqtyStaking,
+    const protocolTokenContracts = {
+      protocolTokenStaking,
       lockupContractFactory,
       communityIssuance,
-      lqtyToken,
+      protocolToken,
     };
-    return LQTYContracts;
+    return protocolTokenContracts;
   }
 
   static async deployLiquityCoreTruffle(gasCompensation, minNetDebt) {
@@ -252,29 +268,33 @@ class DeploymentHelper {
     return coreContracts;
   }
 
-  static async deployLQTYContractsTruffle(bountyAddress, lpRewardsAddress, multisigAddress) {
-    const lqtyStaking = await lqtyStaking.new();
+  static async deployProtocolTokenContractsTruffle(
+    bountyAddress,
+    lpRewardsAddress,
+    multisigAddress,
+  ) {
+    const protocolTokenStaking = await protocolTokenStaking.new();
     const lockupContractFactory = await LockupContractFactory.new();
     const communityIssuance = await CommunityIssuance.new();
 
-    /* Deploy LQTY Token, passing Community Issuance,  LQTYStaking, and Factory addresses 
+    /* Deploy ProtocolToken, passing Community Issuance,  ProtocolTokenStaking, and Factory addresses 
     to the constructor  */
-    const lqtyToken = await LQTYToken.new(
+    const protocolToken = await ProtocolToken.new(
       communityIssuance.address,
-      lqtyStaking.address,
+      protocolTokenStaking.address,
       lockupContractFactory.address,
       bountyAddress,
       lpRewardsAddress,
       multisigAddress,
     );
 
-    const LQTYContracts = {
-      lqtyStaking,
+    const protocolTokenContracts = {
+      protocolTokenStaking,
       lockupContractFactory,
       communityIssuance,
-      lqtyToken,
+      protocolToken,
     };
-    return LQTYContracts;
+    return protocolTokenContracts;
   }
 
   static async deployDebtToken(contracts) {
@@ -295,13 +315,13 @@ class DeploymentHelper {
     return contracts;
   }
 
-  static async deployProxyScripts(contracts, LQTYContracts, owner, users) {
+  static async deployProxyScripts(contracts, protocolTokenContracts, owner, users) {
     const proxies = await buildUserProxies(users);
 
     const borrowerWrappersScript = await BorrowerWrappersScript.new(
       contracts.borrowerOperations.address,
       contracts.troveManager.address,
-      LQTYContracts.lqtyStaking.address,
+      protocolTokenContracts.protocolTokenStaking.address,
     );
     contracts.borrowerWrappers = new BorrowerWrappersProxy(
       owner,
@@ -345,25 +365,27 @@ class DeploymentHelper {
       contracts.debtToken,
     );
 
-    const lqtyTokenScript = await TokenScript.new(LQTYContracts.lqtyToken.address);
-    LQTYContracts.lqtyToken = new TokenProxy(
+    const protocolTokenScript = await TokenScript.new(protocolTokenContracts.protocolToken.address);
+    protocolTokenContracts.protocolToken = new TokenProxy(
       owner,
       proxies,
-      lqtyTokenScript.address,
-      LQTYContracts.lqtyToken,
+      protocolTokenScript.address,
+      protocolTokenContracts.protocolToken,
     );
 
-    const lqtyStakingScript = await LQTYStakingScript.new(LQTYContracts.lqtyStaking.address);
-    LQTYContracts.lqtyStaking = new LQTYStakingProxy(
+    const protocolTokenStakingScript = await ProtocolStakingScript.new(
+      protocolTokenContracts.protocolTokenStaking.address,
+    );
+    protocolTokenContracts.protocolTokenStaking = new ProtocolTokenStakingProxy(
       owner,
       proxies,
-      lqtyStakingScript.address,
-      LQTYContracts.lqtyStaking,
+      protocolTokenStakingScript.address,
+      protocolTokenContracts.protocolTokenStaking,
     );
   }
 
   // Connect contracts to their dependencies
-  static async connectCoreContracts(contracts, LQTYContracts) {
+  static async connectCoreContracts(contracts, protocolTokenContracts) {
     // set TroveManager addr in SortedTroves
     await contracts.sortedTroves.setParams(
       maxBytes32,
@@ -386,8 +408,8 @@ class DeploymentHelper {
       contracts.priceFeedTestnet.address,
       contracts.debtToken.address,
       contracts.sortedTroves.address,
-      LQTYContracts.lqtyToken.address,
-      LQTYContracts.lqtyStaking.address,
+      protocolTokenContracts.protocolToken.address,
+      protocolTokenContracts.protocolTokenStaking.address,
     );
 
     // set contracts in BorrowerOperations
@@ -401,7 +423,7 @@ class DeploymentHelper {
       contracts.priceFeedTestnet.address,
       contracts.sortedTroves.address,
       contracts.debtToken.address,
-      LQTYContracts.lqtyStaking.address,
+      protocolTokenContracts.protocolTokenStaking.address,
     );
 
     // set contracts in the Pools
@@ -412,7 +434,7 @@ class DeploymentHelper {
       contracts.debtToken.address,
       contracts.sortedTroves.address,
       contracts.priceFeedTestnet.address,
-      LQTYContracts.communityIssuance.address,
+      protocolTokenContracts.communityIssuance.address,
     );
 
     await contracts.activePool.setAddresses(
@@ -440,28 +462,34 @@ class DeploymentHelper {
     );
   }
 
-  static async connectLQTYContracts(LQTYContracts) {
-    // Set LQTYToken address in LCF
-    await LQTYContracts.lockupContractFactory.setLQTYTokenAddress(LQTYContracts.lqtyToken.address);
+  static async connectProtocolTokenContracts(protocolTokenContracts) {
+    // Set ProtocolToken address in LCF
+    await protocolTokenContracts.lockupContractFactory.setProtocolTokenAddress(
+      protocolTokenContracts.protocolToken.address,
+    );
   }
 
-  static async connectLQTYContractsToCore(LQTYContracts, coreContracts) {
-    await LQTYContracts.lqtyStaking.setAddresses(
-      LQTYContracts.lqtyToken.address,
+  static async connectProtocolTokenContractsToCore(protocolTokenContracts, coreContracts) {
+    await protocolTokenContracts.protocolTokenStaking.setAddresses(
+      protocolTokenContracts.protocolToken.address,
       coreContracts.debtToken.address,
       coreContracts.troveManager.address,
       coreContracts.borrowerOperations.address,
       coreContracts.activePool.address,
     );
 
-    await LQTYContracts.communityIssuance.setAddresses(
-      LQTYContracts.lqtyToken.address,
+    await protocolTokenContracts.communityIssuance.setAddresses(
+      protocolTokenContracts.protocolToken.address,
       coreContracts.stabilityPool.address,
     );
   }
 
-  static async connectUnipool(uniPool, LQTYContracts, uniswapPairAddr, duration) {
-    await uniPool.setParams(LQTYContracts.lqtyToken.address, uniswapPairAddr, duration);
+  static async connectUnipool(uniPool, protocolTokenContracts, uniswapPairAddr, duration) {
+    await uniPool.setParams(
+      protocolTokenContracts.protocolToken.address,
+      uniswapPairAddr,
+      duration,
+    );
   }
 }
 module.exports = DeploymentHelper;

@@ -37,7 +37,7 @@ contract("Gas cost tests", async (accounts) => {
 
   beforeEach(async () => {
     contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    const LQTYContracts = await deploymentHelper.deployLQTYContracts(
+    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
       bountyAddress,
       lpRewardsAddress,
       multisig,
@@ -53,14 +53,14 @@ contract("Gas cost tests", async (accounts) => {
     borrowerOperations = contracts.borrowerOperations;
     hintHelpers = contracts.hintHelpers;
 
-    lqtyStaking = LQTYContracts.lqtyStaking;
-    lqtyToken = LQTYContracts.lqtyToken;
-    communityIssuance = LQTYContracts.communityIssuance;
-    lockupContractFactory = LQTYContracts.lockupContractFactory;
+    protocolTokenStaking = protocolTokenContracts.protocolTokenStaking;
+    protocolToken = protocolTokenContracts.protocolToken;
+    communityIssuance = protocolTokenContracts.communityIssuance;
+    lockupContractFactory = protocolTokenContracts.lockupContractFactory;
 
-    await deploymentHelper.connectLQTYContracts(LQTYContracts);
-    await deploymentHelper.connectCoreContracts(contracts, LQTYContracts);
-    await deploymentHelper.connectLQTYContractsToCore(LQTYContracts, contracts);
+    await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
+    await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
+    await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
   });
 
   // --- liquidateTroves RECOVERY MODE - pure redistribution ---

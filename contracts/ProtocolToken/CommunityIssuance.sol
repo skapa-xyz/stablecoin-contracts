@@ -2,7 +2,7 @@
 
 pragma solidity 0.7.6;
 
-import "../Interfaces/ILQTYToken.sol";
+import "../Interfaces/IProtocolToken.sol";
 import "../Interfaces/ICommunityIssuance.sol";
 import "../Dependencies/BaseMath.sol";
 import "../Dependencies/LiquityMath.sol";
@@ -36,18 +36,18 @@ contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMa
     uint public constant ISSUANCE_FACTOR = 999998681227695000;
 
     /*
-     * The community LQTY supply cap is the starting balance of the Community Issuance contract.
-     * It should be minted to this contract by LQTYToken, when the token is deployed.
+     * The community ProtocolToken supply cap is the starting balance of the Community Issuance contract.
+     * It should be minted to this contract by ProtocolToken, when the token is deployed.
      *
-     * Set to 32M (slightly less than 1/3) of total LQTY supply.
+     * Set to 32M (slightly less than 1/3) of total ProtocolToken supply.
      */
-    uint public constant LQTYSupplyCap = 32e24; // 32 million
+    uint public constant protocolTokenSupplyCap = 32e24; // 32 million
 
-    ILQTYToken public lqtyToken;
+    IProtocolToken public protocolToken;
 
     address public stabilityPoolAddress;
 
-    uint public totalLQTYIssued;
+    uint public totalProtocolTokenIssued;
     uint public immutable deploymentTime;
 
     // --- Functions ---
@@ -57,35 +57,35 @@ contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMa
     }
 
     function setAddresses(
-        address _lqtyTokenAddress,
+        address _protocolTokenAddress,
         address _stabilityPoolAddress
     ) external override onlyOwner {
-        checkContract(_lqtyTokenAddress);
+        checkContract(_protocolTokenAddress);
         checkContract(_stabilityPoolAddress);
 
-        lqtyToken = ILQTYToken(_lqtyTokenAddress);
+        protocolToken = IProtocolToken(_protocolTokenAddress);
         stabilityPoolAddress = _stabilityPoolAddress;
 
-        // When LQTYToken deployed, it should have transferred CommunityIssuance's LQTY entitlement
-        uint LQTYBalance = lqtyToken.balanceOf(address(this));
-        assert(LQTYBalance >= LQTYSupplyCap);
+        // When ProtocolToken deployed, it should have transferred CommunityIssuance's ProtocolToken entitlement
+        uint protocolTokenBalance = protocolToken.balanceOf(address(this));
+        assert(protocolTokenBalance >= protocolTokenSupplyCap);
 
-        emit LQTYTokenAddressSet(_lqtyTokenAddress);
+        emit ProtocolTokenAddressSet(_protocolTokenAddress);
         emit StabilityPoolAddressSet(_stabilityPoolAddress);
 
         _renounceOwnership();
     }
 
-    function issueLQTY() external override returns (uint) {
+    function issueProtocolToken() external override returns (uint) {
         _requireCallerIsStabilityPool();
 
-        uint latestTotalLQTYIssued = LQTYSupplyCap.mul(_getCumulativeIssuanceFraction()).div(
-            DECIMAL_PRECISION
-        );
-        uint issuance = latestTotalLQTYIssued.sub(totalLQTYIssued);
+        uint latestTotalProtocolTokenIssued = protocolTokenSupplyCap
+            .mul(_getCumulativeIssuanceFraction())
+            .div(DECIMAL_PRECISION);
+        uint issuance = latestTotalProtocolTokenIssued.sub(totalProtocolTokenIssued);
 
-        totalLQTYIssued = latestTotalLQTYIssued;
-        emit TotalLQTYIssuedUpdated(latestTotalLQTYIssued);
+        totalProtocolTokenIssued = latestTotalProtocolTokenIssued;
+        emit TotalProtocolTokenIssuedUpdated(latestTotalProtocolTokenIssued);
 
         return issuance;
     }
@@ -93,7 +93,7 @@ contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMa
     /* Gets 1-f^t    where: f < 1
 
     f: issuance factor that determines the shape of the curve
-    t:  time passed since last LQTY issuance event  */
+    t:  time passed since last ProtocolToken issuance event  */
     function _getCumulativeIssuanceFraction() internal view returns (uint) {
         // Get the time passed since deployment
         uint timePassedInMinutes = block.timestamp.sub(deploymentTime).div(SECONDS_IN_ONE_MINUTE);
@@ -108,10 +108,10 @@ contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMa
         return cumulativeIssuanceFraction;
     }
 
-    function sendLQTY(address _account, uint _LQTYamount) external override {
+    function sendProtocolToken(address _account, uint _amount) external override {
         _requireCallerIsStabilityPool();
 
-        lqtyToken.transfer(_account, _LQTYamount);
+        protocolToken.transfer(_account, _amount);
     }
 
     // --- 'require' functions ---

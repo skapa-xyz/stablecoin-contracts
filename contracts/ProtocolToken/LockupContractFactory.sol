@@ -13,13 +13,13 @@ import "../Dependencies/console.sol";
  * The LockupContractFactory deploys LockupContracts - its main purpose is to keep a registry of valid deployed
  * LockupContracts.
  *
- * This registry is checked by LQTYToken when the Liquity deployer attempts to transfer LQTY tokens. During the first year
- * since system deployment, the Liquity deployer is only allowed to transfer LQTY to valid LockupContracts that have been
- * deployed by and recorded in the LockupContractFactory. This ensures the deployer's LQTY can't be traded or staked in the
+ * This registry is checked by ProtocolToken when the Liquity deployer attempts to transfer ProtocolTokens. During the first year
+ * since system deployment, the Liquity deployer is only allowed to transfer ProtocolToken to valid LockupContracts that have been
+ * deployed by and recorded in the LockupContractFactory. This ensures the deployer's ProtocolToken can't be traded or staked in the
  * first year, and can only be sent to a verified LockupContract which unlocks at least one year after system deployment.
  *
  * LockupContracts can of course be deployed directly, but only those deployed through and recorded in the LockupContractFactory
- * will be considered "valid" by LQTYToken. This is a convenient way to verify that the target address is a genuine
+ * will be considered "valid" by ProtocolToken. This is a convenient way to verify that the target address is a genuine
  * LockupContract.
  */
 
@@ -31,27 +31,27 @@ contract LockupContractFactory is ILockupContractFactory, Ownable, CheckContract
 
     uint public constant SECONDS_IN_ONE_YEAR = 31536000;
 
-    address public lqtyTokenAddress;
+    address public protocolTokenAddress;
 
     mapping(address => address) public lockupContractToDeployer;
     mapping(address => address) public beneficiaryToLockupContract;
 
     // --- Functions ---
 
-    function setLQTYTokenAddress(address _lqtyTokenAddress) external override onlyOwner {
-        checkContract(_lqtyTokenAddress);
+    function setProtocolTokenAddress(address _protocolTokenAddress) external override onlyOwner {
+        checkContract(_protocolTokenAddress);
 
-        lqtyTokenAddress = _lqtyTokenAddress;
-        emit LQTYTokenAddressSet(_lqtyTokenAddress);
+        protocolTokenAddress = _protocolTokenAddress;
+        emit ProtocolTokenAddressSet(_protocolTokenAddress);
 
         _renounceOwnership();
     }
 
     function deployLockupContract(address _beneficiary, uint _unlockTime) external override {
-        address lqtyTokenAddressCached = lqtyTokenAddress;
-        _requireLQTYAddressIsSet(lqtyTokenAddressCached);
+        address protocolTokenAddressCached = protocolTokenAddress;
+        _requireProtocolTokenAddressIsSet(protocolTokenAddressCached);
         LockupContract lockupContract = new LockupContract(
-            lqtyTokenAddressCached,
+            protocolTokenAddressCached,
             _beneficiary,
             _unlockTime
         );
@@ -71,7 +71,7 @@ contract LockupContractFactory is ILockupContractFactory, Ownable, CheckContract
     }
 
     // --- 'require'  functions ---
-    function _requireLQTYAddressIsSet(address _lqtyTokenAddress) internal pure {
-        require(_lqtyTokenAddress != address(0), "LCF: LQTY Address is not set");
+    function _requireProtocolTokenAddressIsSet(address _protocolTokenAddress) internal pure {
+        require(_protocolTokenAddress != address(0), "LCF: ProtocolToken Address is not set");
     }
 }

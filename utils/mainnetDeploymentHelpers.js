@@ -188,18 +188,22 @@ class MainnetDeploymentHelper {
     return coreContracts;
   }
 
-  async deployLQTYContractsMainnet(
+  async deployProtocolTokenContractsMainnet(
     bountyAddress,
     lpRewardsAddress,
     multisigAddress,
     deploymentState,
   ) {
-    const lqtyStakingFactory = await this.getFactory("LQTYStaking");
+    const protocolTokenStakingFactory = await this.getFactory("ProtocolTokenStaking");
     const lockupContractFactory_Factory = await this.getFactory("LockupContractFactory");
     const communityIssuanceFactory = await this.getFactory("CommunityIssuance");
-    const lqtyTokenFactory = await this.getFactory("LQTYToken");
+    const protocolTokenFactory = await this.getFactory("ProtocolToken");
 
-    const lqtyStaking = await this.loadOrDeploy(lqtyStakingFactory, "lqtyStaking", deploymentState);
+    const protocolTokenStaking = await this.loadOrDeploy(
+      protocolTokenStakingFactory,
+      "protocolTokenStaking",
+      deploymentState,
+    );
     const lockupContractFactory = await this.loadOrDeploy(
       lockupContractFactory_Factory,
       "lockupContractFactory",
@@ -211,38 +215,38 @@ class MainnetDeploymentHelper {
       deploymentState,
     );
 
-    // Deploy LQTY Token, passing Community Issuance and Factory addresses to the constructor
-    const lqtyTokenParams = [
+    // Deploy ProtocolToken, passing Community Issuance and Factory addresses to the constructor
+    const protocolTokenParams = [
       communityIssuance.address,
-      lqtyStaking.address,
+      protocolTokenStaking.address,
       lockupContractFactory.address,
       bountyAddress,
       lpRewardsAddress,
       multisigAddress,
     ];
-    const lqtyToken = await this.loadOrDeploy(
-      lqtyTokenFactory,
-      "lqtyToken",
+    const protocolToken = await this.loadOrDeploy(
+      protocolTokenFactory,
+      "protocolToken",
       deploymentState,
-      lqtyTokenParams,
+      protocolTokenParams,
     );
 
     if (!this.configParams.ETHERSCAN_BASE_URL) {
       console.log("No Etherscan Url defined, skipping verification");
     } else {
-      await this.verifyContract("lqtyStaking", deploymentState);
+      await this.verifyContract("protocolTokenStaking", deploymentState);
       await this.verifyContract("lockupContractFactory", deploymentState);
       await this.verifyContract("communityIssuance", deploymentState);
-      await this.verifyContract("lqtyToken", deploymentState, lqtyTokenParams);
+      await this.verifyContract("protocolToken", deploymentState, protocolTokenParams);
     }
 
-    const LQTYContracts = {
-      lqtyStaking,
+    const protocolTokenContracts = {
+      protocolTokenStaking,
       lockupContractFactory,
       communityIssuance,
-      lqtyToken,
+      protocolToken,
     };
-    return LQTYContracts;
+    return protocolTokenContracts;
   }
 
   async deployUnipoolMainnet(deploymentState) {
@@ -286,7 +290,7 @@ class MainnetDeploymentHelper {
     return owner === ZERO_ADDRESS;
   }
   // Connect contracts to their dependencies
-  async connectCoreContractsMainnet(contracts, LQTYContracts) {
+  async connectCoreContractsMainnet(contracts, protocolTokenContracts) {
     // Set ChainlinkAggregatorProxy and TellorCaller in the PriceFeed
     (await this.isOwnershipRenounced(contracts.priceFeed)) ||
       (await this.sendAndWaitForTransaction(
@@ -319,8 +323,8 @@ class MainnetDeploymentHelper {
           contracts.priceFeed.address,
           contracts.debtToken.address,
           contracts.sortedTroves.address,
-          LQTYContracts.lqtyToken.address,
-          LQTYContracts.lqtyStaking.address,
+          protocolTokenContracts.protocolToken.address,
+          protocolTokenContracts.protocolTokenStaking.address,
         ),
       ));
 
@@ -337,7 +341,7 @@ class MainnetDeploymentHelper {
           contracts.priceFeed.address,
           contracts.sortedTroves.address,
           contracts.debtToken.address,
-          LQTYContracts.lqtyStaking.address,
+          protocolTokenContracts.protocolTokenStaking.address,
         ),
       ));
 
@@ -351,7 +355,7 @@ class MainnetDeploymentHelper {
           contracts.debtToken.address,
           contracts.sortedTroves.address,
           contracts.priceFeed.address,
-          LQTYContracts.communityIssuance.address,
+          protocolTokenContracts.communityIssuance.address,
         ),
       ));
 
@@ -392,19 +396,21 @@ class MainnetDeploymentHelper {
       ));
   }
 
-  async connectLQTYContractsMainnet(LQTYContracts) {
-    // Set LQTYToken address in LCF
-    (await this.isOwnershipRenounced(LQTYContracts.lqtyStaking)) ||
+  async connectProtocolTokenContractsMainnet(protocolTokenContracts) {
+    // Set ProtocolToken address in LCF
+    (await this.isOwnershipRenounced(protocolTokenContracts.protocolTokenStaking)) ||
       (await this.sendAndWaitForTransaction(
-        LQTYContracts.lockupContractFactory.setLQTYTokenAddress(LQTYContracts.lqtyToken.address),
+        protocolTokenContracts.lockupContractFactory.setProtocolTokenAddress(
+          protocolTokenContracts.protocolToken.address,
+        ),
       ));
   }
 
-  async connectLQTYContractsToCoreMainnet(LQTYContracts, coreContracts) {
-    (await this.isOwnershipRenounced(LQTYContracts.lqtyStaking)) ||
+  async connectProtocolTokenContractsToCoreMainnet(protocolTokenContracts, coreContracts) {
+    (await this.isOwnershipRenounced(protocolTokenContracts.protocolTokenStaking)) ||
       (await this.sendAndWaitForTransaction(
-        LQTYContracts.lqtyStaking.setAddresses(
-          LQTYContracts.lqtyToken.address,
+        protocolTokenContracts.protocolTokenStaking.setAddresses(
+          protocolTokenContracts.protocolToken.address,
           coreContracts.debtToken.address,
           coreContracts.troveManager.address,
           coreContracts.borrowerOperations.address,
@@ -412,19 +418,23 @@ class MainnetDeploymentHelper {
         ),
       ));
 
-    (await this.isOwnershipRenounced(LQTYContracts.communityIssuance)) ||
+    (await this.isOwnershipRenounced(protocolTokenContracts.communityIssuance)) ||
       (await this.sendAndWaitForTransaction(
-        LQTYContracts.communityIssuance.setAddresses(
-          LQTYContracts.lqtyToken.address,
+        protocolTokenContracts.communityIssuance.setAddresses(
+          protocolTokenContracts.protocolToken.address,
           coreContracts.stabilityPool.address,
         ),
       ));
   }
 
-  async connectUnipoolMainnet(uniPool, LQTYContracts, DebtTokenWFILPairAddr, duration) {
+  async connectUnipoolMainnet(uniPool, protocolTokenContracts, DebtTokenWFILPairAddr, duration) {
     (await this.isOwnershipRenounced(uniPool)) ||
       (await this.sendAndWaitForTransaction(
-        uniPool.setParams(LQTYContracts.lqtyToken.address, DebtTokenWFILPairAddr, duration),
+        uniPool.setParams(
+          protocolTokenContracts.protocolToken.address,
+          DebtTokenWFILPairAddr,
+          duration,
+        ),
       ));
   }
 

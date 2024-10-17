@@ -18,9 +18,9 @@ contract("All Liquity functions with onlyOwner modifier", async (accounts) => {
   let defaultPool;
   let borrowerOperations;
 
-  let lqtyStaking;
+  let protocolTokenStaking;
   let communityIssuance;
-  let lqtyToken;
+  let protocolToken;
   let lockupContractFactory;
 
   before(async () => {
@@ -30,7 +30,7 @@ contract("All Liquity functions with onlyOwner modifier", async (accounts) => {
       th.MIN_NET_DEBT,
     );
     contracts = await deploymentHelper.deployDebtToken(contracts);
-    const LQTYContracts = await deploymentHelper.deployLQTYContracts(
+    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
       bountyAddress,
       lpRewardsAddress,
       multisig,
@@ -44,10 +44,10 @@ contract("All Liquity functions with onlyOwner modifier", async (accounts) => {
     defaultPool = contracts.defaultPool;
     borrowerOperations = contracts.borrowerOperations;
 
-    lqtyStaking = LQTYContracts.lqtyStaking;
-    communityIssuance = LQTYContracts.communityIssuance;
-    lqtyToken = LQTYContracts.lqtyToken;
-    lockupContractFactory = LQTYContracts.lockupContractFactory;
+    protocolTokenStaking = protocolTokenContracts.protocolTokenStaking;
+    communityIssuance = protocolTokenContracts.communityIssuance;
+    protocolToken = protocolTokenContracts.protocolToken;
+    lockupContractFactory = protocolTokenContracts.lockupContractFactory;
   });
 
   const testZeroAddress = async (contract, params, method = "setAddresses", skip = 0) => {
@@ -144,7 +144,7 @@ contract("All Liquity functions with onlyOwner modifier", async (accounts) => {
 
   describe("CommunityIssuance", async (accounts) => {
     it("setAddresses(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
-      const params = [lqtyToken.address, stabilityPool.address];
+      const params = [protocolToken.address, stabilityPool.address];
       await th.assertRevert(communityIssuance.setAddresses(...params, { from: alice }));
 
       // Attempt to use zero address
@@ -161,34 +161,34 @@ contract("All Liquity functions with onlyOwner modifier", async (accounts) => {
     });
   });
 
-  describe("LQTYStaking", async (accounts) => {
+  describe("ProtocolTokenStaking", async (accounts) => {
     it("setAddresses(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
-      await testSetAddresses(lqtyStaking, 5);
+      await testSetAddresses(protocolTokenStaking, 5);
     });
   });
 
   describe("LockupContractFactory", async (accounts) => {
-    it("setLQTYAddress(): reverts when called by non-owner, with wrong address, or twice", async () => {
+    it("setProtocolTokenAddress(): reverts when called by non-owner, with wrong address, or twice", async () => {
       await th.assertRevert(
-        lockupContractFactory.setLQTYTokenAddress(lqtyToken.address, { from: alice }),
+        lockupContractFactory.setProtocolTokenAddress(protocolToken.address, { from: alice }),
       );
 
-      const params = [lqtyToken.address];
+      const params = [protocolToken.address];
 
       // Attempt to use zero address
-      await testZeroAddress(lockupContractFactory, params, "setLQTYTokenAddress");
+      await testZeroAddress(lockupContractFactory, params, "setProtocolTokenAddress");
       // Attempt to use non contract
-      await testNonContractAddress(lockupContractFactory, params, "setLQTYTokenAddress");
+      await testNonContractAddress(lockupContractFactory, params, "setProtocolTokenAddress");
 
       // Owner can successfully set any address
-      const txOwner = await lockupContractFactory.setLQTYTokenAddress(lqtyToken.address, {
+      const txOwner = await lockupContractFactory.setProtocolTokenAddress(protocolToken.address, {
         from: owner,
       });
 
       assert.isTrue(txOwner.receipt.status);
       // fails if called twice
       await th.assertRevert(
-        lockupContractFactory.setLQTYTokenAddress(lqtyToken.address, { from: owner }),
+        lockupContractFactory.setProtocolTokenAddress(protocolToken.address, { from: owner }),
       );
     });
   });

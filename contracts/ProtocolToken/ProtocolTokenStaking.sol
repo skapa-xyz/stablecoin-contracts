@@ -7,22 +7,22 @@ import "../Dependencies/SafeMath.sol";
 import "../Dependencies/Ownable.sol";
 import "../Dependencies/CheckContract.sol";
 import "../Dependencies/console.sol";
-import "../Interfaces/ILQTYToken.sol";
-import "../Interfaces/ILQTYStaking.sol";
+import "../Interfaces/IProtocolToken.sol";
+import "../Interfaces/IProtocolTokenStaking.sol";
 import "../Dependencies/LiquityMath.sol";
 import "../Interfaces/IDebtToken.sol";
 
-contract LQTYStaking is ILQTYStaking, Ownable, CheckContract, BaseMath {
+contract ProtocolTokenStaking is IProtocolTokenStaking, Ownable, CheckContract, BaseMath {
     using SafeMath for uint;
 
     // --- Data ---
-    string public constant NAME = "LQTYStaking";
+    string public constant NAME = "ProtocolTokenStaking";
 
     mapping(address => uint) public stakes;
-    uint public totalLQTYStaked;
+    uint public totalProtocolTokenStaked;
 
-    uint public F_FIL; // Running sum of FIL fees per-LQTY-staked
-    uint public F_DebtToken; // Running sum of LQTY fees per-LQTY-staked
+    uint public F_FIL; // Running sum of FIL fees per-ProtocolToken-staked
+    uint public F_DebtToken; // Running sum of ProtocolToken fees per-ProtocolToken-staked
 
     // User snapshots of F_FIL and F_DebtToken, taken at the point at which their latest deposit was made
     mapping(address => Snapshot) public snapshots;
@@ -32,7 +32,7 @@ contract LQTYStaking is ILQTYStaking, Ownable, CheckContract, BaseMath {
         uint F_DebtToken_Snapshot;
     }
 
-    ILQTYToken public lqtyToken;
+    IProtocolToken public protocolToken;
     IDebtToken public debtToken;
 
     address public troveManagerAddress;
@@ -42,25 +42,25 @@ contract LQTYStaking is ILQTYStaking, Ownable, CheckContract, BaseMath {
     // --- Functions ---
 
     function setAddresses(
-        address _lqtyTokenAddress,
+        address _protocolTokenAddress,
         address _debtTokenAddress,
         address _troveManagerAddress,
         address _borrowerOperationsAddress,
         address _activePoolAddress
     ) external override onlyOwner {
-        checkContract(_lqtyTokenAddress);
+        checkContract(_protocolTokenAddress);
         checkContract(_debtTokenAddress);
         checkContract(_troveManagerAddress);
         checkContract(_borrowerOperationsAddress);
         checkContract(_activePoolAddress);
 
-        lqtyToken = ILQTYToken(_lqtyTokenAddress);
+        protocolToken = IProtocolToken(_protocolTokenAddress);
         debtToken = IDebtToken(_debtTokenAddress);
         troveManagerAddress = _troveManagerAddress;
         borrowerOperationsAddress = _borrowerOperationsAddress;
         activePoolAddress = _activePoolAddress;
 
-        emit LQTYTokenAddressSet(_lqtyTokenAddress);
+        emit ProtocolTokenAddressSet(_protocolTokenAddress);
         emit DebtTokenAddressSet(_debtTokenAddress);
         emit TroveManagerAddressSet(_troveManagerAddress);
         emit BorrowerOperationsAddressSet(_borrowerOperationsAddress);
@@ -70,8 +70,8 @@ contract LQTYStaking is ILQTYStaking, Ownable, CheckContract, BaseMath {
     }
 
     // If caller has a pre-existing stake, send any accumulated FIL and Debt Token gains to them.
-    function stake(uint _LQTYamount) external override {
-        _requireNonZeroAmount(_LQTYamount);
+    function stake(uint _tokenAmount) external override {
+        _requireNonZeroAmount(_tokenAmount);
 
         uint currentStake = stakes[msg.sender];
 
@@ -85,15 +85,15 @@ contract LQTYStaking is ILQTYStaking, Ownable, CheckContract, BaseMath {
 
         _updateUserSnapshots(msg.sender);
 
-        uint newStake = currentStake.add(_LQTYamount);
+        uint newStake = currentStake.add(_tokenAmount);
 
-        // Increase user’s stake and total LQTY staked
+        // Increase user’s stake and total ProtocolToken staked
         stakes[msg.sender] = newStake;
-        totalLQTYStaked = totalLQTYStaked.add(_LQTYamount);
-        emit TotalLQTYStakedUpdated(totalLQTYStaked);
+        totalProtocolTokenStaked = totalProtocolTokenStaked.add(_tokenAmount);
+        emit TotalProtocolTokenStakedUpdated(totalProtocolTokenStaked);
 
-        // Transfer LQTY from caller to this contract
-        lqtyToken.sendToLQTYStaking(msg.sender, _LQTYamount);
+        // Transfer ProtocolToken from caller to this contract
+        protocolToken.sendToProtocolTokenStaking(msg.sender, _tokenAmount);
 
         emit StakeChanged(msg.sender, newStake);
         emit StakingGainsWithdrawn(msg.sender, debtTokenGain, FILGain);
@@ -105,9 +105,9 @@ contract LQTYStaking is ILQTYStaking, Ownable, CheckContract, BaseMath {
         }
     }
 
-    // Unstake the LQTY and send the it back to the caller, along with their accumulated Debt Token & FIL gains.
+    // Unstake the ProtocolToken and send the it back to the caller, along with their accumulated Debt Token & FIL gains.
     // If requested amount > stake, send their entire stake.
-    function unstake(uint _LQTYamount) external override {
+    function unstake(uint _tokenAmount) external override {
         uint currentStake = stakes[msg.sender];
         _requireUserHasStake(currentStake);
 
@@ -117,18 +117,18 @@ contract LQTYStaking is ILQTYStaking, Ownable, CheckContract, BaseMath {
 
         _updateUserSnapshots(msg.sender);
 
-        if (_LQTYamount > 0) {
-            uint LQTYToWithdraw = LiquityMath._min(_LQTYamount, currentStake);
+        if (_tokenAmount > 0) {
+            uint protocolTokenToWithdraw = LiquityMath._min(_tokenAmount, currentStake);
 
-            uint newStake = currentStake.sub(LQTYToWithdraw);
+            uint newStake = currentStake.sub(protocolTokenToWithdraw);
 
-            // Decrease user's stake and total LQTY staked
+            // Decrease user's stake and total ProtocolToken staked
             stakes[msg.sender] = newStake;
-            totalLQTYStaked = totalLQTYStaked.sub(LQTYToWithdraw);
-            emit TotalLQTYStakedUpdated(totalLQTYStaked);
+            totalProtocolTokenStaked = totalProtocolTokenStaked.sub(protocolTokenToWithdraw);
+            emit TotalProtocolTokenStakedUpdated(totalProtocolTokenStaked);
 
-            // Transfer unstaked LQTY to user
-            lqtyToken.transfer(msg.sender, LQTYToWithdraw);
+            // Transfer unstaked ProtocolToken to user
+            protocolToken.transfer(msg.sender, protocolTokenToWithdraw);
 
             emit StakeChanged(msg.sender, newStake);
         }
@@ -144,25 +144,29 @@ contract LQTYStaking is ILQTYStaking, Ownable, CheckContract, BaseMath {
 
     function increaseF_FIL(uint _FILFee) external override {
         _requireCallerIsTroveManager();
-        uint FILFeePerLQTYStaked;
+        uint FILFeePerProtocolTokenStaked;
 
-        if (totalLQTYStaked > 0) {
-            FILFeePerLQTYStaked = _FILFee.mul(DECIMAL_PRECISION).div(totalLQTYStaked);
+        if (totalProtocolTokenStaked > 0) {
+            FILFeePerProtocolTokenStaked = _FILFee.mul(DECIMAL_PRECISION).div(
+                totalProtocolTokenStaked
+            );
         }
 
-        F_FIL = F_FIL.add(FILFeePerLQTYStaked);
+        F_FIL = F_FIL.add(FILFeePerProtocolTokenStaked);
         emit F_FILUpdated(F_FIL);
     }
 
     function increaseF_DebtToken(uint _debtTokenFee) external override {
         _requireCallerIsBorrowerOperations();
-        uint debtTokenFeePerLQTYStaked;
+        uint debtTokenFeePerProtocolTokenStaked;
 
-        if (totalLQTYStaked > 0) {
-            debtTokenFeePerLQTYStaked = _debtTokenFee.mul(DECIMAL_PRECISION).div(totalLQTYStaked);
+        if (totalProtocolTokenStaked > 0) {
+            debtTokenFeePerProtocolTokenStaked = _debtTokenFee.mul(DECIMAL_PRECISION).div(
+                totalProtocolTokenStaked
+            );
         }
 
-        F_DebtToken = F_DebtToken.add(debtTokenFeePerLQTYStaked);
+        F_DebtToken = F_DebtToken.add(debtTokenFeePerProtocolTokenStaked);
         emit F_DebtTokenUpdated(F_DebtToken);
     }
 
@@ -201,29 +205,32 @@ contract LQTYStaking is ILQTYStaking, Ownable, CheckContract, BaseMath {
     function _sendFILGainToUser(uint FILGain) internal {
         emit EtherSent(msg.sender, FILGain);
         (bool success, ) = msg.sender.call{value: FILGain}("");
-        require(success, "LQTYStaking: Failed to send accumulated FILGain");
+        require(success, "ProtocolTokenStaking: Failed to send accumulated FILGain");
     }
 
     // --- 'require' functions ---
 
     function _requireCallerIsTroveManager() internal view {
-        require(msg.sender == troveManagerAddress, "LQTYStaking: caller is not TroveM");
+        require(msg.sender == troveManagerAddress, "ProtocolTokenStaking: caller is not TroveM");
     }
 
     function _requireCallerIsBorrowerOperations() internal view {
-        require(msg.sender == borrowerOperationsAddress, "LQTYStaking: caller is not BorrowerOps");
+        require(
+            msg.sender == borrowerOperationsAddress,
+            "ProtocolTokenStaking: caller is not BorrowerOps"
+        );
     }
 
     function _requireCallerIsActivePool() internal view {
-        require(msg.sender == activePoolAddress, "LQTYStaking: caller is not ActivePool");
+        require(msg.sender == activePoolAddress, "ProtocolTokenStaking: caller is not ActivePool");
     }
 
     function _requireUserHasStake(uint currentStake) internal pure {
-        require(currentStake > 0, "LQTYStaking: User must have a non-zero stake");
+        require(currentStake > 0, "ProtocolTokenStaking: User must have a non-zero stake");
     }
 
     function _requireNonZeroAmount(uint _amount) internal pure {
-        require(_amount > 0, "LQTYStaking: Amount must be non-zero");
+        require(_amount > 0, "ProtocolTokenStaking: Amount must be non-zero");
     }
 
     receive() external payable {

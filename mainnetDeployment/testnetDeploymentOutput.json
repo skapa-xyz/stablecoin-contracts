@@ -55,7 +55,7 @@
     "address": "0x07149010e385e1DD9FC0d4072ca71013bf779d11",
     "txHash": "0x197944f95ba997db8c83ac0fd49daa5519e50ba340685589c2075c1db7f50005"
   },
-  "lqtyStaking": {
+  "protocolTokenStaking": {
     "address": "0x4f3d4F59a830d6b162114a8b75620c5F5F7FB1FE",
     "txHash": "0xbed6bf98cd77be3548911f53fe6d1a6505a44c94286b103b76fb40b5a873cbef"
   },
@@ -67,7 +67,7 @@
     "address": "0xbb5E331A3476591E6888BE2034BD18dd7Fc00F9f",
     "txHash": "0x6c663ef082067d97ed90cb065cdd011a1fcce14ab8f91a0643850889556562f0"
   },
-  "lqtyToken": {
+  "protocolToken": {
     "address": "0xe6837116F8D548f42350Dd6c91318C7C98053082",
     "txHash": "0xfa06cd409001444ff289c5b169e481b94e9192850c9c7c30981d6c06cf0cfbaa"
   },

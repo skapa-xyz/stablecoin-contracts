@@ -59,8 +59,8 @@ contract("BorrowerOperations", async (accounts) => {
   let stabilityPool;
   let defaultPool;
   let borrowerOperations;
-  let lqtyStaking;
-  let lqtyToken;
+  let protocolTokenStaking;
+  let protocolToken;
 
   let contracts;
 
@@ -90,19 +90,20 @@ contract("BorrowerOperations", async (accounts) => {
       );
       contracts.troveManager = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
       contracts = await deploymentHelper.deployDebtTokenTester(contracts);
-      const LQTYContracts = await deploymentHelper.deployLQTYTesterContractsHardhat(
-        bountyAddress,
-        lpRewardsAddress,
-        multisig,
-      );
+      const protocolTokenContracts =
+        await deploymentHelper.deployProtocolTokenTesterContractsHardhat(
+          bountyAddress,
+          lpRewardsAddress,
+          multisig,
+        );
 
-      await deploymentHelper.connectLQTYContracts(LQTYContracts);
-      await deploymentHelper.connectCoreContracts(contracts, LQTYContracts);
-      await deploymentHelper.connectLQTYContractsToCore(LQTYContracts, contracts);
+      await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
+      await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
+      await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
 
       if (withProxy) {
         const users = [alice, bob, carol, dennis, whale, A, B, C, D, E];
-        await deploymentHelper.deployProxyScripts(contracts, LQTYContracts, owner, users);
+        await deploymentHelper.deployProxyScripts(contracts, protocolTokenContracts, owner, users);
       }
 
       priceFeed = contracts.priceFeedTestnet;
@@ -115,10 +116,10 @@ contract("BorrowerOperations", async (accounts) => {
       borrowerOperations = contracts.borrowerOperations;
       hintHelpers = contracts.hintHelpers;
 
-      lqtyStaking = LQTYContracts.lqtyStaking;
-      lqtyToken = LQTYContracts.lqtyToken;
-      communityIssuance = LQTYContracts.communityIssuance;
-      lockupContractFactory = LQTYContracts.lockupContractFactory;
+      protocolTokenStaking = protocolTokenContracts.protocolTokenStaking;
+      protocolToken = protocolTokenContracts.protocolToken;
+      communityIssuance = protocolTokenContracts.communityIssuance;
+      lockupContractFactory = protocolTokenContracts.lockupContractFactory;
 
       GAS_COMPENSATION = await borrowerOperations.GAS_COMPENSATION();
       MIN_NET_DEBT = await borrowerOperations.MIN_NET_DEBT();
@@ -1235,15 +1236,17 @@ contract("BorrowerOperations", async (accounts) => {
       assert.isTrue(baseRate_2.lt(baseRate_1));
     });
 
-    it("withdrawDebtToken(): borrowing at non-zero base rate sends debt token fee to LQTY staking contract", async () => {
-      // time fast-forwards 1 year, and multisig stakes 1 LQTY
+    it("withdrawDebtToken(): borrowing at non-zero base rate sends debt token fee to ProtocolToken staking contract", async () => {
+      // time fast-forwards 1 year, and multisig stakes 1 token
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
-      await lqtyToken.approve(lqtyStaking.address, dec(1, 18), { from: multisig });
-      await lqtyStaking.stake(dec(1, 18), { from: multisig });
+      await protocolToken.approve(protocolTokenStaking.address, dec(1, 18), { from: multisig });
+      await protocolTokenStaking.stake(dec(1, 18), { from: multisig });
 
-      // Check LQTY DebtToken balance before == 0
-      const lqtyStaking_debtTokenBalance_Before = await debtToken.balanceOf(lqtyStaking.address);
-      assert.equal(lqtyStaking_debtTokenBalance_Before, "0");
+      // Check ProtocolToken DebtToken balance before == 0
+      const protocolTokenStaking_debtTokenBalance_Before = await debtToken.balanceOf(
+        protocolTokenStaking.address,
+      );
+      assert.equal(protocolTokenStaking_debtTokenBalance_Before, "0");
 
       await openTrove({ ICR: toBN(dec(10, 18)), extraParams: { from: whale } });
       await openTrove({
@@ -1281,18 +1284,24 @@ contract("BorrowerOperations", async (accounts) => {
       // D withdraws debt token
       await borrowerOperations.withdrawDebtToken(th._100pct, dec(37, 18), C, C, { from: D });
 
-      // Check LQTY DebtToken balance after has increased
-      const lqtyStaking_debtTokenBalance_After = await debtToken.balanceOf(lqtyStaking.address);
-      assert.isTrue(lqtyStaking_debtTokenBalance_After.gt(lqtyStaking_debtTokenBalance_Before));
+      // Check ProtocolToken DebtToken balance after has increased
+      const protocolTokenStaking_debtTokenBalance_After = await debtToken.balanceOf(
+        protocolTokenStaking.address,
+      );
+      assert.isTrue(
+        protocolTokenStaking_debtTokenBalance_After.gt(
+          protocolTokenStaking_debtTokenBalance_Before,
+        ),
+      );
     });
 
     if (!withProxy) {
       // TODO: use rawLogs instead of logs
       it("withdrawDebtToken(): borrowing at non-zero base records the (drawn debt + fee) on the Trove struct", async () => {
-        // time fast-forwards 1 year, and multisig stakes 1 LQTY
+        // time fast-forwards 1 year, and multisig stakes 1 token
         await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
-        await lqtyToken.approve(lqtyStaking.address, dec(1, 18), { from: multisig });
-        await lqtyStaking.stake(dec(1, 18), { from: multisig });
+        await protocolToken.approve(protocolTokenStaking.address, dec(1, 18), { from: multisig });
+        await protocolTokenStaking.stake(dec(1, 18), { from: multisig });
 
         await openTrove({ ICR: toBN(dec(10, 18)), extraParams: { from: whale } });
         await openTrove({
@@ -1354,14 +1363,14 @@ contract("BorrowerOperations", async (accounts) => {
       });
     }
 
-    it("withdrawDebtToken(): Borrowing at non-zero base rate increases the LQTY staking contract debt token fees-per-unit-staked", async () => {
-      // time fast-forwards 1 year, and multisig stakes 1 LQTY
+    it("withdrawDebtToken(): Borrowing at non-zero base rate increases the ProtocolToken staking contract debt token fees-per-unit-staked", async () => {
+      // time fast-forwards 1 year, and multisig stakes 1 token
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
-      await lqtyToken.approve(lqtyStaking.address, dec(1, 18), { from: multisig });
-      await lqtyStaking.stake(dec(1, 18), { from: multisig });
+      await protocolToken.approve(protocolTokenStaking.address, dec(1, 18), { from: multisig });
+      await protocolTokenStaking.stake(dec(1, 18), { from: multisig });
 
-      // Check LQTY contract debt token fees-per-unit-staked is zero
-      const F_DebtToken_Before = await lqtyStaking.F_DebtToken();
+      // Check ProtocolToken contract debt token fees-per-unit-staked is zero
+      const F_DebtToken_Before = await protocolTokenStaking.F_DebtToken();
       assert.equal(F_DebtToken_Before, "0");
 
       await openTrove({ ICR: toBN(dec(10, 18)), extraParams: { from: whale } });
@@ -1400,20 +1409,22 @@ contract("BorrowerOperations", async (accounts) => {
       // D withdraws debt token
       await borrowerOperations.withdrawDebtToken(th._100pct, toBN(dec(37, 18)), D, D, { from: D });
 
-      // Check LQTY contract debt token fees-per-unit-staked has increased
-      const F_DebtToken_After = await lqtyStaking.F_DebtToken();
+      // Check ProtocolToken contract debt token fees-per-unit-staked has increased
+      const F_DebtToken_After = await protocolTokenStaking.F_DebtToken();
       assert.isTrue(F_DebtToken_After.gt(F_DebtToken_Before));
     });
 
     it("withdrawDebtToken(): Borrowing at non-zero base rate sends requested amount to the user", async () => {
-      // time fast-forwards 1 year, and multisig stakes 1 LQTY
+      // time fast-forwards 1 year, and multisig stakes 1 token
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
-      await lqtyToken.approve(lqtyStaking.address, dec(1, 18), { from: multisig });
-      await lqtyStaking.stake(dec(1, 18), { from: multisig });
+      await protocolToken.approve(protocolTokenStaking.address, dec(1, 18), { from: multisig });
+      await protocolTokenStaking.stake(dec(1, 18), { from: multisig });
 
-      // Check LQTY Staking contract balance before == 0
-      const lqtyStaking_debtTokenBalance_Before = await debtToken.balanceOf(lqtyStaking.address);
-      assert.equal(lqtyStaking_debtTokenBalance_Before, "0");
+      // Check ProtocolToken Staking contract balance before == 0
+      const protocolTokenStaking_debtTokenBalance_Before = await debtToken.balanceOf(
+        protocolTokenStaking.address,
+      );
+      assert.equal(protocolTokenStaking_debtTokenBalance_Before, "0");
 
       await openTrove({ ICR: toBN(dec(10, 18)), extraParams: { from: whale } });
       await openTrove({
@@ -1454,9 +1465,15 @@ contract("BorrowerOperations", async (accounts) => {
       const D_DebtTokenRequest = toBN(dec(37, 18));
       await borrowerOperations.withdrawDebtToken(th._100pct, D_DebtTokenRequest, D, D, { from: D });
 
-      // Check LQTY staking debt token balance has increased
-      const lqtyStaking_debtTokenBalance_After = await debtToken.balanceOf(lqtyStaking.address);
-      assert.isTrue(lqtyStaking_debtTokenBalance_After.gt(lqtyStaking_debtTokenBalance_Before));
+      // Check ProtocolToken staking debt token balance has increased
+      const protocolTokenStaking_debtTokenBalance_After = await debtToken.balanceOf(
+        protocolTokenStaking.address,
+      );
+      assert.isTrue(
+        protocolTokenStaking_debtTokenBalance_After.gt(
+          protocolTokenStaking_debtTokenBalance_Before,
+        ),
+      );
 
       // Check D's debt token balance now equals their initial balance plus request debt token
       const D_DebtTokenBalanceAfter = await debtToken.balanceOf(D);
@@ -1490,22 +1507,22 @@ contract("BorrowerOperations", async (accounts) => {
       const baseRate_1 = await troveManager.baseRate();
       assert.equal(baseRate_1, "0");
 
-      // A artificially receives LQTY, then stakes it
-      await lqtyToken.unprotectedMint(A, dec(100, 18));
-      await lqtyStaking.stake(dec(100, 18), { from: A });
+      // A artificially receives ProtocolToken, then stakes it
+      await protocolToken.unprotectedMint(A, dec(100, 18));
+      await protocolTokenStaking.stake(dec(100, 18), { from: A });
 
       // 2 hours pass
       th.fastForwardTime(7200, web3.currentProvider);
 
-      // Check LQTY debt token balance before == 0
-      const F_DebtToken_Before = await lqtyStaking.F_DebtToken();
+      // Check ProtocolToken debt token balance before == 0
+      const F_DebtToken_Before = await protocolTokenStaking.F_DebtToken();
       assert.equal(F_DebtToken_Before, "0");
 
       // D withdraws debt token
       await borrowerOperations.withdrawDebtToken(th._100pct, dec(37, 18), D, D, { from: D });
 
-      // Check LQTY debt token balance after > 0
-      const F_DebtToken_After = await lqtyStaking.F_DebtToken();
+      // Check ProtocolToken debt token balance after > 0
+      const F_DebtToken_After = await protocolTokenStaking.F_DebtToken();
       assert.isTrue(F_DebtToken_After.gt("0"));
     });
 
@@ -2387,15 +2404,17 @@ contract("BorrowerOperations", async (accounts) => {
       assert.isTrue(baseRate_2.lt(baseRate_1));
     });
 
-    it("adjustTrove(): borrowing at non-zero base rate sends debt token fee to LQTY staking contract", async () => {
-      // time fast-forwards 1 year, and multisig stakes 1 LQTY
+    it("adjustTrove(): borrowing at non-zero base rate sends debt token fee to ProtocolToken staking contract", async () => {
+      // time fast-forwards 1 year, and multisig stakes 1 token
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
-      await lqtyToken.approve(lqtyStaking.address, dec(1, 18), { from: multisig });
-      await lqtyStaking.stake(dec(1, 18), { from: multisig });
+      await protocolToken.approve(protocolTokenStaking.address, dec(1, 18), { from: multisig });
+      await protocolTokenStaking.stake(dec(1, 18), { from: multisig });
 
-      // Check LQTY debt token balance before == 0
-      const lqtyStaking_debtTokenBalance_Before = await debtToken.balanceOf(lqtyStaking.address);
-      assert.equal(lqtyStaking_debtTokenBalance_Before, "0");
+      // Check ProtocolToken debt token balance before == 0
+      const protocolTokenStaking_debtTokenBalance_Before = await debtToken.balanceOf(
+        protocolTokenStaking.address,
+      );
+      assert.equal(protocolTokenStaking_debtTokenBalance_Before, "0");
 
       await openTrove({ ICR: toBN(dec(10, 18)), extraParams: { from: whale } });
       await openTrove({
@@ -2432,18 +2451,24 @@ contract("BorrowerOperations", async (accounts) => {
         extraParams: { from: D },
       });
 
-      // Check LQTY debt token balance after has increased
-      const lqtyStaking_debtTokenBalance_After = await debtToken.balanceOf(lqtyStaking.address);
-      assert.isTrue(lqtyStaking_debtTokenBalance_After.gt(lqtyStaking_debtTokenBalance_Before));
+      // Check ProtocolToken debt token balance after has increased
+      const protocolTokenStaking_debtTokenBalance_After = await debtToken.balanceOf(
+        protocolTokenStaking.address,
+      );
+      assert.isTrue(
+        protocolTokenStaking_debtTokenBalance_After.gt(
+          protocolTokenStaking_debtTokenBalance_Before,
+        ),
+      );
     });
 
     if (!withProxy) {
       // TODO: use rawLogs instead of logs
       it("adjustTrove(): borrowing at non-zero base records the (drawn debt + fee) on the Trove struct", async () => {
-        // time fast-forwards 1 year, and multisig stakes 1 LQTY
+        // time fast-forwards 1 year, and multisig stakes 1 token
         await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
-        await lqtyToken.approve(lqtyStaking.address, dec(1, 18), { from: multisig });
-        await lqtyStaking.stake(dec(1, 18), { from: multisig });
+        await protocolToken.approve(protocolTokenStaking.address, dec(1, 18), { from: multisig });
+        await protocolTokenStaking.stake(dec(1, 18), { from: multisig });
 
         await openTrove({ ICR: toBN(dec(10, 18)), extraParams: { from: whale } });
         await openTrove({
@@ -2502,14 +2527,14 @@ contract("BorrowerOperations", async (accounts) => {
       });
     }
 
-    it("adjustTrove(): Borrowing at non-zero base rate increases the LQTY staking contract debt token fees-per-unit-staked", async () => {
-      // time fast-forwards 1 year, and multisig stakes 1 LQTY
+    it("adjustTrove(): Borrowing at non-zero base rate increases the ProtocolToken staking contract debt token fees-per-unit-staked", async () => {
+      // time fast-forwards 1 year, and multisig stakes 1 token
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
-      await lqtyToken.approve(lqtyStaking.address, dec(1, 18), { from: multisig });
-      await lqtyStaking.stake(dec(1, 18), { from: multisig });
+      await protocolToken.approve(protocolTokenStaking.address, dec(1, 18), { from: multisig });
+      await protocolTokenStaking.stake(dec(1, 18), { from: multisig });
 
-      // Check LQTY contract debt token fees-per-unit-staked is zero
-      const F_DebtToken_Before = await lqtyStaking.F_DebtToken();
+      // Check ProtocolToken contract debt token fees-per-unit-staked is zero
+      const F_DebtToken_Before = await protocolTokenStaking.F_DebtToken();
       assert.equal(F_DebtToken_Before, "0");
 
       await openTrove({ ICR: toBN(dec(10, 18)), extraParams: { from: whale } });
@@ -2548,20 +2573,22 @@ contract("BorrowerOperations", async (accounts) => {
       // D adjusts trove
       await borrowerOperations.adjustTrove(th._100pct, 0, dec(37, 18), true, D, D, { from: D });
 
-      // Check LQTY contract debt token fees-per-unit-staked has increased
-      const F_DebtToken_After = await lqtyStaking.F_DebtToken();
+      // Check ProtocolToken contract debt token fees-per-unit-staked has increased
+      const F_DebtToken_After = await protocolTokenStaking.F_DebtToken();
       assert.isTrue(F_DebtToken_After.gt(F_DebtToken_Before));
     });
 
     it("adjustTrove(): Borrowing at non-zero base rate sends requested amount to the user", async () => {
-      // time fast-forwards 1 year, and multisig stakes 1 LQTY
+      // time fast-forwards 1 year, and multisig stakes 1 token
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
-      await lqtyToken.approve(lqtyStaking.address, dec(1, 18), { from: multisig });
-      await lqtyStaking.stake(dec(1, 18), { from: multisig });
+      await protocolToken.approve(protocolTokenStaking.address, dec(1, 18), { from: multisig });
+      await protocolTokenStaking.stake(dec(1, 18), { from: multisig });
 
-      // Check LQTY Staking contract balance before == 0
-      const lqtyStaking_debtTokenBalance_Before = await debtToken.balanceOf(lqtyStaking.address);
-      assert.equal(lqtyStaking_debtTokenBalance_Before, "0");
+      // Check ProtocolToken Staking contract balance before == 0
+      const protocolTokenStaking_debtTokenBalance_Before = await debtToken.balanceOf(
+        protocolTokenStaking.address,
+      );
+      assert.equal(protocolTokenStaking_debtTokenBalance_Before, "0");
 
       await openTrove({ ICR: toBN(dec(10, 18)), extraParams: { from: whale } });
       await openTrove({
@@ -2604,16 +2631,22 @@ contract("BorrowerOperations", async (accounts) => {
         from: D,
       });
 
-      // Check LQTY staking debt token balance has increased
-      const lqtyStaking_debtTokenBalance_After = await debtToken.balanceOf(lqtyStaking.address);
-      assert.isTrue(lqtyStaking_debtTokenBalance_After.gt(lqtyStaking_debtTokenBalance_Before));
+      // Check ProtocolToken staking debt token balance has increased
+      const protocolTokenStaking_debtTokenBalance_After = await debtToken.balanceOf(
+        protocolTokenStaking.address,
+      );
+      assert.isTrue(
+        protocolTokenStaking_debtTokenBalance_After.gt(
+          protocolTokenStaking_debtTokenBalance_Before,
+        ),
+      );
 
       // Check D's debt token balance has increased by their requested debt token
       const D_DebtTokenBalanceAfter = await debtToken.balanceOf(D);
       assert.isTrue(D_DebtTokenBalanceAfter.eq(D_DebtTokenBalanceBefore.add(debtTokenRequest_D)));
     });
 
-    it("adjustTrove(): Borrowing at zero base rate changes debt token balance of LQTY staking contract", async () => {
+    it("adjustTrove(): Borrowing at zero base rate changes debt token balance of ProtocolToken staking contract", async () => {
       await openTrove({ ICR: toBN(dec(10, 18)), extraParams: { from: whale } });
       await openTrove({
         extraDebtTokenAmount: toBN(dec(30, 18)),
@@ -2644,18 +2677,26 @@ contract("BorrowerOperations", async (accounts) => {
       th.fastForwardTime(7200, web3.currentProvider);
 
       // Check staking debt token balance before > 0
-      const lqtyStaking_debtTokenBalance_Before = await debtToken.balanceOf(lqtyStaking.address);
-      assert.isTrue(lqtyStaking_debtTokenBalance_Before.gt(toBN("0")));
+      const protocolTokenStaking_debtTokenBalance_Before = await debtToken.balanceOf(
+        protocolTokenStaking.address,
+      );
+      assert.isTrue(protocolTokenStaking_debtTokenBalance_Before.gt(toBN("0")));
 
       // D adjusts trove
       await borrowerOperations.adjustTrove(th._100pct, 0, dec(37, 18), true, D, D, { from: D });
 
       // Check staking debt token balance after > staking balance before
-      const lqtyStaking_debtTokenBalance_After = await debtToken.balanceOf(lqtyStaking.address);
-      assert.isTrue(lqtyStaking_debtTokenBalance_After.gt(lqtyStaking_debtTokenBalance_Before));
+      const protocolTokenStaking_debtTokenBalance_After = await debtToken.balanceOf(
+        protocolTokenStaking.address,
+      );
+      assert.isTrue(
+        protocolTokenStaking_debtTokenBalance_After.gt(
+          protocolTokenStaking_debtTokenBalance_Before,
+        ),
+      );
     });
 
-    it("adjustTrove(): Borrowing at zero base rate changes LQTY staking contract debt token fees-per-unit-staked", async () => {
+    it("adjustTrove(): Borrowing at zero base rate changes ProtocolToken staking contract debt token fees-per-unit-staked", async () => {
       await openTrove({
         extraDebtTokenAmount: toBN(dec(20000, 18)),
         ICR: toBN(dec(2, 18)),
@@ -2689,19 +2730,19 @@ contract("BorrowerOperations", async (accounts) => {
       // 2 hours pass
       th.fastForwardTime(7200, web3.currentProvider);
 
-      // A artificially receives LQTY, then stakes it
-      await lqtyToken.unprotectedMint(A, dec(100, 18));
-      await lqtyStaking.stake(dec(100, 18), { from: A });
+      // A artificially receives ProtocolToken, then stakes it
+      await protocolToken.unprotectedMint(A, dec(100, 18));
+      await protocolTokenStaking.stake(dec(100, 18), { from: A });
 
       // Check staking debt token balance before == 0
-      const F_DebtToken_Before = await lqtyStaking.F_DebtToken();
+      const F_DebtToken_Before = await protocolTokenStaking.F_DebtToken();
       assert.isTrue(F_DebtToken_Before.eq(toBN("0")));
 
       // D adjusts trove
       await borrowerOperations.adjustTrove(th._100pct, 0, dec(37, 18), true, D, D, { from: D });
 
       // Check staking debt token balance increases
-      const F_DebtToken_After = await lqtyStaking.F_DebtToken();
+      const F_DebtToken_After = await protocolTokenStaking.F_DebtToken();
       assert.isTrue(F_DebtToken_After.gt(F_DebtToken_Before));
     });
 
@@ -3157,12 +3198,14 @@ contract("BorrowerOperations", async (accounts) => {
 
       assert.isTrue(await th.checkRecoveryMode(contracts));
 
-      // B stakes LQTY
-      await lqtyToken.unprotectedMint(bob, dec(100, 18));
-      await lqtyStaking.stake(dec(100, 18), { from: bob });
+      // B stakes ProtocolToken
+      await protocolToken.unprotectedMint(bob, dec(100, 18));
+      await protocolTokenStaking.stake(dec(100, 18), { from: bob });
 
-      const lqtyStakingDebtTokenBalanceBefore = await debtToken.balanceOf(lqtyStaking.address);
-      assert.isTrue(lqtyStakingDebtTokenBalanceBefore.gt(toBN("0")));
+      const protocolTokenStakingDebtTokenBalanceBefore = await debtToken.balanceOf(
+        protocolTokenStaking.address,
+      );
+      assert.isTrue(protocolTokenStakingDebtTokenBalanceBefore.gt(toBN("0")));
 
       const txAlice = await borrowerOperations.adjustTrove(
         th._100pct,
@@ -3187,10 +3230,12 @@ contract("BorrowerOperations", async (accounts) => {
       assert.isTrue(await th.checkRecoveryMode(contracts));
 
       // Check no fee was sent to staking contract
-      const lqtyStakingdebtTokenBalanceAfter = await debtToken.balanceOf(lqtyStaking.address);
+      const protocolTokenStakingdebtTokenBalanceAfter = await debtToken.balanceOf(
+        protocolTokenStaking.address,
+      );
       assert.equal(
-        lqtyStakingdebtTokenBalanceAfter.toString(),
-        lqtyStakingDebtTokenBalanceBefore.toString(),
+        protocolTokenStakingdebtTokenBalanceAfter.toString(),
+        protocolTokenStakingDebtTokenBalanceBefore.toString(),
       );
     });
 
@@ -5191,15 +5236,17 @@ contract("BorrowerOperations", async (accounts) => {
       assert.isTrue(baseRate_2.lt(baseRate_1));
     });
 
-    it("openTrove(): borrowing at non-zero base rate sends debt token fee to LQTY staking contract", async () => {
-      // time fast-forwards 1 year, and multisig stakes 1 LQTY
+    it("openTrove(): borrowing at non-zero base rate sends debt token fee to ProtocolToken staking contract", async () => {
+      // time fast-forwards 1 year, and multisig stakes 1 token
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
-      await lqtyToken.approve(lqtyStaking.address, dec(1, 18), { from: multisig });
-      await lqtyStaking.stake(dec(1, 18), { from: multisig });
+      await protocolToken.approve(protocolTokenStaking.address, dec(1, 18), { from: multisig });
+      await protocolTokenStaking.stake(dec(1, 18), { from: multisig });
 
-      // Check LQTY debt token balance before == 0
-      const lqtyStaking_debtTokenBalance_Before = await debtToken.balanceOf(lqtyStaking.address);
-      assert.equal(lqtyStaking_debtTokenBalance_Before, "0");
+      // Check ProtocolToken debt token balance before == 0
+      const protocolTokenStaking_debtTokenBalance_Before = await debtToken.balanceOf(
+        protocolTokenStaking.address,
+      );
+      assert.equal(protocolTokenStaking_debtTokenBalance_Before, "0");
 
       await openTrove({
         extraDebtTokenAmount: toBN(dec(10000, 18)),
@@ -5240,18 +5287,24 @@ contract("BorrowerOperations", async (accounts) => {
         extraParams: { from: D },
       });
 
-      // Check LQTY debt token balance after has increased
-      const lqtyStaking_debtTokenBalance_After = await debtToken.balanceOf(lqtyStaking.address);
-      assert.isTrue(lqtyStaking_debtTokenBalance_After.gt(lqtyStaking_debtTokenBalance_Before));
+      // Check ProtocolToken debt token balance after has increased
+      const protocolTokenStaking_debtTokenBalance_After = await debtToken.balanceOf(
+        protocolTokenStaking.address,
+      );
+      assert.isTrue(
+        protocolTokenStaking_debtTokenBalance_After.gt(
+          protocolTokenStaking_debtTokenBalance_Before,
+        ),
+      );
     });
 
     if (!withProxy) {
       // TODO: use rawLogs instead of logs
       it("openTrove(): borrowing at non-zero base records the (drawn debt + fee  + liq. reserve) on the Trove struct", async () => {
-        // time fast-forwards 1 year, and multisig stakes 1 LQTY
+        // time fast-forwards 1 year, and multisig stakes 1 token
         await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
-        await lqtyToken.approve(lqtyStaking.address, dec(1, 18), { from: multisig });
-        await lqtyStaking.stake(dec(1, 18), { from: multisig });
+        await protocolToken.approve(protocolTokenStaking.address, dec(1, 18), { from: multisig });
+        await protocolTokenStaking.stake(dec(1, 18), { from: multisig });
 
         await openTrove({
           extraDebtTokenAmount: toBN(dec(10000, 18)),
@@ -5310,14 +5363,14 @@ contract("BorrowerOperations", async (accounts) => {
       });
     }
 
-    it("openTrove(): Borrowing at non-zero base rate increases the LQTY staking contract debt token fees-per-unit-staked", async () => {
-      // time fast-forwards 1 year, and multisig stakes 1 LQTY
+    it("openTrove(): Borrowing at non-zero base rate increases the ProtocolToken staking contract debt token fees-per-unit-staked", async () => {
+      // time fast-forwards 1 year, and multisig stakes 1 token
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
-      await lqtyToken.approve(lqtyStaking.address, dec(1, 18), { from: multisig });
-      await lqtyStaking.stake(dec(1, 18), { from: multisig });
+      await protocolToken.approve(protocolTokenStaking.address, dec(1, 18), { from: multisig });
+      await protocolTokenStaking.stake(dec(1, 18), { from: multisig });
 
-      // Check LQTY contract debt token fees-per-unit-staked is zero
-      const F_DebtToken_Before = await lqtyStaking.F_DebtToken();
+      // Check ProtocolToken contract debt token fees-per-unit-staked is zero
+      const F_DebtToken_Before = await protocolTokenStaking.F_DebtToken();
       assert.equal(F_DebtToken_Before, "0");
 
       await openTrove({
@@ -5359,20 +5412,22 @@ contract("BorrowerOperations", async (accounts) => {
         extraParams: { from: D },
       });
 
-      // Check LQTY contract debt token fees-per-unit-staked has increased
-      const F_DebtToken_After = await lqtyStaking.F_DebtToken();
+      // Check ProtocolToken contract debt token fees-per-unit-staked has increased
+      const F_DebtToken_After = await protocolTokenStaking.F_DebtToken();
       assert.isTrue(F_DebtToken_After.gt(F_DebtToken_Before));
     });
 
     it("openTrove(): Borrowing at non-zero base rate sends requested amount to the user", async () => {
-      // time fast-forwards 1 year, and multisig stakes 1 LQTY
+      // time fast-forwards 1 year, and multisig stakes 1 token
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
-      await lqtyToken.approve(lqtyStaking.address, dec(1, 18), { from: multisig });
-      await lqtyStaking.stake(dec(1, 18), { from: multisig });
+      await protocolToken.approve(protocolTokenStaking.address, dec(1, 18), { from: multisig });
+      await protocolTokenStaking.stake(dec(1, 18), { from: multisig });
 
-      // Check LQTY Staking contract balance before == 0
-      const lqtyStaking_debtTokenBalance_Before = await debtToken.balanceOf(lqtyStaking.address);
-      assert.equal(lqtyStaking_debtTokenBalance_Before, "0");
+      // Check ProtocolToken Staking contract balance before == 0
+      const protocolTokenStaking_debtTokenBalance_Before = await debtToken.balanceOf(
+        protocolTokenStaking.address,
+      );
+      assert.equal(protocolTokenStaking_debtTokenBalance_Before, "0");
 
       await openTrove({
         extraDebtTokenAmount: toBN(dec(10000, 18)),
@@ -5413,16 +5468,22 @@ contract("BorrowerOperations", async (accounts) => {
         value: dec(500, "ether"),
       });
 
-      // Check LQTY staking debt token balance has increased
-      const lqtyStaking_debtTokenBalance_After = await debtToken.balanceOf(lqtyStaking.address);
-      assert.isTrue(lqtyStaking_debtTokenBalance_After.gt(lqtyStaking_debtTokenBalance_Before));
+      // Check ProtocolToken staking debt token balance has increased
+      const protocolTokenStaking_debtTokenBalance_After = await debtToken.balanceOf(
+        protocolTokenStaking.address,
+      );
+      assert.isTrue(
+        protocolTokenStaking_debtTokenBalance_After.gt(
+          protocolTokenStaking_debtTokenBalance_Before,
+        ),
+      );
 
       // Check D's debt token balance now equals their requested debt token
       const debtTokenBalance_D = await debtToken.balanceOf(D);
       assert.isTrue(debtTokenRequest_D.eq(debtTokenBalance_D));
     });
 
-    it("openTrove(): Borrowing at zero base rate changes the LQTY staking contract debt token fees-per-unit-staked", async () => {
+    it("openTrove(): Borrowing at zero base rate changes the ProtocolToken staking contract debt token fees-per-unit-staked", async () => {
       await openTrove({
         extraDebtTokenAmount: toBN(dec(5000, 18)),
         ICR: toBN(dec(2, 18)),
@@ -5446,13 +5507,13 @@ contract("BorrowerOperations", async (accounts) => {
       // 2 hours pass
       th.fastForwardTime(7200, web3.currentProvider);
 
-      // Check debt token reward per LQTY staked == 0
-      const F_DebtToken_Before = await lqtyStaking.F_DebtToken();
+      // Check debt token reward per ProtocolToken staked == 0
+      const F_DebtToken_Before = await protocolTokenStaking.F_DebtToken();
       assert.equal(F_DebtToken_Before, "0");
 
-      // A stakes LQTY
-      await lqtyToken.unprotectedMint(A, dec(100, 18));
-      await lqtyStaking.stake(dec(100, 18), { from: A });
+      // A stakes ProtocolToken
+      await protocolToken.unprotectedMint(A, dec(100, 18));
+      await protocolTokenStaking.stake(dec(100, 18), { from: A });
 
       // D opens trove
       await openTrove({
@@ -5461,8 +5522,8 @@ contract("BorrowerOperations", async (accounts) => {
         extraParams: { from: D },
       });
 
-      // Check debt token reward per LQTY staked > 0
-      const F_DebtToken_After = await lqtyStaking.F_DebtToken();
+      // Check debt token reward per ProtocolToken staked > 0
+      const F_DebtToken_After = await protocolTokenStaking.F_DebtToken();
       assert.isTrue(F_DebtToken_After.gt(toBN("0")));
     });
 

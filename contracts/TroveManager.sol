@@ -7,8 +7,8 @@ import "./Interfaces/IStabilityPool.sol";
 import "./Interfaces/ICollSurplusPool.sol";
 import "./Interfaces/IDebtToken.sol";
 import "./Interfaces/ISortedTroves.sol";
-import "./Interfaces/ILQTYToken.sol";
-import "./Interfaces/ILQTYStaking.sol";
+import "./Interfaces/IProtocolToken.sol";
+import "./Interfaces/IProtocolTokenStaking.sol";
 import "./Dependencies/LiquityBase.sol";
 import "./Dependencies/Ownable.sol";
 import "./Dependencies/CheckContract.sol";
@@ -31,9 +31,9 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
 
     IDebtToken public override debtToken;
 
-    ILQTYToken public override lqtyToken;
+    IProtocolToken public override protocolToken;
 
-    ILQTYStaking public override lqtyStaking;
+    IProtocolTokenStaking public override protocolTokenStaking;
 
     // A doubly linked list of Troves, sorted by their sorted by their collateral ratios
     ISortedTroves public sortedTroves;
@@ -168,7 +168,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
         IActivePool activePool;
         IDefaultPool defaultPool;
         IDebtToken debtToken;
-        ILQTYStaking lqtyStaking;
+        IProtocolTokenStaking protocolTokenStaking;
         ISortedTroves sortedTroves;
         ICollSurplusPool collSurplusPool;
         address gasPoolAddress;
@@ -211,8 +211,8 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
         address _priceFeedAddress,
         address _debtTokenAddress,
         address _sortedTrovesAddress,
-        address _lqtyTokenAddress,
-        address _lqtyStakingAddress
+        address _protocolTokenAddress,
+        address _protocolTokenStakingAddress
     ) external override onlyOwner {
         checkContract(_borrowerOperationsAddress);
         checkContract(_activePoolAddress);
@@ -223,8 +223,8 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
         checkContract(_priceFeedAddress);
         checkContract(_debtTokenAddress);
         checkContract(_sortedTrovesAddress);
-        checkContract(_lqtyTokenAddress);
-        checkContract(_lqtyStakingAddress);
+        checkContract(_protocolTokenAddress);
+        checkContract(_protocolTokenStakingAddress);
 
         _requireSameInitialParameters(_borrowerOperationsAddress);
         _requireSameInitialParameters(_stabilityPoolAddress);
@@ -238,8 +238,8 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
         priceFeed = IPriceFeed(_priceFeedAddress);
         debtToken = IDebtToken(_debtTokenAddress);
         sortedTroves = ISortedTroves(_sortedTrovesAddress);
-        lqtyToken = ILQTYToken(_lqtyTokenAddress);
-        lqtyStaking = ILQTYStaking(_lqtyStakingAddress);
+        protocolToken = IProtocolToken(_protocolTokenAddress);
+        protocolTokenStaking = IProtocolTokenStaking(_protocolTokenStakingAddress);
 
         emit BorrowerOperationsAddressChanged(_borrowerOperationsAddress);
         emit ActivePoolAddressChanged(_activePoolAddress);
@@ -250,8 +250,8 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
         emit PriceFeedAddressChanged(_priceFeedAddress);
         emit DebtTokenAddressChanged(_debtTokenAddress);
         emit SortedTrovesAddressChanged(_sortedTrovesAddress);
-        emit LQTYTokenAddressChanged(_lqtyTokenAddress);
-        emit LQTYStakingAddressChanged(_lqtyStakingAddress);
+        emit ProtocolTokenAddressChanged(_protocolTokenAddress);
+        emit ProtocolTokenStakingAddressChanged(_protocolTokenStakingAddress);
 
         _renounceOwnership();
     }
@@ -535,7 +535,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
             activePool,
             defaultPool,
             IDebtToken(address(0)),
-            ILQTYStaking(address(0)),
+            IProtocolTokenStaking(address(0)),
             sortedTroves,
             ICollSurplusPool(address(0)),
             address(0)
@@ -1130,7 +1130,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
             activePool,
             defaultPool,
             debtToken,
-            lqtyStaking,
+            protocolTokenStaking,
             sortedTroves,
             collSurplusPool,
             gasPoolAddress
@@ -1227,9 +1227,12 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
 
         _requireUserAcceptsFee(totals.FILFee, totals.totalFILDrawn, _maxFeePercentage);
 
-        // Send the FIL fee to the LQTY staking contract
-        contractsCache.activePool.sendFIL(address(contractsCache.lqtyStaking), totals.FILFee);
-        contractsCache.lqtyStaking.increaseF_FIL(totals.FILFee);
+        // Send the FIL fee to the ProtocolTokenStaking contract
+        contractsCache.activePool.sendFIL(
+            address(contractsCache.protocolTokenStaking),
+            totals.FILFee
+        );
+        contractsCache.protocolTokenStaking.increaseF_FIL(totals.FILFee);
 
         totals.FILToSendToRedeemer = totals.totalFILDrawn.sub(totals.FILFee);
 
@@ -1764,7 +1767,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
     }
 
     function _requireAfterBootstrapPeriod() internal view {
-        uint systemDeploymentTime = lqtyToken.getDeploymentStartTime();
+        uint systemDeploymentTime = protocolToken.getDeploymentStartTime();
         require(
             block.timestamp >= systemDeploymentTime.add(BOOTSTRAP_PERIOD),
             "TroveManager: Redemptions are not allowed during bootstrap phase"

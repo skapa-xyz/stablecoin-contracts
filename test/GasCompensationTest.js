@@ -77,7 +77,7 @@ contract("Gas compensation tests", async (accounts) => {
       contracts.stabilityPool.address,
       contracts.borrowerOperations.address,
     );
-    const LQTYContracts = await deploymentHelper.deployLQTYContracts(
+    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
       bountyAddress,
       lpRewardsAddress,
       multisig,
@@ -92,9 +92,9 @@ contract("Gas compensation tests", async (accounts) => {
     defaultPool = contracts.defaultPool;
     borrowerOperations = contracts.borrowerOperations;
 
-    await deploymentHelper.connectLQTYContracts(LQTYContracts);
-    await deploymentHelper.connectCoreContracts(contracts, LQTYContracts);
-    await deploymentHelper.connectLQTYContractsToCore(LQTYContracts, contracts);
+    await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
+    await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
+    await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
   });
 
   // --- Raw gas compensation calculations ---

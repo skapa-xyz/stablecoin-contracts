@@ -91,39 +91,39 @@ async function mainnetDeploy(configParams) {
   // Deploy Unipool
   const unipool = await mdh.deployUnipoolMainnet(deploymentState);
 
-  // Deploy LQTY Contracts
-  const LQTYContracts = await mdh.deployLQTYContractsMainnet(
+  // Deploy ProtocolToken Contracts
+  const protocolTokenContracts = await mdh.deployProtocolTokenContractsMainnet(
     configParams.liquityAddrs.GENERAL_SAFE, // bounty address
     unipool.address, // lp rewards address
-    configParams.liquityAddrs.LQTY_SAFE, // multisig LQTY endowment address
+    configParams.liquityAddrs.PROTOCOL_TOKEN_SAFE, // multisig endowment address
     deploymentState,
   );
 
   // Connect all core contracts up
-  await mdh.connectCoreContractsMainnet(liquityCore, LQTYContracts);
-  await mdh.connectLQTYContractsMainnet(LQTYContracts);
-  await mdh.connectLQTYContractsToCoreMainnet(LQTYContracts, liquityCore);
+  await mdh.connectCoreContractsMainnet(liquityCore, protocolTokenContracts);
+  await mdh.connectProtocolTokenContractsMainnet(protocolTokenContracts);
+  await mdh.connectProtocolTokenContractsToCoreMainnet(protocolTokenContracts, liquityCore);
 
   // Deploy a read-only multi-trove getter
   const multiTroveGetter = await mdh.deployMultiTroveGetterMainnet(liquityCore, deploymentState);
 
-  // Connect Unipool to LQTYToken and the DebtToken-WFIL pair address, with a 6 week duration
+  // Connect Unipool to ProtocolToken and the DebtToken-WFIL pair address, with a 6 week duration
   if (uniswapExits) {
     const LPRewardsDuration = timeVals.SECONDS_IN_SIX_WEEKS;
     await mdh.connectUnipoolMainnet(
       unipool,
-      LQTYContracts,
+      protocolTokenContracts,
       DebtTokenWFILPairAddr,
       LPRewardsDuration,
     );
   }
 
-  // Log LQTY and Unipool addresses
-  await mdh.logContractObjects(LQTYContracts);
+  // Log ProtocolToken and Unipool addresses
+  await mdh.logContractObjects(protocolTokenContracts);
   console.log(`Unipool address: ${unipool.address}`);
 
   // let latestBlock = await ethers.provider.getBlockNumber()
-  let deploymentStartTime = await LQTYContracts.lqtyToken.getDeploymentStartTime();
+  let deploymentStartTime = await protocolTokenContracts.protocolToken.getDeploymentStartTime();
 
   console.log(`deployment start time: ${deploymentStartTime}`);
   const oneYearFromDeployment = (
@@ -150,14 +150,16 @@ async function mainnetDeploy(configParams) {
       );
     } else {
       const txReceipt = await mdh.sendAndWaitForTransaction(
-        LQTYContracts.lockupContractFactory.deployLockupContract(
+        protocolTokenContracts.lockupContractFactory.deployLockupContract(
           investorAddr,
           oneYearFromDeployment,
         ),
       );
 
       const address =
-        await LQTYContracts.lockupContractFactory.beneficiaryToLockupContract(investorAddr);
+        await protocolTokenContracts.lockupContractFactory.beneficiaryToLockupContract(
+          investorAddr,
+        );
       lockupContracts[investor] = new ethers.Contract(
         address,
         lockupContractEthersFactory.interface,
@@ -172,11 +174,11 @@ async function mainnetDeploy(configParams) {
       mdh.saveDeployment(deploymentState);
     }
 
-    const lqtyTokenAddr = LQTYContracts.lqtyToken.address;
+    const protocolTokenAddr = protocolTokenContracts.protocolToken.address;
     // verify
     if (configParams.FILERSCAN_BASE_URL) {
       await mdh.verifyContract(investor, deploymentState, [
-        lqtyTokenAddr,
+        protocolTokenAddr,
         investorAddr,
         oneYearFromDeployment,
       ]);
@@ -212,9 +214,9 @@ async function mainnetDeploy(configParams) {
   // Check lockup contracts exist for each beneficiary with correct unlock time
   for (investor of Object.keys(lockupContracts)) {
     const lockupContract = lockupContracts[investor];
-    // check LC references correct LQTYToken
-    const storedLQTYTokenAddr = await lockupContract.lqtyToken();
-    assert.equal(LQTYContracts.lqtyToken.address, storedLQTYTokenAddr);
+    // check LC references correct ProtocolToken
+    const storedProtocolTokenAddr = await lockupContract.protocolToken();
+    assert.equal(protocolTokenContracts.protocolToken.address, storedProtocolTokenAddr);
     // Check contract has stored correct beneficary
     const onChainBeneficiary = await lockupContract.beneficiary();
     assert.equal(
@@ -227,7 +229,7 @@ async function mainnetDeploy(configParams) {
 
     console.log(
       `lockupContract addr: ${lockupContract.address},
-            stored LQTYToken addr: ${storedLQTYTokenAddr}
+            stored ProtocolToken addr: ${storedProtocolTokenAddr}
             beneficiary: ${investor},
             beneficiary addr: ${configParams.beneficiaries[investor]},
             on-chain beneficiary addr: ${onChainBeneficiary},
@@ -236,32 +238,32 @@ async function mainnetDeploy(configParams) {
     );
   }
 
-  // // --- Check correct addresses set in LQTYToken
-  // console.log("STORED ADDRESSES IN LQTY TOKEN")
-  // const storedMultisigAddress = await LQTYContracts.lqtyToken.multisigAddress()
-  // assert.equal(configParams.liquityAddrs.LQTY_SAFE.toLowerCase(), storedMultisigAddress.toLowerCase())
-  // console.log(`multi-sig address stored in LQTYToken : ${th.squeezeAddr(storedMultisigAddress)}`)
-  // console.log(`LQTY Safe address: ${th.squeezeAddr(configParams.liquityAddrs.LQTY_SAFE)}`)
+  // // --- Check correct addresses set in ProtocolToken
+  // console.log("STORED ADDRESSES IN ProtocolToken TOKEN")
+  // const storedMultisigAddress = await protocolTokenContracts.protocolToken.multisigAddress()
+  // assert.equal(configParams.liquityAddrs.PROTOCOL_TOKEN_SAFE.toLowerCase(), storedMultisigAddress.toLowerCase())
+  // console.log(`multi-sig address stored in ProtocolToken : ${th.squeezeAddr(storedMultisigAddress)}`)
+  // console.log(`ProtocolToken Safe address: ${th.squeezeAddr(configParams.liquityAddrs.PROTOCOL_TOKEN_SAFE)}`)
 
-  // // --- LQTY allowances of different addresses ---
-  // console.log("INITIAL LQTY BALANCES")
+  // // --- ProtocolToken allowances of different addresses ---
+  // console.log("INITIAL ProtocolToken BALANCES")
   // // Unipool
-  // const unipoolLQTYBal = await LQTYContracts.lqtyToken.balanceOf(unipool.address)
-  // // assert.equal(unipoolLQTYBal.toString(), '1333333333333333333333333')
-  // th.logBN('Unipool LQTY balance       ', unipoolLQTYBal)
+  // const unipoolProtocolTokenBal = await protocolTokenContracts.protocolToken.balanceOf(unipool.address)
+  // // assert.equal(unipoolProtocolTokenBal.toString(), '1333333333333333333333333')
+  // th.logBN('Unipool ProtocolToken balance       ', unipoolProtocolTokenBal)
 
-  // // LQTY Safe
-  // const lqtySafeBal = await LQTYContracts.lqtyToken.balanceOf(configParams.liquityAddrs.LQTY_SAFE)
-  // assert.equal(lqtySafeBal.toString(), '64666666666666666666666667')
-  // th.logBN('LQTY Safe balance     ', lqtySafeBal)
+  // // ProtocolToken Safe
+  // const protocolTokenSafeBal = await protocolTokenContracts.protocolToken.balanceOf(configParams.liquityAddrs.PROTOCOL_TOKEN_SAFE)
+  // assert.equal(protocolTokenSafeBal.toString(), '64666666666666666666666667')
+  // th.logBN('ProtocolToken Safe balance     ', protocolTokenSafeBal)
 
   // // Bounties/hackathons (General Safe)
-  // const generalSafeBal = await LQTYContracts.lqtyToken.balanceOf(configParams.liquityAddrs.GENERAL_SAFE)
+  // const generalSafeBal = await protocolTokenContracts.protocolToken.balanceOf(configParams.liquityAddrs.GENERAL_SAFE)
   // assert.equal(generalSafeBal.toString(), '2000000000000000000000000')
   // th.logBN('General Safe balance       ', generalSafeBal)
 
   // // CommunityIssuance contract
-  // const communityIssuanceBal = await LQTYContracts.lqtyToken.balanceOf(LQTYContracts.communityIssuance.address)
+  // const communityIssuanceBal = await protocolTokenContracts.protocolToken.balanceOf(protocolTokenContracts.communityIssuance.address)
   // // assert.equal(communityIssuanceBal.toString(), '32000000000000000000000000')
   // th.logBN('Community Issuance balance', communityIssuanceBal)
 
@@ -413,7 +415,7 @@ async function mainnetDeploy(configParams) {
   // th.logBN("DebtToken-FIL Pair's FIL reserves after provision", reserves[1])
 
   // // ---  Check LP staking  ---
-  // console.log("CHECK LP STAKING EARNS LQTY")
+  // console.log("CHECK LP STAKING EARNS ProtocolToken")
 
   // // Check deployer's LP tokens
   // deployerLPTokenBal = await DebtTokenFILPair.balanceOf(deployerWallet.address)
@@ -423,8 +425,8 @@ async function mainnetDeploy(configParams) {
   // console.log(`DebtTokenFILPair addr: ${DebtTokenFILPair.address}`)
   // console.log(`Pair addr stored in Unipool: ${await unipool.uniToken()}`)
 
-  // earnedLQTY = await unipool.earned(deployerWallet.address)
-  // th.logBN("deployer's farmed LQTY before staking LP tokens", earnedLQTY)
+  // earnedProtocolToken = await unipool.earned(deployerWallet.address)
+  // th.logBN("deployer's farmed ProtocolToken before staking LP tokens", earnedProtocolToken)
 
   // const deployerUnipoolStake = await unipool.balanceOf(deployerWallet.address)
   // if (deployerUnipoolStake.toString() == '0') {
@@ -442,14 +444,14 @@ async function mainnetDeploy(configParams) {
   // console.log("wait 90 seconds before checking earnings... ")
   // await configParams.waitFunction()
 
-  // earnedLQTY = await unipool.earned(deployerWallet.address)
-  // th.logBN("deployer's farmed LQTY from Unipool after waiting ~1.5mins", earnedLQTY)
+  // earnedProtocolToken = await unipool.earned(deployerWallet.address)
+  // th.logBN("deployer's farmed ProtocolToken from Unipool after waiting ~1.5mins", earnedProtocolToken)
 
-  // let deployerLQTYBal = await LQTYContracts.lqtyToken.balanceOf(deployerWallet.address)
-  // th.logBN("deployer LQTY Balance Before SP deposit", deployerLQTYBal)
+  // let deployerProtocolTokenBal = await protocolTokenContracts.protocolToken.balanceOf(deployerWallet.address)
+  // th.logBN("deployer ProtocolToken Balance Before SP deposit", deployerProtocolTokenBal)
 
-  // // --- Make SP deposit and earn LQTY ---
-  // console.log("CHECK DEPLOYER MAKING DEPOSIT AND EARNING LQTY")
+  // // --- Make SP deposit and earn ProtocolToken ---
+  // console.log("CHECK DEPLOYER MAKING DEPOSIT AND EARNING ProtocolToken")
 
   // let SPDeposit = await liquityCore.stabilityPool.getCompoundedDebtTokenDeposit(deployerWallet.address)
   // th.logBN("deployer SP deposit before making deposit", SPDeposit)
@@ -471,8 +473,8 @@ async function mainnetDeploy(configParams) {
   // // SPDeposit = await liquityCore.stabilityPool.getCompoundedDebtTokenDeposit(deployerWallet.address)
   // // th.logBN("deployer SP deposit after full withdrawal", SPDeposit)
 
-  // // deployerLQTYBal = await LQTYContracts.lqtyToken.balanceOf(deployerWallet.address)
-  // // th.logBN("deployer LQTY Balance after SP deposit withdrawal", deployerLQTYBal)
+  // // deployerProtocolTokenBal = await protocolTokenContracts.protocolToken.balanceOf(deployerWallet.address)
+  // // th.logBN("deployer ProtocolToken Balance after SP deposit withdrawal", deployerProtocolTokenBal)
 
   // // ---  Attempt withdrawal from LC  ---
   // console.log("CHECK BENEFICIARY ATTEMPTING WITHDRAWAL FROM LC")
@@ -480,48 +482,48 @@ async function mainnetDeploy(configParams) {
   // // connect Acct2 wallet to the LC they are beneficiary of
   // let account2LockupContract = await lockupContracts["ACCOUNT_2"].connect(account2Wallet)
 
-  // // Deployer funds LC with 10 LQTY
-  // // await mdh.sendAndWaitForTransaction(LQTYContracts.lqtyToken.transfer(account2LockupContract.address, dec(10, 18), { gasPrice }))
+  // // Deployer funds LC with 10 ProtocolToken
+  // // await mdh.sendAndWaitForTransaction(protocolTokenContracts.protocolToken.transfer(account2LockupContract.address, dec(10, 18), { gasPrice }))
 
-  // // account2 LQTY bal
-  // let account2bal = await LQTYContracts.lqtyToken.balanceOf(account2Wallet.address)
-  // th.logBN("account2 LQTY bal before withdrawal attempt", account2bal)
+  // // account2 ProtocolToken bal
+  // let account2bal = await protocolTokenContracts.protocolToken.balanceOf(account2Wallet.address)
+  // th.logBN("account2 ProtocolToken bal before withdrawal attempt", account2bal)
 
-  // // Check LC LQTY bal
-  // let account2LockupContractBal = await LQTYContracts.lqtyToken.balanceOf(account2LockupContract.address)
-  // th.logBN("account2's LC LQTY bal before withdrawal attempt", account2LockupContractBal)
+  // // Check LC ProtocolToken bal
+  // let account2LockupContractBal = await protocolTokenContracts.protocolToken.balanceOf(account2LockupContract.address)
+  // th.logBN("account2's LC ProtocolToken bal before withdrawal attempt", account2LockupContractBal)
 
   // // Acct2 attempts withdrawal from  LC
-  // await mdh.sendAndWaitForTransaction(account2LockupContract.withdrawLQTY({ gasPrice, gasLimit: 1000000 }))
+  // await mdh.sendAndWaitForTransaction(account2LockupContract.withdrawProtocolToken({ gasPrice, gasLimit: 1000000 }))
 
-  // // Acct LQTY bal
-  // account2bal = await LQTYContracts.lqtyToken.balanceOf(account2Wallet.address)
-  // th.logBN("account2's LQTY bal after LC withdrawal attempt", account2bal)
+  // // Acct ProtocolToken bal
+  // account2bal = await protocolTokenContracts.protocolToken.balanceOf(account2Wallet.address)
+  // th.logBN("account2's ProtocolToken bal after LC withdrawal attempt", account2bal)
 
   // // Check LC bal
-  // account2LockupContractBal = await LQTYContracts.lqtyToken.balanceOf(account2LockupContract.address)
-  // th.logBN("account2's LC LQTY bal LC withdrawal attempt", account2LockupContractBal)
+  // account2LockupContractBal = await protocolTokenContracts.protocolToken.balanceOf(account2LockupContract.address)
+  // th.logBN("account2's LC ProtocolToken bal LC withdrawal attempt", account2LockupContractBal)
 
-  // // --- Stake LQTY ---
-  // console.log("CHECK DEPLOYER STAKING LQTY")
+  // // --- Stake ProtocolToken ---
+  // console.log("CHECK DEPLOYER STAKING ProtocolToken")
 
-  // // Log deployer LQTY bal and stake before staking
-  // deployerLQTYBal = await LQTYContracts.lqtyToken.balanceOf(deployerWallet.address)
-  // th.logBN("deployer LQTY bal before staking", deployerLQTYBal)
-  // let deployerLQTYStake = await LQTYContracts.lqtyStaking.stakes(deployerWallet.address)
-  // th.logBN("deployer stake before staking", deployerLQTYStake)
+  // // Log deployer ProtocolToken bal and stake before staking
+  // deployerProtocolTokenBal = await protocolTokenContracts.protocolToken.balanceOf(deployerWallet.address)
+  // th.logBN("deployer ProtocolToken bal before staking", deployerProtocolTokenBal)
+  // let deployerProtocolTokenStake = await protocolTokenContracts.protocolTokenStaking.stakes(deployerWallet.address)
+  // th.logBN("deployer stake before staking", deployerProtocolTokenStake)
 
-  // // stake 13 LQTY
-  // await mdh.sendAndWaitForTransaction(LQTYContracts.lqtyStaking.stake(dec(13, 18), { gasPrice, gasLimit: 1000000 }))
+  // // stake 13 ProtocolToken
+  // await mdh.sendAndWaitForTransaction(protocolTokenContracts.protocolTokenStaking.stake(dec(13, 18), { gasPrice, gasLimit: 1000000 }))
 
-  // // Log deployer LQTY bal and stake after staking
-  // deployerLQTYBal = await LQTYContracts.lqtyToken.balanceOf(deployerWallet.address)
-  // th.logBN("deployer LQTY bal after staking", deployerLQTYBal)
-  // deployerLQTYStake = await LQTYContracts.lqtyStaking.stakes(deployerWallet.address)
-  // th.logBN("deployer stake after staking", deployerLQTYStake)
+  // // Log deployer ProtocolToken bal and stake after staking
+  // deployerProtocolTokenBal = await protocolTokenContracts.protocolToken.balanceOf(deployerWallet.address)
+  // th.logBN("deployer ProtocolToken bal after staking", deployerProtocolTokenBal)
+  // deployerProtocolTokenStake = await protocolTokenContracts.protocolTokenStaking.stakes(deployerWallet.address)
+  // th.logBN("deployer stake after staking", deployerProtocolTokenStake)
 
   // // Log deployer rev share immediately after staking
-  // let deployerDebtTokenRevShare = await LQTYContracts.lqtyStaking.getPendingDebtTokenGain(deployerWallet.address)
+  // let deployerDebtTokenRevShare = await protocolTokenContracts.protocolTokenStaking.getPendingDebtTokenGain(deployerWallet.address)
   // th.logBN("deployer pending debt token revenue share", deployerDebtTokenRevShare)
 
   // // --- 2nd Account opens trove ---
@@ -545,7 +547,7 @@ async function mainnetDeploy(configParams) {
   // console.log(`acct2 trove status: ${acct2Trove[3]}`)
 
   // // Log deployer's pending debt token gain - check fees went to staker (deloyer)
-  // deployerDebtTokenRevShare = await LQTYContracts.lqtyStaking.getPendingDebtTokenGain(deployerWallet.address)
+  // deployerDebtTokenRevShare = await protocolTokenContracts.protocolTokenStaking.getPendingDebtTokenGain(deployerWallet.address)
   // th.logBN("deployer pending debt token revenue share from staking, after acct 2 opened trove", deployerDebtTokenRevShare)
 
   // //  --- deployer withdraws staking gains ---
@@ -556,7 +558,7 @@ async function mainnetDeploy(configParams) {
   // th.logBN('deployer debt token bal before withdrawing staking gains', deployerDebtTokenBal)
 
   // // Deployer withdraws staking gains
-  // await mdh.sendAndWaitForTransaction(LQTYContracts.lqtyStaking.unstake(0, { gasPrice, gasLimit: 1000000 }))
+  // await mdh.sendAndWaitForTransaction(protocolTokenContracts.protocolTokenStaking.unstake(0, { gasPrice, gasLimit: 1000000 }))
 
   // // check deployer's debt token balance after withdrawing staking gains
   // deployerDebtTokenBal = await liquityCore.debtToken.balanceOf(deployerWallet.address)
@@ -599,9 +601,10 @@ async function mainnetDeploy(configParams) {
   const totalSPDeposits = await liquityCore.stabilityPool.getTotalDebtTokenDeposits();
   th.logBN("Total debt token SP deposits", totalSPDeposits);
 
-  // total LQTY Staked in LQTYStaking
-  const totalLQTYStaked = await LQTYContracts.lqtyStaking.totalLQTYStaked();
-  th.logBN("Total LQTY staked", totalLQTYStaked);
+  // total ProtocolToken Staked in ProtocolTokenStaking
+  const totalProtocolTokenStaked =
+    await protocolTokenContracts.protocolTokenStaking.totalProtocolTokenStaked();
+  th.logBN("Total ProtocolToken staked", totalProtocolTokenStaked);
 
   // total LP tokens staked in Unipool
   const totalLPTokensStaked = await unipool.totalSupply();
@@ -636,30 +639,31 @@ async function mainnetDeploy(configParams) {
   th.logBN("Sum S, at current epoch and scale", S);
   th.logBN("Sum G, at current epoch and scale", G);
 
-  // LQTYStaking
-  console.log("LQTYStaking state variables:");
-  const F_DebtToken = await LQTYContracts.lqtyStaking.F_DebtToken();
-  const F_FIL = await LQTYContracts.lqtyStaking.F_FIL();
+  // ProtocolTokenStaking
+  console.log("ProtocolTokenStaking state variables:");
+  const F_DebtToken = await protocolTokenContracts.protocolTokenStaking.F_DebtToken();
+  const F_FIL = await protocolTokenContracts.protocolTokenStaking.F_FIL();
   th.logBN("F_DebtToken", F_DebtToken);
   th.logBN("F_FIL", F_FIL);
 
   // CommunityIssuance
   console.log("CommunityIssuance state variables:");
-  const totalLQTYIssued = await LQTYContracts.communityIssuance.totalLQTYIssued();
-  th.logBN("Total LQTY issued to depositors / front ends", totalLQTYIssued);
+  const totalProtocolTokenIssued =
+    await protocolTokenContracts.communityIssuance.totalProtocolTokenIssued();
+  th.logBN("Total ProtocolToken issued to depositors / front ends", totalProtocolTokenIssued);
 
-  // TODO: Uniswap *LQTY-FIL* pool size (check it's deployed?)
+  // TODO: Uniswap *ProtocolToken-FIL* pool size (check it's deployed?)
 
   // ************************
-  // --- NOT FOR APRIL 5: Deploy a LQTYToken2 with General Safe as beneficiary to test minting LQTY showing up in Gnosis App  ---
+  // --- NOT FOR APRIL 5: Deploy a ProtocolToken2 with General Safe as beneficiary to test minting ProtocolToken showing up in Gnosis App  ---
 
-  // // General Safe LQTY bal before:
+  // // General Safe ProtocolToken bal before:
   // const realGeneralSafeAddr = "0xF06016D822943C42e3Cb7FC3a6A3B1889C1045f8"
 
-  //   const LQTYToken2EthersFactory = await ethers.getContractFactory("LQTYToken2", deployerWallet)
-  //   const lqtyToken2 = await LQTYToken2EthersFactory.deploy(
+  //   const ProtocolToken2EthersFactory = await ethers.getContractFactory("ProtocolToken2", deployerWallet)
+  //   const protocolToken2 = await ProtocolToken2EthersFactory.deploy(
   //     "0xF41E0DD45d411102ed74c047BdA544396cB71E27",  // CI param: LC1
-  //     "0x9694a04263593AC6b895Fc01Df5929E1FC7495fA", // LQTY Staking param: LC2
+  //     "0x9694a04263593AC6b895Fc01Df5929E1FC7495fA", // ProtocolToken Staking param: LC2
   //     "0x98f95E112da23c7b753D8AE39515A585be6Fb5Ef", // LCF param: LC3
   //     realGeneralSafeAddr,  // bounty/hackathon param: REAL general safe addr
   //     "0x98f95E112da23c7b753D8AE39515A585be6Fb5Ef", // LP rewards param: LC3
@@ -667,13 +671,13 @@ async function mainnetDeploy(configParams) {
   //     {gasPrice, gasLimit: 10000000}
   //   )
 
-  //   console.log(`lqty2 address: ${lqtyToken2.address}`)
+  //   console.log(`protocolToken2 address: ${protocolToken2.address}`)
 
-  //   let generalSafeLQTYBal = await lqtyToken2.balanceOf(realGeneralSafeAddr)
-  //   console.log(`generalSafeLQTYBal: ${generalSafeLQTYBal}`)
+  //   let generalSafeProtocolTokenBal = await protocolToken2.balanceOf(realGeneralSafeAddr)
+  //   console.log(`generalSafeProtocolTokenBal: ${generalSafeProtocolTokenBal}`)
 
   // ************************
-  // --- NOT FOR APRIL 5: Test short-term lockup contract LQTY withdrawal on mainnet ---
+  // --- NOT FOR APRIL 5: Test short-term lockup contract ProtocolToken withdrawal on mainnet ---
 
   // now = (await ethers.provider.getBlock(latestBlock)).timestamp
 
@@ -681,7 +685,7 @@ async function mainnetDeploy(configParams) {
 
   // new deployment
   // const LCshortTerm = await LCShortTermEthersFactory.deploy(
-  //   LQTYContracts.lqtyToken.address,
+  //   protocolTokenContracts.protocolToken.address,
   //   deployerWallet.address,
   //   now,
   //   {gasPrice, gasLimit: 1000000}
@@ -709,25 +713,25 @@ async function mainnetDeploy(configParams) {
   //   now = (await ethers.provider.getBlock(latestBlock)).timestamp
   //   console.log(`time now: ${now}`)
 
-  //   // check deployer LQTY bal
-  //   let deployerLQTYBal = await LQTYContracts.lqtyToken.balanceOf(deployerWallet.address)
-  //   console.log(`deployerLQTYBal before he withdraws: ${deployerLQTYBal}`)
+  //   // check deployer ProtocolToken bal
+  //   let deployerProtocolTokenBal = await protocolTokenContracts.protocolToken.balanceOf(deployerWallet.address)
+  //   console.log(`deployerProtocolTokenBal before he withdraws: ${deployerProtocolTokenBal}`)
 
-  //   // check LC LQTY bal
-  //   let LC_LQTYBal = await LQTYContracts.lqtyToken.balanceOf(deployedShortTermLC.address)
-  //   console.log(`LC LQTY bal before withdrawal: ${LC_LQTYBal}`)
+  //   // check LC ProtocolToken bal
+  //   let LC_ProtocolTokenBal = await protocolTokenContracts.protocolToken.balanceOf(deployedShortTermLC.address)
+  //   console.log(`LC ProtocolToken bal before withdrawal: ${LC_ProtocolTokenBal}`)
 
   // // withdraw from LC
-  // const withdrawFromShortTermTx = await deployedShortTermLC.withdrawLQTY( {gasPrice, gasLimit: 1000000})
+  // const withdrawFromShortTermTx = await deployedShortTermLC.withdrawProtocolToken( {gasPrice, gasLimit: 1000000})
   // withdrawFromShortTermTx.wait()
 
   // // check deployer bal after LC withdrawal
-  // deployerLQTYBal = await LQTYContracts.lqtyToken.balanceOf(deployerWallet.address)
-  // console.log(`deployerLQTYBal after he withdraws: ${deployerLQTYBal}`)
+  // deployerProtocolTokenBal = await protocolTokenContracts.protocolToken.balanceOf(deployerWallet.address)
+  // console.log(`deployerProtocolTokenBal after he withdraws: ${deployerProtocolTokenBal}`)
 
-  //   // check LC LQTY bal
-  //   LC_LQTYBal = await LQTYContracts.lqtyToken.balanceOf(deployedShortTermLC.address)
-  //   console.log(`LC LQTY bal after withdrawal: ${LC_LQTYBal}`)
+  //   // check LC ProtocolToken bal
+  //   LC_ProtocolTokenBal = await protocolTokenContracts.protocolToken.balanceOf(deployedShortTermLC.address)
+  //   console.log(`LC ProtocolToken bal after withdrawal: ${LC_ProtocolTokenBal}`)
 }
 
 module.exports = {

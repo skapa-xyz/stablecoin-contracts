@@ -2,20 +2,20 @@
 
 pragma solidity 0.7.6;
 
-import "../LQTY/LQTYToken.sol";
+import "../ProtocolToken/ProtocolToken.sol";
 
-contract LQTYTokenTester is LQTYToken {
+contract ProtocolTokenTester is ProtocolToken {
     constructor(
         address _communityIssuanceAddress,
-        address _lqtyStakingAddress,
+        address _protocolTokenStakingAddress,
         address _lockupFactoryAddress,
         address _bountyAddress,
         address _lpRewardsAddress,
         address _multisigAddress
     )
-        LQTYToken(
+        ProtocolToken(
             _communityIssuanceAddress,
-            _lqtyStakingAddress,
+            _protocolTokenStakingAddress,
             _lockupFactoryAddress,
             _bountyAddress,
             _lpRewardsAddress,
@@ -29,13 +29,13 @@ contract LQTYTokenTester is LQTYToken {
         _mint(account, amount);
     }
 
-    function unprotectedSendToLQTYStaking(address _sender, uint256 _amount) external {
+    function unprotectedSendToProtocolTokenStaking(address _sender, uint256 _amount) external {
         // No check for the caller here
 
         if (_isFirstYear()) {
             _requireSenderIsNotMultisig(_sender);
         }
-        _transfer(_sender, lqtyStakingAddress, _amount);
+        _transfer(_sender, protocolTokenStakingAddress, _amount);
     }
 
     function callInternalApprove(

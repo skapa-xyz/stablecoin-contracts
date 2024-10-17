@@ -26,7 +26,7 @@ contract("StabilityPool Scale Factor issue tests", async (accounts) => {
   let sortedTroves;
   let troveManager;
   let borrowerOperations;
-  let lqtyToken;
+  let protocolToken;
 
   const ZERO_ADDRESS = th.ZERO_ADDRESS;
 
@@ -46,11 +46,12 @@ contract("StabilityPool Scale Factor issue tests", async (accounts) => {
         contracts.borrowerOperations.address,
       );
 
-      const LQTYContracts = await deploymentHelper.deployLQTYTesterContractsHardhat(
-        bountyAddress,
-        lpRewardsAddress,
-        multisig,
-      );
+      const protocolTokenContracts =
+        await deploymentHelper.deployProtocolTokenTesterContractsHardhat(
+          bountyAddress,
+          lpRewardsAddress,
+          multisig,
+        );
 
       priceFeed = contracts.priceFeedTestnet;
       debtToken = contracts.debtToken;
@@ -59,11 +60,11 @@ contract("StabilityPool Scale Factor issue tests", async (accounts) => {
       troveManager = contracts.troveManager;
       stabilityPool = contracts.stabilityPool;
       borrowerOperations = contracts.borrowerOperations;
-      lqtyToken = LQTYContracts.lqtyToken;
+      protocolToken = protocolTokenContracts.protocolToken;
 
-      await deploymentHelper.connectLQTYContracts(LQTYContracts);
-      await deploymentHelper.connectCoreContracts(contracts, LQTYContracts);
-      await deploymentHelper.connectLQTYContractsToCore(LQTYContracts, contracts);
+      await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
+      await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
+      await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
 
       await priceFeed.setPrice(dec(200, 18));
 

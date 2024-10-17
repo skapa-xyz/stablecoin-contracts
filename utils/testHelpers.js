@@ -1405,7 +1405,7 @@ class TestHelper {
     return this.getGasMetrics(gasCostList);
   }
 
-  // --- LQTY & Lockup Contract functions ---
+  // --- ProtocolToken & Lockup Contract functions ---
 
   static getLCAddressFromDeploymentTx(deployedLCTx) {
     return deployedLCTx.logs[0].args[0];
@@ -1479,8 +1479,8 @@ class TestHelper {
     return Number(days) * (60 * 60 * 24);
   }
 
-  static async getTimeFromSystemDeployment(lqtyToken, web3, timePassedSinceDeployment) {
-    const deploymentTime = await lqtyToken.getDeploymentStartTime();
+  static async getTimeFromSystemDeployment(protocolToken, web3, timePassedSinceDeployment) {
+    const deploymentTime = await protocolToken.getDeploymentStartTime();
     return this.toBN(deploymentTime).add(this.toBN(timePassedSinceDeployment));
   }
 

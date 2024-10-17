@@ -86,7 +86,7 @@ contract("SortedTroves", async (accounts) => {
         contracts.stabilityPool.address,
         contracts.borrowerOperations.address,
       );
-      const LQTYContracts = await deploymentHelper.deployLQTYContracts(
+      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
         bountyAddress,
         lpRewardsAddress,
         multisig,
@@ -98,9 +98,9 @@ contract("SortedTroves", async (accounts) => {
       borrowerOperations = contracts.borrowerOperations;
       debtToken = contracts.debtToken;
 
-      await deploymentHelper.connectLQTYContracts(LQTYContracts);
-      await deploymentHelper.connectCoreContracts(contracts, LQTYContracts);
-      await deploymentHelper.connectLQTYContractsToCore(LQTYContracts, contracts);
+      await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
+      await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
+      await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
     });
 
     it("contains(): returns true for addresses that have opened troves", async () => {

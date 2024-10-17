@@ -9,7 +9,7 @@ async function main() {
 
   const coreContracts = await dh.deployLiquityCoreHardhat();
   const ARBITRARY_ADDRESS = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
-  const LQTYContracts = await dh.deployLQTYContractsHardhat(
+  const protocolTokenContracts = await dh.deployProtocolTokenContractsHardhat(
     ARBITRARY_ADDRESS,
     ARBITRARY_ADDRESS,
     ARBITRARY_ADDRESS,
@@ -18,9 +18,9 @@ async function main() {
   const { troveManager, borrowerOperations, hintHelpers, sortedTroves, priceFeedTestnet } =
     coreContracts;
 
-  await dh.connectCoreContracts(coreContracts, LQTYContracts);
-  await dh.connectLQTYContracts(LQTYContracts);
-  await dh.connectLQTYContractsToCore(LQTYContracts, coreContracts);
+  await dh.connectCoreContracts(coreContracts, protocolTokenContracts);
+  await dh.connectProtocolTokenContracts(protocolTokenContracts);
+  await dh.connectProtocolTokenContractsToCore(protocolTokenContracts, coreContracts);
 
   // Examples of off-chain hint calculation for Open Trove
 

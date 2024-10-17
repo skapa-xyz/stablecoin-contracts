@@ -48,7 +48,7 @@ contract("Gas cost tests", async (accounts) => {
       th.GAS_COMPENSATION,
       th.MIN_NET_DEBT,
     );
-    const LQTYContracts = await deploymentHelper.deployLQTYContracts(
+    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
       bountyAddress,
       lpRewardsAddress,
     );
@@ -65,14 +65,14 @@ contract("Gas cost tests", async (accounts) => {
 
     functionCaller = contracts.functionCaller;
 
-    lqtyStaking = LQTYContracts.lqtyStaking;
-    lqtyToken = LQTYContracts.lqtyToken;
-    communityIssuance = LQTYContracts.communityIssuance;
-    lockupContractFactory = LQTYContracts.lockupContractFactory;
+    protocolTokenStaking = protocolTokenContracts.protocolTokenStaking;
+    protocolToken = protocolTokenContracts.protocolToken;
+    communityIssuance = protocolTokenContracts.communityIssuance;
+    lockupContractFactory = protocolTokenContracts.lockupContractFactory;
 
-    await deploymentHelper.connectLQTYContracts(LQTYContracts);
-    await deploymentHelper.connectCoreContracts(contracts, LQTYContracts);
-    await deploymentHelper.connectLQTYContractsToCore(LQTYContracts, contracts);
+    await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
+    await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
+    await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
   });
 
   // ---TESTS ---
@@ -1365,14 +1365,14 @@ contract("Gas cost tests", async (accounts) => {
     await th.withdrawDebtToken_allAccounts(_10_Accounts, contracts, dec(130, 18));
     await th.provideToSP_allAccounts(_10_Accounts, stabilityPool, dec(50, 18));
 
-    // >>FF time and one account tops up, triggers LQTY gains for all
+    // >>FF time and one account tops up, triggers ProtocolToken gains for all
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
     await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: _10_Accounts[0] });
 
-    // Check the other accounts have LQTY gain
+    // Check the other accounts have ProtocolToken gain
     for (account of _10_Accounts.slice(1)) {
-      const LQTYGain = await stabilityPool.getDepositorLQTYGain(account);
-      assert.isTrue(LQTYGain.gt(toBN("0")));
+      const protocolTokenGain = await stabilityPool.getDepositorProtocolTokenGain(account);
+      assert.isTrue(protocolTokenGain.gt(toBN("0")));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
@@ -1391,14 +1391,14 @@ contract("Gas cost tests", async (accounts) => {
   //   await th.withdrawDebtToken_allAccounts(_10_Accounts, contracts, dec(130, 18))
   //   await th.provideToSP_allAccounts(_10_Accounts, stabilityPool, dec(50, 18))
 
-  //   // >> FF time and one account tops up, triggers LQTY gains for all
+  //   // >> FF time and one account tops up, triggers ProtocolToken gains for all
   //   await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider)
   //   await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: _10_Accounts[0] })
 
-  //   // Check the other accounts have LQTY gain
+  //   // Check the other accounts have ProtocolToken gain
   //   for (account of _10_Accounts.slice(1)) {
-  //     const LQTYGain = await stabilityPool.getDepositorLQTYGain(account)
-  //     assert.isTrue(LQTYGain.gt(toBN('0')))
+  //     const protocolTokenGain = await stabilityPool.getDepositorProtocolTokenGain(account)
+  //     assert.isTrue(protocolTokenGain.gt(toBN('0')))
   //   }
 
   //   await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider)
@@ -1418,14 +1418,14 @@ contract("Gas cost tests", async (accounts) => {
     await th.withdrawDebtToken_allAccounts(_10_Accounts, contracts, dec(130, 18));
     await th.provideToSP_allAccounts(_10_Accounts, stabilityPool, dec(50, 18));
 
-    // >>FF time and one account tops up, triggers LQTY gains for all
+    // >>FF time and one account tops up, triggers ProtocolToken gains for all
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
     await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: _10_Accounts[0] });
 
-    // Check the other accounts have LQTY gain
+    // Check the other accounts have ProtocolToken gain
     for (account of _10_Accounts.slice(1)) {
-      const LQTYGain = await stabilityPool.getDepositorLQTYGain(account);
-      assert.isTrue(LQTYGain.gt(toBN("0")));
+      const protocolTokenGain = await stabilityPool.getDepositorProtocolTokenGain(account);
+      assert.isTrue(protocolTokenGain.gt(toBN("0")));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
@@ -1457,7 +1457,7 @@ contract("Gas cost tests", async (accounts) => {
   //   //1 acct open Trove with 1 ether and withdraws 170 token
   //   await borrowerOperations.openTrove(_100pct, dec(130, 18), accounts[1], ZERO_ADDRESS, { from: accounts[1], value: dec(1, 'ether') })
 
-  //   // >>FF time and one account tops up, triggers LQTY gains for all
+  //   // >>FF time and one account tops up, triggers ProtocolToken gains for all
   //   await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider)
 
   //   // Price drops, account 1 liquidated
@@ -1465,10 +1465,10 @@ contract("Gas cost tests", async (accounts) => {
   //   await troveManager.liquidate(accounts[1], { from: accounts[0] })
   //   assert.isFalse(await sortedTroves.contains(accounts[1]))
 
-  //   // Check accounts have LQTY gains from liquidations
+  //   // Check accounts have ProtocolToken gains from liquidations
   //   for (account of accounts.slice(2, 12)) {
-  //     const LQTYGain = await stabilityPool.getDepositorLQTYGain(account)
-  //     assert.isTrue(LQTYGain.gt(toBN('0')))
+  //     const protocolTokenGain = await stabilityPool.getDepositorProtocolTokenGain(account)
+  //     assert.isTrue(protocolTokenGain.gt(toBN('0')))
   //   }
 
   //   await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider)
@@ -1491,7 +1491,7 @@ contract("Gas cost tests", async (accounts) => {
   //   //1 acct open Trove with 1 ether and withdraws 180 token
   //   await borrowerOperations.openTrove(_100pct, dec(130, 18), accounts[1], ZERO_ADDRESS, { from: accounts[1], value: dec(1, 'ether') })
 
-  //   // >>FF time and one account tops up, triggers LQTY gains for all
+  //   // >>FF time and one account tops up, triggers ProtocolToken gains for all
   //   await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider)
 
   //   // Price drops, account[1] is liquidated
@@ -1499,10 +1499,10 @@ contract("Gas cost tests", async (accounts) => {
   //   await troveManager.liquidate(accounts[1], { from: accounts[0] })
   //   assert.isFalse(await sortedTroves.contains(accounts[1]))
 
-  //   // Check accounts have LQTY gains from liquidations
+  //   // Check accounts have ProtocolToken gains from liquidations
   //   for (account of accounts.slice(2, 12)) {
-  //     const LQTYGain = await stabilityPool.getDepositorLQTYGain(account)
-  //     assert.isTrue(LQTYGain.gt(toBN('0')))
+  //     const protocolTokenGain = await stabilityPool.getDepositorProtocolTokenGain(account)
+  //     assert.isTrue(protocolTokenGain.gt(toBN('0')))
   //   }
 
   //   await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider)
@@ -1533,7 +1533,7 @@ contract("Gas cost tests", async (accounts) => {
       value: dec(1, "ether"),
     });
 
-    // >>FF time and one account tops up, triggers LQTY gains for all
+    // >>FF time and one account tops up, triggers ProtocolToken gains for all
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Price drops, account[1] is liquidated
@@ -1541,10 +1541,10 @@ contract("Gas cost tests", async (accounts) => {
     await troveManager.liquidate(accounts[1], { from: accounts[0] });
     assert.isFalse(await sortedTroves.contains(accounts[1]));
 
-    // Check accounts have LQTY gains from liquidations
+    // Check accounts have ProtocolToken gains from liquidations
     for (account of accounts.slice(2, 12)) {
-      const LQTYGain = await stabilityPool.getDepositorLQTYGain(account);
-      assert.isTrue(LQTYGain.gt(toBN("0")));
+      const protocolTokenGain = await stabilityPool.getDepositorProtocolTokenGain(account);
+      assert.isTrue(protocolTokenGain.gt(toBN("0")));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
@@ -1572,14 +1572,14 @@ contract("Gas cost tests", async (accounts) => {
   //   await th.openTrove_allAccounts(_10_Accounts, contracts, dec(10, 'ether'), dec(190, 18))
   //   await th.provideToSP_allAccounts(_10_Accounts, stabilityPool, dec(130, 18))
 
-  //   // >>FF time and one account tops up, triggers LQTY gains for all
+  //   // >>FF time and one account tops up, triggers ProtocolToken gains for all
   //   await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider)
   //   await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: _10_Accounts[0] })
 
-  //   // Check the other accounts have LQTY gain
+  //   // Check the other accounts have ProtocolToken gain
   //   for (account of _10_Accounts.slice(1)) {
-  //     const LQTYGain = await stabilityPool.getDepositorLQTYGain(account)
-  //     assert.isTrue(LQTYGain.gt(toBN('0')))
+  //     const protocolTokenGain = await stabilityPool.getDepositorProtocolTokenGain(account)
+  //     assert.isTrue(protocolTokenGain.gt(toBN('0')))
   //   }
   //   await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider)
 
@@ -1597,14 +1597,14 @@ contract("Gas cost tests", async (accounts) => {
     await th.openTrove_allAccounts(_10_Accounts, contracts, dec(10, "ether"), dec(190, 18));
     await th.provideToSP_allAccounts(_10_Accounts, stabilityPool, dec(130, 18));
 
-    // >>FF time and one account tops up, triggers LQTY gains for all
+    // >>FF time and one account tops up, triggers ProtocolToken gains for all
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
     await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: _10_Accounts[0] });
 
-    // Check the other accounts have LQTY gain
+    // Check the other accounts have ProtocolToken gain
     for (account of _10_Accounts.slice(1)) {
-      const LQTYGain = await stabilityPool.getDepositorLQTYGain(account);
-      assert.isTrue(LQTYGain.gt(toBN("0")));
+      const protocolTokenGain = await stabilityPool.getDepositorProtocolTokenGain(account);
+      assert.isTrue(protocolTokenGain.gt(toBN("0")));
     }
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
@@ -1659,10 +1659,10 @@ contract("Gas cost tests", async (accounts) => {
   //   await troveManager.liquidate(accounts[1], { from: accounts[0] })
   //   assert.isFalse(await sortedTroves.contains(accounts[1]))
 
-  //   // Check accounts have LQTY gains from liquidations
+  //   // Check accounts have ProtocolToken gains from liquidations
   //   for (account of accounts.slice(2, 12)) {
-  //     const LQTYGain = await stabilityPool.getDepositorLQTYGain(account)
-  //     assert.isTrue(LQTYGain.gt(toBN('0')))
+  //     const protocolTokenGain = await stabilityPool.getDepositorProtocolTokenGain(account)
+  //     assert.isTrue(protocolTokenGain.gt(toBN('0')))
   //   }
 
   //   await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider)
@@ -1703,10 +1703,10 @@ contract("Gas cost tests", async (accounts) => {
     await troveManager.liquidate(accounts[1], { from: accounts[0] });
     assert.isFalse(await sortedTroves.contains(accounts[1]));
 
-    // Check accounts have LQTY gains from liquidations
+    // Check accounts have ProtocolToken gains from liquidations
     for (account of accounts.slice(2, 12)) {
-      const LQTYGain = await stabilityPool.getDepositorLQTYGain(account);
-      assert.isTrue(LQTYGain.gt(toBN("0")));
+      const protocolTokenGain = await stabilityPool.getDepositorProtocolTokenGain(account);
+      assert.isTrue(protocolTokenGain.gt(toBN("0")));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
@@ -1751,10 +1751,10 @@ contract("Gas cost tests", async (accounts) => {
     await troveManager.liquidate(accounts[1], { from: accounts[0] });
     assert.isFalse(await sortedTroves.contains(accounts[1]));
 
-    // Check accounts have LQTY gains from liquidations
+    // Check accounts have ProtocolToken gains from liquidations
     for (account of accounts.slice(2, 12)) {
-      const LQTYGain = await stabilityPool.getDepositorLQTYGain(account);
-      assert.isTrue(LQTYGain.gt(toBN("0")));
+      const protocolTokenGain = await stabilityPool.getDepositorProtocolTokenGain(account);
+      assert.isTrue(protocolTokenGain.gt(toBN("0")));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
@@ -1792,10 +1792,10 @@ contract("Gas cost tests", async (accounts) => {
   //   await troveManager.liquidate(accounts[1], { from: accounts[0] })
   //   assert.isFalse(await sortedTroves.contains(accounts[1]))
 
-  //    // Check accounts have LQTY gains from liquidations
+  //    // Check accounts have ProtocolToken gains from liquidations
   //    for (account of accounts.slice(2, 12)) {
-  //     const LQTYGain = await stabilityPool.getDepositorLQTYGain(account)
-  //     assert.isTrue(LQTYGain.gt(toBN('0')))
+  //     const protocolTokenGain = await stabilityPool.getDepositorProtocolTokenGain(account)
+  //     assert.isTrue(protocolTokenGain.gt(toBN('0')))
   //   }
 
   //   await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider)
@@ -1841,10 +1841,10 @@ contract("Gas cost tests", async (accounts) => {
     await troveManager.liquidate(accounts[1], { from: accounts[0] });
     assert.isFalse(await sortedTroves.contains(accounts[1]));
 
-    // Check accounts have LQTY gains from liquidations
+    // Check accounts have ProtocolToken gains from liquidations
     for (account of accounts.slice(2, 22)) {
-      const LQTYGain = await stabilityPool.getDepositorLQTYGain(account);
-      assert.isTrue(LQTYGain.gt(toBN("0")));
+      const protocolTokenGain = await stabilityPool.getDepositorProtocolTokenGain(account);
+      assert.isTrue(protocolTokenGain.gt(toBN("0")));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);

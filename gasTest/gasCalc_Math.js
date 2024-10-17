@@ -28,7 +28,7 @@ contract("Gas costs for math functions", async (accounts) => {
 
   beforeEach(async () => {
     contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    const LQTYContracts = await deploymentHelper.deployLQTYContracts(
+    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
       bountyAddress,
       lpRewardsAddress,
     );
@@ -43,14 +43,14 @@ contract("Gas costs for math functions", async (accounts) => {
     borrowerOperations = contracts.borrowerOperations;
     hintHelpers = contracts.hintHelpers;
 
-    gtStaking = LQTYContracts.gtStaking;
-    lqtyToken = LQTYContracts.lqtyToken;
-    communityIssuance = LQTYContracts.communityIssuance;
-    lockupContractFactory = LQTYContracts.lockupContractFactory;
+    gtStaking = protocolTokenContracts.gtStaking;
+    protocolToken = protocolTokenContracts.protocolToken;
+    communityIssuance = protocolTokenContracts.communityIssuance;
+    lockupContractFactory = protocolTokenContracts.lockupContractFactory;
 
-    await deploymentHelper.connectCoreContracts(contracts, LQTYContracts);
-    await deploymentHelper.connectLQTYContracts(LQTYContracts);
-    await deploymentHelper.connectLQTYContractsToCore(LQTYContracts, contracts);
+    await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
+    await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
+    await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
   });
 
   // performs n runs of exponentiation on a random base

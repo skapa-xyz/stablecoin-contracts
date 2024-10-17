@@ -5,7 +5,7 @@ pragma solidity 0.7.6;
 interface ILockupContractFactory {
     // --- Events ---
 
-    event LQTYTokenAddressSet(address _lqtyTokenAddress);
+    event ProtocolTokenAddressSet(address _protocolTokenAddress);
     event LockupContractDeployedThroughFactory(
         address _lockupContractAddress,
         address _beneficiary,
@@ -15,7 +15,7 @@ interface ILockupContractFactory {
 
     // --- Functions ---
 
-    function setLQTYTokenAddress(address _lqtyTokenAddress) external;
+    function setProtocolTokenAddress(address _protocolTokenAddress) external;
 
     function deployLockupContract(address _beneficiary, uint _unlockTime) external;
 

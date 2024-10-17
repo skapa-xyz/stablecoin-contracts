@@ -2,7 +2,6 @@ const deploymentHelper = require("../utils/deploymentHelpers.js");
 const testHelpers = require("../utils/testHelpers.js");
 
 const TroveManagerTester = artifacts.require("TroveManagerTester");
-const LQTYTokenTester = artifacts.require("LQTYTokenTester");
 
 const th = testHelpers.TestHelper;
 
@@ -24,7 +23,7 @@ const {
   StabilityPoolProxy,
   SortedTrovesProxy,
   TokenProxy,
-  LQTYStakingProxy,
+  ProtocolTokenStakingProxy,
 } = require("../utils/proxyHelpers.js");
 
 contract("BorrowerWrappers", async (accounts) => {
@@ -58,9 +57,9 @@ contract("BorrowerWrappers", async (accounts) => {
   let collSurplusPool;
   let borrowerOperations;
   let borrowerWrappers;
-  let lqtyTokenOriginal;
-  let lqtyToken;
-  let lqtyStaking;
+  let protocolTokenOriginal;
+  let protocolToken;
+  let protocolTokenStaking;
 
   let contracts;
 
@@ -78,21 +77,21 @@ contract("BorrowerWrappers", async (accounts) => {
     contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     contracts.troveManager = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     contracts = await deploymentHelper.deployDebtToken(contracts);
-    const LQTYContracts = await deploymentHelper.deployLQTYTesterContractsHardhat(
+    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContractsHardhat(
       bountyAddress,
       lpRewardsAddress,
       multisig,
     );
 
-    await deploymentHelper.connectLQTYContracts(LQTYContracts);
-    await deploymentHelper.connectCoreContracts(contracts, LQTYContracts);
-    await deploymentHelper.connectLQTYContractsToCore(LQTYContracts, contracts);
+    await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
+    await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
+    await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
 
     troveManagerOriginal = contracts.troveManager;
-    lqtyTokenOriginal = LQTYContracts.lqtyToken;
+    protocolTokenOriginal = protocolTokenContracts.protocolToken;
 
     const users = [alice, bob, carol, dennis, whale, A, B, C, D, E, defaulter_1, defaulter_2];
-    await deploymentHelper.deployProxyScripts(contracts, LQTYContracts, owner, users);
+    await deploymentHelper.deployProxyScripts(contracts, protocolTokenContracts, owner, users);
 
     priceFeed = contracts.priceFeedTestnet;
     debtToken = contracts.debtToken;
@@ -104,8 +103,8 @@ contract("BorrowerWrappers", async (accounts) => {
     collSurplusPool = contracts.collSurplusPool;
     borrowerOperations = contracts.borrowerOperations;
     borrowerWrappers = contracts.borrowerWrappers;
-    lqtyStaking = LQTYContracts.lqtyStaking;
-    lqtyToken = LQTYContracts.lqtyToken;
+    protocolTokenStaking = protocolTokenContracts.protocolTokenStaking;
+    protocolToken = protocolTokenContracts.protocolToken;
 
     GAS_COMPENSATION = await borrowerOperations.GAS_COMPENSATION();
   });
@@ -397,19 +396,19 @@ contract("BorrowerWrappers", async (accounts) => {
     const troveCollBefore = await troveManager.getTroveColl(alice);
     const debtTokenBalanceBefore = await debtToken.balanceOf(alice);
     const troveDebtBefore = await troveManager.getTroveDebt(alice);
-    const lqtyBalanceBefore = await lqtyToken.balanceOf(alice);
+    const protocolTokenBalanceBefore = await protocolToken.balanceOf(alice);
     const ICRBefore = await troveManager.getCurrentICR(alice, price);
     const depositBefore = (await stabilityPool.deposits(alice))[0];
-    const stakeBefore = await lqtyStaking.stakes(alice);
+    const stakeBefore = await protocolTokenStaking.stakes(alice);
 
     const proportionalDebtToken = expectedFILGain_A.mul(price).div(ICRBefore);
     const borrowingRate = await troveManagerOriginal.getBorrowingRateWithDecay();
     const netDebtChange = proportionalDebtToken.mul(mv._1e18BN).div(mv._1e18BN.add(borrowingRate));
 
-    // to force LQTY issuance
+    // to force ProtocolToken issuance
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_WEEK * 2, web3.currentProvider);
 
-    const expectedLQTYGain_A = toBN("50373424199406504708132");
+    const expectedProtocolTokenGain_A = toBN("50373424199406504708132");
 
     await priceFeed.setPrice(price.mul(toBN(2)));
 
@@ -423,15 +422,15 @@ contract("BorrowerWrappers", async (accounts) => {
     const troveCollAfter = await troveManager.getTroveColl(alice);
     const debtTokenBalanceAfter = await debtToken.balanceOf(alice);
     const troveDebtAfter = await troveManager.getTroveDebt(alice);
-    const lqtyBalanceAfter = await lqtyToken.balanceOf(alice);
+    const protocolTokenBalanceAfter = await protocolToken.balanceOf(alice);
     const ICRAfter = await troveManager.getCurrentICR(alice, price);
     const depositAfter = (await stabilityPool.deposits(alice))[0];
-    const stakeAfter = await lqtyStaking.stakes(alice);
+    const stakeAfter = await protocolTokenStaking.stakes(alice);
 
     // check proxy balances remain the same
     assert.equal(ethBalanceAfter.toString(), ethBalanceBefore.toString());
     assert.equal(debtTokenBalanceAfter.toString(), debtTokenBalanceBefore.toString());
-    assert.equal(lqtyBalanceAfter.toString(), lqtyBalanceBefore.toString());
+    assert.equal(protocolTokenBalanceAfter.toString(), protocolTokenBalanceBefore.toString());
     // check trove has increased debt by the ICR proportional amount to FIL gain
     th.assertIsApproximatelyEqual(troveDebtAfter, troveDebtBefore.add(proportionalDebtToken));
     // check trove has increased collateral by the FIL gain
@@ -443,11 +442,11 @@ contract("BorrowerWrappers", async (accounts) => {
       depositAfter,
       depositBefore.sub(expectedDebtTokenLoss_A).add(netDebtChange),
     );
-    // check lqty balance remains the same
-    th.assertIsApproximatelyEqual(lqtyBalanceAfter, lqtyBalanceBefore);
+    // check protocol token balance remains the same
+    th.assertIsApproximatelyEqual(protocolTokenBalanceAfter, protocolTokenBalanceBefore);
 
-    // LQTY staking
-    th.assertIsApproximatelyEqual(stakeAfter, stakeBefore.add(expectedLQTYGain_A));
+    // ProtocolToken staking
+    th.assertIsApproximatelyEqual(stakeAfter, stakeBefore.add(expectedProtocolTokenGain_A));
 
     // Expect Alice has withdrawn all FIL gain
     const alice_pendingFILGain = await stabilityPool.getDepositorFILGain(alice);
@@ -467,19 +466,19 @@ contract("BorrowerWrappers", async (accounts) => {
     // alice opens trove
     await openTrove({ extraDebtTokenAmount: toBN(dec(150, 18)), extraParams: { from: alice } });
 
-    // mint some LQTY
-    await lqtyTokenOriginal.unprotectedMint(
+    // mint some ProtocolToken
+    await protocolTokenOriginal.unprotectedMint(
       borrowerOperations.getProxyAddressFromUser(whale),
       dec(1850, 18),
     );
-    await lqtyTokenOriginal.unprotectedMint(
+    await protocolTokenOriginal.unprotectedMint(
       borrowerOperations.getProxyAddressFromUser(alice),
       dec(150, 18),
     );
 
-    // stake LQTY
-    await lqtyStaking.stake(dec(1850, 18), { from: whale });
-    await lqtyStaking.stake(dec(150, 18), { from: alice });
+    // stake ProtocolToken
+    await protocolTokenStaking.stake(dec(1850, 18), { from: whale });
+    await protocolTokenStaking.stake(dec(150, 18), { from: alice });
 
     // Defaulter Trove opened
     const { debtTokenAmount, netDebt, totalDebt, collateral } = await openTrove({
@@ -522,19 +521,19 @@ contract("BorrowerWrappers", async (accounts) => {
     //await openTrove({ extraDebtTokenAmount: toBN(dec(150, 18)), extraParams: { from: alice } })
     //await stabilityPool.provideToSP(dec(150, 18), ZERO_ADDRESS, { from: alice })
 
-    // mint some LQTY
-    await lqtyTokenOriginal.unprotectedMint(
+    // mint some ProtocolToken
+    await protocolTokenOriginal.unprotectedMint(
       borrowerOperations.getProxyAddressFromUser(whale),
       dec(1850, 18),
     );
-    await lqtyTokenOriginal.unprotectedMint(
+    await protocolTokenOriginal.unprotectedMint(
       borrowerOperations.getProxyAddressFromUser(alice),
       dec(150, 18),
     );
 
-    // stake LQTY
-    await lqtyStaking.stake(dec(1850, 18), { from: whale });
-    await lqtyStaking.stake(dec(150, 18), { from: alice });
+    // stake ProtocolToken
+    await protocolTokenStaking.stake(dec(1850, 18), { from: whale });
+    await protocolTokenStaking.stake(dec(150, 18), { from: alice });
 
     // Defaulter Trove opened
     const { debtTokenAmount, netDebt, totalDebt, collateral } = await openTrove({
@@ -559,10 +558,10 @@ contract("BorrowerWrappers", async (accounts) => {
     const troveCollBefore = await troveManager.getTroveColl(alice);
     const debtTokenBalanceBefore = await debtToken.balanceOf(alice);
     const troveDebtBefore = await troveManager.getTroveDebt(alice);
-    const lqtyBalanceBefore = await lqtyToken.balanceOf(alice);
+    const protocolTokenBalanceBefore = await protocolToken.balanceOf(alice);
     const ICRBefore = await troveManager.getCurrentICR(alice, price);
     const depositBefore = (await stabilityPool.deposits(alice))[0];
-    const stakeBefore = await lqtyStaking.stakes(alice);
+    const stakeBefore = await protocolTokenStaking.stakes(alice);
 
     // Alice claims staking rewards and puts them back in the system through the proxy
     await assertRevert(
@@ -576,21 +575,21 @@ contract("BorrowerWrappers", async (accounts) => {
     const troveCollAfter = await troveManager.getTroveColl(alice);
     const debtTokenBalanceAfter = await debtToken.balanceOf(alice);
     const troveDebtAfter = await troveManager.getTroveDebt(alice);
-    const lqtyBalanceAfter = await lqtyToken.balanceOf(alice);
+    const protocolTokenBalanceAfter = await protocolToken.balanceOf(alice);
     const ICRAfter = await troveManager.getCurrentICR(alice, price);
     const depositAfter = (await stabilityPool.deposits(alice))[0];
-    const stakeAfter = await lqtyStaking.stakes(alice);
+    const stakeAfter = await protocolTokenStaking.stakes(alice);
 
     // check everything remains the same
     assert.equal(ethBalanceAfter.toString(), ethBalanceBefore.toString());
     assert.equal(debtTokenBalanceAfter.toString(), debtTokenBalanceBefore.toString());
-    assert.equal(lqtyBalanceAfter.toString(), lqtyBalanceBefore.toString());
+    assert.equal(protocolTokenBalanceAfter.toString(), protocolTokenBalanceBefore.toString());
     th.assertIsApproximatelyEqual(troveDebtAfter, troveDebtBefore, 10000);
     th.assertIsApproximatelyEqual(troveCollAfter, troveCollBefore);
     th.assertIsApproximatelyEqual(ICRAfter, ICRBefore);
     th.assertIsApproximatelyEqual(depositAfter, depositBefore, 10000);
-    th.assertIsApproximatelyEqual(lqtyBalanceBefore, lqtyBalanceAfter);
-    // LQTY staking
+    th.assertIsApproximatelyEqual(protocolTokenBalanceBefore, protocolTokenBalanceAfter);
+    // ProtocolToken staking
     th.assertIsApproximatelyEqual(stakeAfter, stakeBefore);
 
     // Expect Alice has withdrawn all FIL gain
@@ -619,19 +618,19 @@ contract("BorrowerWrappers", async (accounts) => {
     await openTrove({ extraDebtTokenAmount: toBN(dec(150, 18)), extraParams: { from: alice } });
     await stabilityPool.provideToSP(dec(150, 18), ZERO_ADDRESS, { from: alice });
 
-    // mint some LQTY
-    await lqtyTokenOriginal.unprotectedMint(
+    // mint some ProtocolToken
+    await protocolTokenOriginal.unprotectedMint(
       borrowerOperations.getProxyAddressFromUser(whale),
       dec(1850, 18),
     );
-    await lqtyTokenOriginal.unprotectedMint(
+    await protocolTokenOriginal.unprotectedMint(
       borrowerOperations.getProxyAddressFromUser(alice),
       dec(150, 18),
     );
 
-    // stake LQTY
-    await lqtyStaking.stake(dec(1850, 18), { from: whale });
-    await lqtyStaking.stake(dec(150, 18), { from: alice });
+    // stake ProtocolToken
+    await protocolTokenStaking.stake(dec(1850, 18), { from: whale });
+    await protocolTokenStaking.stake(dec(150, 18), { from: alice });
 
     // skip bootstrapping phase
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_WEEK * 2, web3.currentProvider);
@@ -654,10 +653,10 @@ contract("BorrowerWrappers", async (accounts) => {
     const troveCollBefore = await troveManager.getTroveColl(alice);
     const debtTokenBalanceBefore = await debtToken.balanceOf(alice);
     const troveDebtBefore = await troveManager.getTroveDebt(alice);
-    const lqtyBalanceBefore = await lqtyToken.balanceOf(alice);
+    const protocolTokenBalanceBefore = await protocolToken.balanceOf(alice);
     const ICRBefore = await troveManager.getCurrentICR(alice, price);
     const depositBefore = (await stabilityPool.deposits(alice))[0];
-    const stakeBefore = await lqtyStaking.stakes(alice);
+    const stakeBefore = await protocolTokenStaking.stakes(alice);
 
     const proportionalDebtToken = expectedFILGain_A.mul(price).div(ICRBefore);
     const borrowingRate = await troveManagerOriginal.getBorrowingRateWithDecay();
@@ -665,7 +664,7 @@ contract("BorrowerWrappers", async (accounts) => {
       .mul(toBN(dec(1, 18)))
       .div(toBN(dec(1, 18)).add(borrowingRate));
 
-    const expectedLQTYGain_A = toBN("839557069990108416000000");
+    const expectedProtocolTokenGain_A = toBN("839557069990108416000000");
 
     const proxyAddress = borrowerWrappers.getProxyAddressFromUser(alice);
     // Alice claims staking rewards and puts them back in the system through the proxy
@@ -683,14 +682,14 @@ contract("BorrowerWrappers", async (accounts) => {
     const troveCollAfter = await troveManager.getTroveColl(alice);
     const debtTokenBalanceAfter = await debtToken.balanceOf(alice);
     const troveDebtAfter = await troveManager.getTroveDebt(alice);
-    const lqtyBalanceAfter = await lqtyToken.balanceOf(alice);
+    const protocolTokenBalanceAfter = await protocolToken.balanceOf(alice);
     const ICRAfter = await troveManager.getCurrentICR(alice, price);
     const depositAfter = (await stabilityPool.deposits(alice))[0];
-    const stakeAfter = await lqtyStaking.stakes(alice);
+    const stakeAfter = await protocolTokenStaking.stakes(alice);
 
     // check proxy balances remain the same
     assert.equal(ethBalanceAfter.toString(), ethBalanceBefore.toString());
-    assert.equal(lqtyBalanceAfter.toString(), lqtyBalanceBefore.toString());
+    assert.equal(protocolTokenBalanceAfter.toString(), protocolTokenBalanceBefore.toString());
     // check proxy debt token balance has increased by own adjust trove reward
     th.assertIsApproximatelyEqual(
       debtTokenBalanceAfter,
@@ -708,11 +707,11 @@ contract("BorrowerWrappers", async (accounts) => {
     th.assertIsApproximatelyEqual(ICRAfter, ICRBefore);
     // check that Stability Pool deposit
     th.assertIsApproximatelyEqual(depositAfter, depositBefore.add(netDebtChange), 10000);
-    // check lqty balance remains the same
-    th.assertIsApproximatelyEqual(lqtyBalanceBefore, lqtyBalanceAfter);
+    // check protocol token balance remains the same
+    th.assertIsApproximatelyEqual(protocolTokenBalanceBefore, protocolTokenBalanceAfter);
 
-    // LQTY staking
-    th.assertIsApproximatelyEqual(stakeAfter, stakeBefore.add(expectedLQTYGain_A));
+    // ProtocolToken staking
+    th.assertIsApproximatelyEqual(stakeAfter, stakeBefore.add(expectedProtocolTokenGain_A));
 
     // Expect Alice has withdrawn all FIL gain
     const alice_pendingFILGain = await stabilityPool.getDepositorFILGain(alice);
@@ -733,19 +732,19 @@ contract("BorrowerWrappers", async (accounts) => {
     await openTrove({ extraDebtTokenAmount: toBN(dec(150, 18)), extraParams: { from: alice } });
     await stabilityPool.provideToSP(dec(150, 18), ZERO_ADDRESS, { from: alice });
 
-    // mint some LQTY
-    await lqtyTokenOriginal.unprotectedMint(
+    // mint some ProtocolToken
+    await protocolTokenOriginal.unprotectedMint(
       borrowerOperations.getProxyAddressFromUser(whale),
       dec(1850, 18),
     );
-    await lqtyTokenOriginal.unprotectedMint(
+    await protocolTokenOriginal.unprotectedMint(
       borrowerOperations.getProxyAddressFromUser(alice),
       dec(150, 18),
     );
 
-    // stake LQTY
-    await lqtyStaking.stake(dec(1850, 18), { from: whale });
-    await lqtyStaking.stake(dec(150, 18), { from: alice });
+    // stake ProtocolToken
+    await protocolTokenStaking.stake(dec(1850, 18), { from: whale });
+    await protocolTokenStaking.stake(dec(150, 18), { from: alice });
 
     // Defaulter Trove opened
     const { debtTokenAmount, netDebt, collateral } = await openTrove({
@@ -763,10 +762,10 @@ contract("BorrowerWrappers", async (accounts) => {
     const troveCollBefore = await troveManager.getTroveColl(alice);
     const debtTokenBalanceBefore = await debtToken.balanceOf(alice);
     const troveDebtBefore = await troveManager.getTroveDebt(alice);
-    const lqtyBalanceBefore = await lqtyToken.balanceOf(alice);
+    const protocolTokenBalanceBefore = await protocolToken.balanceOf(alice);
     const ICRBefore = await troveManager.getCurrentICR(alice, price);
     const depositBefore = (await stabilityPool.deposits(alice))[0];
-    const stakeBefore = await lqtyStaking.stakes(alice);
+    const stakeBefore = await protocolTokenStaking.stakes(alice);
 
     const borrowingRate = await troveManagerOriginal.getBorrowingRateWithDecay();
 
@@ -779,14 +778,14 @@ contract("BorrowerWrappers", async (accounts) => {
     const troveCollAfter = await troveManager.getTroveColl(alice);
     const debtTokenBalanceAfter = await debtToken.balanceOf(alice);
     const troveDebtAfter = await troveManager.getTroveDebt(alice);
-    const lqtyBalanceAfter = await lqtyToken.balanceOf(alice);
+    const protocolTokenBalanceAfter = await protocolToken.balanceOf(alice);
     const ICRAfter = await troveManager.getCurrentICR(alice, price);
     const depositAfter = (await stabilityPool.deposits(alice))[0];
-    const stakeAfter = await lqtyStaking.stakes(alice);
+    const stakeAfter = await protocolTokenStaking.stakes(alice);
 
     // check proxy balances remain the same
     assert.equal(ethBalanceAfter.toString(), ethBalanceBefore.toString());
-    assert.equal(lqtyBalanceAfter.toString(), lqtyBalanceBefore.toString());
+    assert.equal(protocolTokenBalanceAfter.toString(), protocolTokenBalanceBefore.toString());
     // check proxy debt token balance has increased by own adjust trove reward
     th.assertIsApproximatelyEqual(debtTokenBalanceAfter, debtTokenBalanceBefore);
     // check trove has increased debt by the ICR proportional amount to FIL gain
@@ -797,8 +796,8 @@ contract("BorrowerWrappers", async (accounts) => {
     th.assertIsApproximatelyEqual(ICRAfter, ICRBefore);
     // check that Stability Pool deposit
     th.assertIsApproximatelyEqual(depositAfter, depositBefore.add(expectedDebtTokenGain_A), 10000);
-    // check lqty balance remains the same
-    th.assertIsApproximatelyEqual(lqtyBalanceBefore, lqtyBalanceAfter);
+    // check protocol token balance remains the same
+    th.assertIsApproximatelyEqual(protocolTokenBalanceBefore, protocolTokenBalanceAfter);
 
     // Expect Alice has withdrawn all FIL gain
     const alice_pendingFILGain = await stabilityPool.getDepositorFILGain(alice);
@@ -819,19 +818,19 @@ contract("BorrowerWrappers", async (accounts) => {
     await openTrove({ extraDebtTokenAmount: toBN(dec(150, 18)), extraParams: { from: alice } });
     await stabilityPool.provideToSP(dec(150, 18), ZERO_ADDRESS, { from: alice });
 
-    // mint some LQTY
-    await lqtyTokenOriginal.unprotectedMint(
+    // mint some ProtocolToken
+    await protocolTokenOriginal.unprotectedMint(
       borrowerOperations.getProxyAddressFromUser(whale),
       dec(1850, 18),
     );
-    await lqtyTokenOriginal.unprotectedMint(
+    await protocolTokenOriginal.unprotectedMint(
       borrowerOperations.getProxyAddressFromUser(alice),
       dec(150, 18),
     );
 
-    // stake LQTY
-    await lqtyStaking.stake(dec(1850, 18), { from: whale });
-    await lqtyStaking.stake(dec(150, 18), { from: alice });
+    // stake ProtocolToken
+    await protocolTokenStaking.stake(dec(1850, 18), { from: whale });
+    await protocolTokenStaking.stake(dec(150, 18), { from: alice });
 
     // Defaulter Trove opened
     const { debtTokenAmount, netDebt, collateral } = await openTrove({
@@ -864,10 +863,10 @@ contract("BorrowerWrappers", async (accounts) => {
     const troveCollBefore = await troveManager.getTroveColl(alice);
     const debtTokenBalanceBefore = await debtToken.balanceOf(alice);
     const troveDebtBefore = await troveManager.getTroveDebt(alice);
-    const lqtyBalanceBefore = await lqtyToken.balanceOf(alice);
+    const protocolTokenBalanceBefore = await protocolToken.balanceOf(alice);
     const ICRBefore = await troveManager.getCurrentICR(alice, price);
     const depositBefore = (await stabilityPool.deposits(alice))[0];
-    const stakeBefore = await lqtyStaking.stakes(alice);
+    const stakeBefore = await protocolTokenStaking.stakes(alice);
 
     const proportionalDebtToken = expectedFILGain_A.mul(price).div(ICRBefore);
     const borrowingRate = await troveManagerOriginal.getBorrowingRateWithDecay();
@@ -876,7 +875,7 @@ contract("BorrowerWrappers", async (accounts) => {
       .div(toBN(dec(1, 18)).add(borrowingRate));
     const expectedTotalDebtToken = expectedDebtTokenGain_A.add(netDebtChange);
 
-    const expectedLQTYGain_A = toBN("839557069990108416000000");
+    const expectedProtocolTokenGain_A = toBN("839557069990108416000000");
 
     // Alice claims staking rewards and puts them back in the system through the proxy
     await borrowerWrappers.claimStakingGainsAndRecycle(th._100pct, alice, alice, { from: alice });
@@ -893,14 +892,14 @@ contract("BorrowerWrappers", async (accounts) => {
     const troveCollAfter = await troveManager.getTroveColl(alice);
     const debtTokenBalanceAfter = await debtToken.balanceOf(alice);
     const troveDebtAfter = await troveManager.getTroveDebt(alice);
-    const lqtyBalanceAfter = await lqtyToken.balanceOf(alice);
+    const protocolTokenBalanceAfter = await protocolToken.balanceOf(alice);
     const ICRAfter = await troveManager.getCurrentICR(alice, price);
     const depositAfter = (await stabilityPool.deposits(alice))[0];
-    const stakeAfter = await lqtyStaking.stakes(alice);
+    const stakeAfter = await protocolTokenStaking.stakes(alice);
 
     // check proxy balances remain the same
     assert.equal(ethBalanceAfter.toString(), ethBalanceBefore.toString());
-    assert.equal(lqtyBalanceAfter.toString(), lqtyBalanceBefore.toString());
+    assert.equal(protocolTokenBalanceAfter.toString(), protocolTokenBalanceBefore.toString());
     // check proxy debt token balance has increased by own adjust trove reward
     th.assertIsApproximatelyEqual(
       debtTokenBalanceAfter,
@@ -918,11 +917,11 @@ contract("BorrowerWrappers", async (accounts) => {
     th.assertIsApproximatelyEqual(ICRAfter, ICRBefore);
     // check that Stability Pool deposit
     th.assertIsApproximatelyEqual(depositAfter, depositBefore.add(expectedTotalDebtToken), 10000);
-    // check lqty balance remains the same
-    th.assertIsApproximatelyEqual(lqtyBalanceBefore, lqtyBalanceAfter);
+    // check protocol token balance remains the same
+    th.assertIsApproximatelyEqual(protocolTokenBalanceBefore, protocolTokenBalanceAfter);
 
-    // LQTY staking
-    th.assertIsApproximatelyEqual(stakeAfter, stakeBefore.add(expectedLQTYGain_A));
+    // ProtocolToken staking
+    th.assertIsApproximatelyEqual(stakeAfter, stakeBefore.add(expectedProtocolTokenGain_A));
 
     // Expect Alice has withdrawn all FIL gain
     const alice_pendingFILGain = await stabilityPool.getDepositorFILGain(alice);

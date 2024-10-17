@@ -9,13 +9,17 @@ import "../Interfaces/IBorrowerOperations.sol";
 import "../Interfaces/ITroveManager.sol";
 import "../Interfaces/IStabilityPool.sol";
 import "../Interfaces/IPriceFeed.sol";
-import "../Interfaces/ILQTYStaking.sol";
+import "../Interfaces/IProtocolTokenStaking.sol";
 import "./BorrowerOperationsScript.sol";
 import "./FILTransferScript.sol";
-import "./LQTYStakingScript.sol";
+import "./ProtocolStakingScript.sol";
 import "../Dependencies/console.sol";
 
-contract BorrowerWrappersScript is BorrowerOperationsScript, FILTransferScript, LQTYStakingScript {
+contract BorrowerWrappersScript is
+    BorrowerOperationsScript,
+    FILTransferScript,
+    ProtocolStakingScript
+{
     using SafeMath for uint;
 
     string public constant NAME = "BorrowerWrappersScript";
@@ -24,16 +28,16 @@ contract BorrowerWrappersScript is BorrowerOperationsScript, FILTransferScript, 
     IStabilityPool immutable stabilityPool;
     IPriceFeed immutable priceFeed;
     IERC20 immutable debtToken;
-    IERC20 immutable lqtyToken;
-    ILQTYStaking immutable lqtyStaking;
+    IERC20 immutable protocolToken;
+    IProtocolTokenStaking immutable protocolTokenStaking;
 
     constructor(
         address _borrowerOperationsAddress,
         address _troveManagerAddress,
-        address _lqtyStakingAddress
+        address _protocolTokenStakingAddress
     )
         BorrowerOperationsScript(IBorrowerOperations(_borrowerOperationsAddress))
-        LQTYStakingScript(_lqtyStakingAddress)
+        ProtocolStakingScript(_protocolTokenStakingAddress)
     {
         checkContract(_troveManagerAddress);
         ITroveManager troveManagerCached = ITroveManager(_troveManagerAddress);
@@ -51,16 +55,17 @@ contract BorrowerWrappersScript is BorrowerOperationsScript, FILTransferScript, 
         checkContract(debtTokenCached);
         debtToken = IERC20(debtTokenCached);
 
-        address lqtyTokenCached = address(troveManagerCached.lqtyToken());
-        checkContract(lqtyTokenCached);
-        lqtyToken = IERC20(lqtyTokenCached);
+        address protocolTokenCached = address(troveManagerCached.protocolToken());
+        checkContract(protocolTokenCached);
+        protocolToken = IERC20(protocolTokenCached);
 
-        ILQTYStaking lqtyStakingCached = troveManagerCached.lqtyStaking();
+        IProtocolTokenStaking protocolTokenStakingCached = troveManagerCached
+            .protocolTokenStaking();
         require(
-            _lqtyStakingAddress == address(lqtyStakingCached),
-            "BorrowerWrappersScript: Wrong LQTYStaking address"
+            _protocolTokenStakingAddress == address(protocolTokenStakingCached),
+            "BorrowerWrappersScript: Wrong ProtocolTokenStaking address"
         );
-        lqtyStaking = lqtyStakingCached;
+        protocolTokenStaking = protocolTokenStakingCached;
     }
 
     function claimCollateralAndOpenTrove(
@@ -96,13 +101,13 @@ contract BorrowerWrappersScript is BorrowerOperationsScript, FILTransferScript, 
         address _lowerHint
     ) external {
         uint collBalanceBefore = address(this).balance;
-        uint lqtyBalanceBefore = lqtyToken.balanceOf(address(this));
+        uint protocolTokenBalanceBefore = protocolToken.balanceOf(address(this));
 
         // Claim rewards
         stabilityPool.withdrawFromSP(0);
 
         uint collBalanceAfter = address(this).balance;
-        uint lqtyBalanceAfter = lqtyToken.balanceOf(address(this));
+        uint protocolTokenBalanceAfter = protocolToken.balanceOf(address(this));
         uint claimedCollateral = collBalanceAfter.sub(collBalanceBefore);
 
         // Add claimed FIL to trove, get more debt tokens and stake it into the Stability Pool
@@ -123,10 +128,10 @@ contract BorrowerWrappersScript is BorrowerOperationsScript, FILTransferScript, 
             }
         }
 
-        // Stake claimed LQTY
-        uint claimedLQTY = lqtyBalanceAfter.sub(lqtyBalanceBefore);
-        if (claimedLQTY > 0) {
-            lqtyStaking.stake(claimedLQTY);
+        // Stake claimed ProtocolToken
+        uint claimedProtocolToken = protocolTokenBalanceAfter.sub(protocolTokenBalanceBefore);
+        if (claimedProtocolToken > 0) {
+            protocolTokenStaking.stake(claimedProtocolToken);
         }
     }
 
@@ -137,10 +142,10 @@ contract BorrowerWrappersScript is BorrowerOperationsScript, FILTransferScript, 
     ) external {
         uint collBalanceBefore = address(this).balance;
         uint debtTokenBalanceBefore = debtToken.balanceOf(address(this));
-        uint lqtyBalanceBefore = lqtyToken.balanceOf(address(this));
+        uint protocolTokenBalanceBefore = protocolToken.balanceOf(address(this));
 
         // Claim gains
-        lqtyStaking.unstake(0);
+        protocolTokenStaking.unstake(0);
 
         uint gainedCollateral = address(this).balance.sub(collBalanceBefore); // stack too deep issues :'(
         uint gainedDebt = debtToken.balanceOf(address(this)).sub(debtTokenBalanceBefore);
@@ -164,11 +169,11 @@ contract BorrowerWrappersScript is BorrowerOperationsScript, FILTransferScript, 
         if (totalDebt > 0) {
             stabilityPool.provideToSP(totalDebt, address(0));
 
-            // Providing to Stability Pool also triggers LQTY claim, so stake it if any
-            uint lqtyBalanceAfter = lqtyToken.balanceOf(address(this));
-            uint claimedLQTY = lqtyBalanceAfter.sub(lqtyBalanceBefore);
-            if (claimedLQTY > 0) {
-                lqtyStaking.stake(claimedLQTY);
+            // Providing to Stability Pool also triggers ProtocolToken claim, so stake it if any
+            uint protocolTokenBalanceAfter = protocolToken.balanceOf(address(this));
+            uint claimedProtocolToken = protocolTokenBalanceAfter.sub(protocolTokenBalanceBefore);
+            if (claimedProtocolToken > 0) {
+                protocolTokenStaking.stake(claimedProtocolToken);
             }
         }
     }

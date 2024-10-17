@@ -4,7 +4,7 @@ pragma solidity 0.7.6;
 
 import "../Dependencies/CheckContract.sol";
 import "../Dependencies/SafeMath.sol";
-import "../Interfaces/ILQTYToken.sol";
+import "../Interfaces/IProtocolToken.sol";
 import "../Interfaces/ILockupContractFactory.sol";
 import "../Dependencies/console.sol";
 
@@ -16,13 +16,13 @@ import "../Dependencies/console.sol";
 * https://github.com/OpenZeppelin/openzeppelin-contracts/blob/53516bc555a454862470e7860a9b5254db4d00f5/contracts/token/ERC20/ERC20Permit.sol
 * 
 *
-*  --- Functionality added specific to the LQTYToken ---
+*  --- Functionality added specific to the ProtocolToken ---
 * 
 * 1) Transfer protection: blacklist of addresses that are invalid recipients (i.e. core Liquity contracts) in external 
-* transfer() and transferFrom() calls. The purpose is to protect users from losing tokens by mistakenly sending LQTY directly to a Liquity
+* transfer() and transferFrom() calls. The purpose is to protect users from losing tokens by mistakenly sending ProtocolToken directly to a Liquity
 * core contract, when they should rather call the right function.
 *
-* 2) sendToLQTYStaking(): callable only by Liquity core contracts, which move LQTY tokens from user -> LQTYStaking contract.
+* 2) sendToProtocolTokenStaking(): callable only by Liquity core contracts, which move ProtocolToken tokens from user -> ProtocolTokenStaking contract.
 *
 * 3) Supply hard-capped at 100 million
 *
@@ -41,19 +41,19 @@ import "../Dependencies/console.sol";
 *  LockupContractFactory 
 * -approve(), increaseAllowance(), decreaseAllowance() revert when called by the multisig
 * -transferFrom() reverts when the multisig is the sender
-* -sendToLQTYStaking() reverts when the multisig is the sender, blocking the multisig from staking its LQTY.
+* -sendToProtocolTokenStaking() reverts when the multisig is the sender, blocking the multisig from staking its ProtocolToken.
 * 
-* After one year has passed since deployment of the LQTYToken, the restrictions on multisig operations are lifted
+* After one year has passed since deployment of the ProtocolToken, the restrictions on multisig operations are lifted
 * and the multisig has the same rights as any other address.
 */
 
-contract LQTYToken is CheckContract, ILQTYToken {
+contract ProtocolToken is CheckContract, IProtocolToken {
     using SafeMath for uint256;
 
     // --- ERC20 Data ---
 
-    string internal constant _NAME = "LQTY";
-    string internal constant _SYMBOL = "LQTY";
+    string internal constant _NAME = "SCR";
+    string internal constant _SYMBOL = "SCR";
     string internal constant _VERSION = "1";
     uint8 internal constant _DECIMALS = 18;
 
@@ -80,7 +80,7 @@ contract LQTYToken is CheckContract, ILQTYToken {
 
     mapping(address => uint256) private _nonces;
 
-    // --- LQTYToken specific data ---
+    // --- ProtocolToken specific data ---
 
     uint public constant ONE_YEAR_IN_SECONDS = 31536000; // 60 * 60 * 24 * 365
 
@@ -91,7 +91,7 @@ contract LQTYToken is CheckContract, ILQTYToken {
     address public immutable multisigAddress;
 
     address public immutable communityIssuanceAddress;
-    address public immutable lqtyStakingAddress;
+    address public immutable protocolTokenStakingAddress;
 
     uint internal immutable lpRewardsEntitlement;
 
@@ -101,21 +101,21 @@ contract LQTYToken is CheckContract, ILQTYToken {
 
     constructor(
         address _communityIssuanceAddress,
-        address _lqtyStakingAddress,
+        address _protocolTokenStakingAddress,
         address _lockupFactoryAddress,
         address _bountyAddress,
         address _lpRewardsAddress,
         address _multisigAddress
     ) {
         checkContract(_communityIssuanceAddress);
-        checkContract(_lqtyStakingAddress);
+        checkContract(_protocolTokenStakingAddress);
         checkContract(_lockupFactoryAddress);
 
         multisigAddress = _multisigAddress;
         deploymentStartTime = block.timestamp;
 
         communityIssuanceAddress = _communityIssuanceAddress;
-        lqtyStakingAddress = _lqtyStakingAddress;
+        protocolTokenStakingAddress = _protocolTokenStakingAddress;
         lockupContractFactory = ILockupContractFactory(_lockupFactoryAddress);
 
         bytes32 hashedName = keccak256(bytes(_NAME));
@@ -126,7 +126,7 @@ contract LQTYToken is CheckContract, ILQTYToken {
         _CACHED_CHAIN_ID = _chainID();
         _CACHED_DOMAIN_SEPARATOR = _buildDomainSeparator(_TYPE_HASH, hashedName, hashedVersion);
 
-        // --- Initial LQTY allocations ---
+        // --- Initial ProtocolToken allocations ---
 
         uint bountyEntitlement = _1_MILLION.mul(2); // Allocate 2 million for bounties/hackathons
         _mint(_bountyAddress, bountyEntitlement);
@@ -138,7 +138,7 @@ contract LQTYToken is CheckContract, ILQTYToken {
         lpRewardsEntitlement = _lpRewardsEntitlement;
         _mint(_lpRewardsAddress, _lpRewardsEntitlement);
 
-        // Allocate the remainder to the LQTY Multisig: (100 - 2 - 32 - 1.33) million = 64.66 million
+        // Allocate the remainder to the ProtocolToken Multisig: (100 - 2 - 32 - 1.33) million = 64.66 million
         uint multisigEntitlement = _1_MILLION
             .mul(100)
             .sub(bountyEntitlement)
@@ -243,12 +243,12 @@ contract LQTYToken is CheckContract, ILQTYToken {
         return true;
     }
 
-    function sendToLQTYStaking(address _sender, uint256 _amount) external override {
-        _requireCallerIsLQTYStaking();
+    function sendToProtocolTokenStaking(address _sender, uint256 _amount) external override {
+        _requireCallerIsProtocolTokenStaking();
         if (_isFirstYear()) {
             _requireSenderIsNotMultisig(_sender);
-        } // Prevent the multisig from staking LQTY
-        _transfer(_sender, lqtyStakingAddress, _amount);
+        } // Prevent the multisig from staking ProtocolToken
+        _transfer(_sender, protocolTokenStakingAddress, _amount);
     }
 
     // --- EIP 2612 functionality ---
@@ -270,7 +270,7 @@ contract LQTYToken is CheckContract, ILQTYToken {
         bytes32 r,
         bytes32 s
     ) external override {
-        require(deadline >= block.timestamp, "LQTY: expired deadline");
+        require(deadline >= block.timestamp, "ProtocolToken: expired deadline");
         bytes32 digest = keccak256(
             abi.encodePacked(
                 "\x19\x01",
@@ -281,7 +281,7 @@ contract LQTYToken is CheckContract, ILQTYToken {
             )
         );
         address recoveredAddress = ecrecover(digest, v, r, s);
-        require(recoveredAddress == owner, "LQTY: invalid signature");
+        require(recoveredAddress == owner, "ProtocolToken: invalid signature");
         _approve(owner, spender, amount);
     }
 
@@ -346,33 +346,33 @@ contract LQTYToken is CheckContract, ILQTYToken {
     function _requireValidRecipient(address _recipient) internal view {
         require(
             _recipient != address(0) && _recipient != address(this),
-            "LQTY: Cannot transfer tokens directly to the LQTY token contract or the zero address"
+            "ProtocolToken: Cannot transfer tokens directly to the ProtocolToken token contract or the zero address"
         );
         require(
-            _recipient != communityIssuanceAddress && _recipient != lqtyStakingAddress,
-            "LQTY: Cannot transfer tokens directly to the community issuance or staking contract"
+            _recipient != communityIssuanceAddress && _recipient != protocolTokenStakingAddress,
+            "ProtocolToken: Cannot transfer tokens directly to the community issuance or staking contract"
         );
     }
 
     function _requireRecipientIsRegisteredLC(address _recipient) internal view {
         require(
             lockupContractFactory.isRegisteredLockup(_recipient),
-            "LQTYToken: recipient must be a LockupContract registered in the Factory"
+            "ProtocolToken: recipient must be a LockupContract registered in the Factory"
         );
     }
 
     function _requireSenderIsNotMultisig(address _sender) internal view {
-        require(_sender != multisigAddress, "LQTYToken: sender must not be the multisig");
+        require(_sender != multisigAddress, "ProtocolToken: sender must not be the multisig");
     }
 
     function _requireCallerIsNotMultisig() internal view {
-        require(!_callerIsMultisig(), "LQTYToken: caller must not be the multisig");
+        require(!_callerIsMultisig(), "ProtocolToken: caller must not be the multisig");
     }
 
-    function _requireCallerIsLQTYStaking() internal view {
+    function _requireCallerIsProtocolTokenStaking() internal view {
         require(
-            msg.sender == lqtyStakingAddress,
-            "LQTYToken: caller must be the LQTYStaking contract"
+            msg.sender == protocolTokenStakingAddress,
+            "ProtocolToken: caller must be the ProtocolTokenStaking contract"
         );
     }
 
