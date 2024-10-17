@@ -10,6 +10,13 @@ module.exports = [
       "no-unused-vars": "off",
     },
     files: ["**/*.js"],
-    ignores: ["node_modules/*", "artifacts/*", "bin/*", "cache/*", "package-lock.json "],
+    ignores: [
+      "node_modules/*",
+      "artifacts/*",
+      "bin/*",
+      "cache/*",
+      "package-lock.json",
+      "mainnetDeployment/*.json",
+    ],
   },
 ];
