@@ -4,15 +4,16 @@ const { UniswapV2Router02 } = require("./ABIs/UniswapV2Router02.js");
 const { ChainlinkAggregatorV3Interface } = require("./ABIs/ChainlinkAggregatorV3Interface.js");
 const { TestHelper: th, TimeValues: timeVals } = require("../utils/testHelpers.js");
 const { dec } = th;
-const MainnetDeploymentHelper = require("../utils/mainnetDeploymentHelpers.js");
+const HardhatDeploymentHelper = require("../utils/hardhatDeploymentHelpers.js");
+const hre = require("hardhat");
 const toBigNum = ethers.BigNumber.from;
 
-async function mainnetDeploy(configParams) {
+async function deploy(configParams) {
   const date = new Date();
   console.log(date.toUTCString());
   const deployerWallet = (await ethers.getSigners())[0];
   // const account2Wallet = (await ethers.getSigners())[1]
-  const mdh = new MainnetDeploymentHelper(configParams, deployerWallet);
+  const mdh = new HardhatDeploymentHelper(configParams, deployerWallet);
 
   const deploymentState = mdh.loadPreviousDeployment();
 
@@ -734,6 +735,13 @@ async function mainnetDeploy(configParams) {
   //   console.log(`LC ProtocolToken bal after withdrawal: ${LC_ProtocolTokenBal}`)
 }
 
-module.exports = {
-  mainnetDeploy,
-};
+const inputFile = require(
+  `./inputs/${hre.network.name === "localhost" ? "testnet" : hre.network.name}.js`,
+);
+
+deploy(inputFile)
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });

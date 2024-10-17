@@ -3,18 +3,19 @@ const fs = require("fs");
 const ZERO_ADDRESS = "0x" + "0".repeat(40);
 const maxBytes32 = "0x" + "f".repeat(64);
 
-class MainnetDeploymentHelper {
+class HardhatDeploymentHelper {
   constructor(configParams, deployerWallet) {
     this.configParams = configParams;
     this.deployerWallet = deployerWallet;
     this.hre = require("hardhat");
+    this.outputFile = `./deployments/outputs/${this.hre.network.name}.json`;
   }
 
   loadPreviousDeployment() {
     let previousDeployment = {};
-    if (fs.existsSync(this.configParams.OUTPUT_FILE)) {
+    if (fs.existsSync(this.outputFile)) {
       console.log(`Loading previous deployment...`);
-      previousDeployment = require("../" + this.configParams.OUTPUT_FILE);
+      previousDeployment = require("../" + this.outputFile);
     }
 
     return previousDeployment;
@@ -22,7 +23,7 @@ class MainnetDeploymentHelper {
 
   saveDeployment(deploymentState) {
     const deploymentStateJSON = JSON.stringify(deploymentState, null, 2);
-    fs.writeFileSync(this.configParams.OUTPUT_FILE, deploymentStateJSON);
+    fs.writeFileSync(this.outputFile, deploymentStateJSON);
   }
   // --- Deployer methods ---
 
@@ -479,4 +480,4 @@ class MainnetDeploymentHelper {
   }
 }
 
-module.exports = MainnetDeploymentHelper;
+module.exports = HardhatDeploymentHelper;

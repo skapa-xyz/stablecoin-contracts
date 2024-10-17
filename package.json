@@ -8,7 +8,7 @@
   "files": [
     "artifacts",
     "contracts",
-    "mainnetDeployment/**/*Output.json"
+    "deployments/outputs"
   ],
   "scripts": {
     "hardhat": "hardhat",

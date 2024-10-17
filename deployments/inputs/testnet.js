@@ -1,4 +1,4 @@
-const { TestHelper: th } = require("../utils/testHelpers.js");
+const { TestHelper: th } = require("../../utils/testHelpers.js");
 const dec = th.dec;
 
 const externalAddrs = {
@@ -28,8 +28,6 @@ const beneficiaries = {
   TEST_INVESTOR_E: "0x89ff871dbcd0a456fe92db98d190c38bc10d1cc1",
 };
 
-const OUTPUT_FILE = "./mainnetDeployment/testnetDeploymentOutput.json";
-
 const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 const waitFunction = async () => {
   return delay(90000); // wait 90s
@@ -43,7 +41,6 @@ module.exports = {
   externalAddrs,
   walletAddrs,
   beneficiaries,
-  OUTPUT_FILE,
   waitFunction,
   ETHERSCAN_BASE_URL,
   GAS_COMPENSATION,

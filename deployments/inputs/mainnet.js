@@ -52,8 +52,6 @@ const beneficiaries = {
   ACCOUNT_34: "0x895870D281E4761237f4465AFb51D16c3e124EFC",
 };
 
-const OUTPUT_FILE = "./mainnetDeployment/mainnetDeploymentOutput.json";
-
 const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 const waitFunction = async () => {
   return delay(90000); // wait 90s
@@ -67,7 +65,6 @@ module.exports = {
   externalAddrs,
   walletAddrs,
   beneficiaries,
-  OUTPUT_FILE,
   waitFunction,
   ETHERSCAN_BASE_URL,
   GAS_COMPENSATION,

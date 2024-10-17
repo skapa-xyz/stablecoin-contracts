@@ -5,13 +5,13 @@
 ```sh
 # localhost
 $ npx hardhat node --fork <NODE_URL>
-$ npx hardhat run --network localhost mainnetDeployment/testnetDeployment.js
+$ npx hardhat run --network localhost deployments/deploy.js
 
 # testnet
-$ npx hardhat run --network testnet mainnetDeployment/testnetDeployment.js
+$ npx hardhat run --network testnet deployments/deploy.js
 
 # mainnet
-$ npx hardhat run --network mainnet mainnetDeployment/mainnetDeployment.js
+$ npx hardhat run --network mainnet deployments/deploy.js
 ```
 
 ## Directories

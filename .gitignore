@@ -21,6 +21,7 @@ node_modules
 /gasTest/outputs
 
 /secrets.js
+/deployments/outputs/localhost.json
 
 .vscode
 

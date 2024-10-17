@@ -16,7 +16,7 @@ module.exports = [
       "bin/*",
       "cache/*",
       "package-lock.json",
-      "mainnetDeployment/*.json",
+      "deployments/outputs/*.json",
     ],
   },
 ];
