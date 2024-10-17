@@ -193,7 +193,7 @@ contract EchidnaTester {
         uint price = priceFeedTestnet.getPrice();
         uint debtTokenAmount = _debtTokenAmount;
         uint compositeDebt = debtTokenAmount.add(GAS_COMPENSATION);
-        uint ICR = LiquityMath._computeCR(FIL, compositeDebt, price);
+        uint ICR = ProtocolMath._computeCR(FIL, compositeDebt, price);
         if (ICR < ratio) {
             compositeDebt = FIL.mul(price).div(ratio);
             debtTokenAmount = compositeDebt.sub(GAS_COMPENSATION);

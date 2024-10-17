@@ -14,7 +14,7 @@ contract TroveManagerTester is TroveManager {
     ) TroveManager(_gasCompensation, _minNetDebt) {}
 
     function computeICR(uint _coll, uint _debt, uint _price) external pure returns (uint) {
-        return LiquityMath._computeCR(_coll, _debt, _price);
+        return ProtocolMath._computeCR(_coll, _debt, _price);
     }
 
     function getCollGasCompensation(uint _coll) external pure returns (uint) {

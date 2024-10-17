@@ -2,13 +2,13 @@ const fs = require("fs");
 const deploymentHelper = require("../utils/deploymentHelpers.js");
 const testHelpers = require("../utils/testHelpers.js");
 const TroveManagerTester = artifacts.require("./TroveManagerTester.sol");
-const LiquityMathTester = artifacts.require("./LiquityMathTester.sol");
+const ProtocolMathTester = artifacts.require("./ProtocolMathTester.sol");
 
 const th = testHelpers.TestHelper;
 
 const timeValues = testHelpers.TimeValues;
 
-/* Script that logs gas costs for Liquity math functions. */
+/* Script that logs gas costs for protocol math functions. */
 contract("Gas costs for math functions", async (accounts) => {
   const bountyAddress = accounts[998];
   const lpRewardsAddress = accounts[999];
@@ -22,12 +22,12 @@ contract("Gas costs for math functions", async (accounts) => {
     troveManagerTester = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     TroveManagerTester.setAsDeployed(troveManagerTester);
 
-    mathTester = await LiquityMathTester.new();
-    LiquityMathTester.setAsDeployed(mathTester);
+    mathTester = await ProtocolMathTester.new();
+    ProtocolMathTester.setAsDeployed(mathTester);
   });
 
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
       bountyAddress,
       lpRewardsAddress,

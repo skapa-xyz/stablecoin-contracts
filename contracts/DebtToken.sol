@@ -88,7 +88,7 @@ contract DebtToken is CheckContract, IDebtToken {
         _CACHED_DOMAIN_SEPARATOR = _buildDomainSeparator(_TYPE_HASH, hashedName, hashedVersion);
     }
 
-    // --- Functions for intra-Liquity calls ---
+    // --- Functions for intra-protocol calls ---
 
     function mint(address _account, uint256 _amount) external override {
         _requireCallerIsBorrowerOperations();

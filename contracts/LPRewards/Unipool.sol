@@ -2,7 +2,7 @@
 
 pragma solidity 0.7.6;
 
-import "../Dependencies/LiquityMath.sol";
+import "../Dependencies/ProtocolMath.sol";
 import "../Dependencies/SafeMath.sol";
 import "../Dependencies/Ownable.sol";
 import "../Dependencies/CheckContract.sol";
@@ -115,7 +115,7 @@ contract Unipool is LPTokenWrapper, Ownable, CheckContract, IUnipool {
 
     // Returns current timestamp if the rewards program has not finished yet, end time otherwise
     function lastTimeRewardApplicable() public view override returns (uint256) {
-        return LiquityMath._min(block.timestamp, periodFinish);
+        return ProtocolMath._min(block.timestamp, periodFinish);
     }
 
     // Returns the amount of rewards that correspond to each staked token

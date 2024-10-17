@@ -8,8 +8,7 @@ const { pack } = require("@ethersproject/solidity");
 const { hexlify } = require("@ethersproject/bytes");
 const { ecsign } = require("ethereumjs-util");
 
-// the second account our hardhatenv creates (for EOA A)
-// from https://github.com/liquity/dev/blob/main/packages/contracts/hardhatAccountsList2k.js#L3
+// the second account our hardhatenv creates (for EOA A) from `hardhatAccountsList2k.js`
 
 const th = testHelpers.TestHelper;
 const toBN = th.toBN;
@@ -144,7 +143,7 @@ contract("ProtocolToken", async (accounts) => {
   };
 
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContractsHardhat(
       bountyAddress,
       lpRewardsAddress,

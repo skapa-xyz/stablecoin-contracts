@@ -167,7 +167,7 @@ const ABDKOperations = async () => {
   // seems accurate to 18 digits
 
   /* 
-    --- Using ABDK functions in Liquity ---
+    --- Using ABDK functions in the protocol ---
     
     ABDK.mulu is for: (64.64dec * uint)  -> uint.  i.e. for rewardPerUnitStaked  * stake -> reward
     

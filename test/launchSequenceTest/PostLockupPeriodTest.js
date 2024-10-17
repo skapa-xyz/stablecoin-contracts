@@ -7,7 +7,7 @@ const { dec, toBN, assertRevert } = th;
 
 contract("After the initial lockup period has passed", async (accounts) => {
   const [
-    liquityAG,
+    deployer,
     teamMember_1,
     teamMember_2,
     teamMember_3,
@@ -85,7 +85,7 @@ contract("After the initial lockup period has passed", async (accounts) => {
       lpRewardsAddress,
       multisig,
     );
-    coreContracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+    coreContracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
 
     protocolTokenStaking = protocolTokenContracts.protocolTokenStaking;
     protocolToken = protocolTokenContracts.protocolToken;
@@ -123,38 +123,38 @@ contract("After the initial lockup period has passed", async (accounts) => {
     const deployedLCtx_T1 = await lockupContractFactory.deployLockupContract(
       teamMember_1,
       oneYearFromSystemDeployment,
-      { from: liquityAG },
+      { from: deployer },
     );
     const deployedLCtx_T2 = await lockupContractFactory.deployLockupContract(
       teamMember_2,
       oneYearFromSystemDeployment,
-      { from: liquityAG },
+      { from: deployer },
     );
     const deployedLCtx_T3 = await lockupContractFactory.deployLockupContract(
       teamMember_3,
       oneYearFromSystemDeployment,
-      { from: liquityAG },
+      { from: deployer },
     );
 
     const deployedLCtx_I1 = await lockupContractFactory.deployLockupContract(
       investor_1,
       oneYearFromSystemDeployment,
       {
-        from: liquityAG,
+        from: deployer,
       },
     );
     const deployedLCtx_I2 = await lockupContractFactory.deployLockupContract(
       investor_2,
       oneYearFromSystemDeployment,
       {
-        from: liquityAG,
+        from: deployer,
       },
     );
     const deployedLCtx_I3 = await lockupContractFactory.deployLockupContract(
       investor_3,
       oneYearFromSystemDeployment,
       {
-        from: liquityAG,
+        from: deployer,
       },
     );
 
@@ -205,20 +205,20 @@ contract("After the initial lockup period has passed", async (accounts) => {
       const LCDeploymentTx_A = await lockupContractFactory.deployLockupContract(
         A,
         justOverOneYearFromSystemDeployment,
-        { from: liquityAG },
+        { from: deployer },
       );
       const LCDeploymentTx_B = await lockupContractFactory.deployLockupContract(
         B,
         oneYearFromSystemDeployment,
         {
-          from: liquityAG,
+          from: deployer,
         },
       );
       const LCDeploymentTx_C = await lockupContractFactory.deployLockupContract(
         C,
         "9595995999999900000023423234",
         {
-          from: liquityAG,
+          from: deployer,
         },
       );
 
@@ -242,7 +242,7 @@ contract("After the initial lockup period has passed", async (accounts) => {
         },
       );
       const LCDeploymentTx_3 = await lockupContractFactory.deployLockupContract(
-        liquityAG,
+        deployer,
         "9595995999999900000023423234",
         { from: A },
       );
@@ -489,7 +489,7 @@ contract("After the initial lockup period has passed", async (accounts) => {
       const variousEOAs = [
         teamMember_1,
         teamMember_3,
-        liquityAG,
+        deployer,
         investor_1,
         investor_2,
         investor_3,
@@ -688,19 +688,19 @@ contract("After the initial lockup period has passed", async (accounts) => {
     });
 
     it("Anyone can transfer to an EOA", async () => {
-      // Start D, E, liquityAG with some ProtocolToken
+      // Start D, E, deployer with some ProtocolToken
       await protocolToken.unprotectedMint(D, dec(1, 24));
       await protocolToken.unprotectedMint(E, dec(2, 24));
-      await protocolToken.unprotectedMint(liquityAG, dec(3, 24));
+      await protocolToken.unprotectedMint(deployer, dec(3, 24));
       await protocolToken.unprotectedMint(multisig, dec(4, 24));
 
       // ProtocolToken holders transfer to other EOAs
       const protocolTokenTransferTx_1 = await protocolToken.transfer(A, dec(1, 18), { from: D });
-      const protocolTokenTransferTx_2 = await protocolToken.transfer(liquityAG, dec(1, 18), {
+      const protocolTokenTransferTx_2 = await protocolToken.transfer(deployer, dec(1, 18), {
         from: E,
       });
       const protocolTokenTransferTx_3 = await protocolToken.transfer(F, dec(1, 18), {
-        from: liquityAG,
+        from: deployer,
       });
       const protocolTokenTransferTx_4 = await protocolToken.transfer(G, dec(1, 18), {
         from: multisig,
@@ -718,7 +718,7 @@ contract("After the initial lockup period has passed", async (accounts) => {
         from: multisig,
       });
       const protocolTokenApproveTx_2 = await protocolToken.approve(B, dec(1, 18), { from: G });
-      const protocolTokenApproveTx_3 = await protocolToken.approve(liquityAG, dec(1, 18), {
+      const protocolTokenApproveTx_3 = await protocolToken.approve(deployer, dec(1, 18), {
         from: F,
       });
       await assert.isTrue(protocolTokenApproveTx_1.receipt.status);
@@ -726,7 +726,7 @@ contract("After the initial lockup period has passed", async (accounts) => {
       await assert.isTrue(protocolTokenApproveTx_3.receipt.status);
     });
 
-    it("Anyone can increaseAllowance for any EOA or Liquity contract", async () => {
+    it("Anyone can increaseAllowance for any EOA or protocol contract", async () => {
       // Anyone can increaseAllowance of EOAs to spend ProtocolToken
       const protocolTokenIncreaseAllowanceTx_1 = await protocolToken.increaseAllowance(
         A,
@@ -747,7 +747,7 @@ contract("After the initial lockup period has passed", async (accounts) => {
       await assert.isTrue(protocolTokenIncreaseAllowanceTx_2.receipt.status);
       await assert.isTrue(protocolTokenIncreaseAllowanceTx_3.receipt.status);
 
-      // Increase allowance of Liquity contracts from F
+      // Increase allowance of protocol contracts from F
       for (const contract of Object.keys(coreContracts)) {
         const protocolTokenIncreaseAllowanceTx = await protocolToken.increaseAllowance(
           coreContracts[contract].address,
@@ -757,7 +757,7 @@ contract("After the initial lockup period has passed", async (accounts) => {
         await assert.isTrue(protocolTokenIncreaseAllowanceTx.receipt.status);
       }
 
-      // Increase allowance of Liquity contracts from multisig
+      // Increase allowance of protocol contracts from multisig
       for (const contract of Object.keys(coreContracts)) {
         const protocolTokenIncreaseAllowanceTx = await protocolToken.increaseAllowance(
           coreContracts[contract].address,
@@ -788,7 +788,7 @@ contract("After the initial lockup period has passed", async (accounts) => {
       }
     });
 
-    it("Anyone can decreaseAllowance for any EOA or Liquity contract", async () => {
+    it("Anyone can decreaseAllowance for any EOA or protocol contract", async () => {
       //First, increase allowance of A, B LiqAG and core contracts
       const protocolTokenApproveTx_1 = await protocolToken.approve(A, dec(1, 18), {
         from: multisig,
@@ -1178,7 +1178,7 @@ contract("After the initial lockup period has passed", async (accounts) => {
       const unlockTime = await LC_B.unlockTime();
       assert.isTrue(currentTime.gt(unlockTime));
 
-      const variousEOAs = [teamMember_2, liquityAG, investor_1, A, C, D, E];
+      const variousEOAs = [teamMember_2, deployer, investor_1, A, C, D, E];
 
       // Several EOAs attempt to withdraw from LC deployed by D
       for (account of variousEOAs) {

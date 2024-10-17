@@ -4,11 +4,11 @@ pragma solidity 0.7.6;
 
 import "./Interfaces/ITroveManager.sol";
 import "./Interfaces/ISortedTroves.sol";
-import "./Dependencies/LiquityBase.sol";
+import "./Dependencies/ProtocolBase.sol";
 import "./Dependencies/Ownable.sol";
 import "./Dependencies/CheckContract.sol";
 
-contract HintHelpers is LiquityBase, Ownable, CheckContract {
+contract HintHelpers is ProtocolBase, Ownable, CheckContract {
     using SafeMath for uint;
 
     string public constant NAME = "HintHelpers";
@@ -26,7 +26,7 @@ contract HintHelpers is LiquityBase, Ownable, CheckContract {
     constructor(
         uint _gasCompensation,
         uint _minNetDebt
-    ) LiquityBase(_gasCompensation, _minNetDebt) {}
+    ) ProtocolBase(_gasCompensation, _minNetDebt) {}
 
     // --- Dependency setters ---
 
@@ -103,7 +103,7 @@ contract HintHelpers is LiquityBase, Ownable, CheckContract {
 
             if (netDebt > remainingDebtToken) {
                 if (netDebt > MIN_NET_DEBT) {
-                    uint maxRedeemableDebtToken = LiquityMath._min(
+                    uint maxRedeemableDebtToken = ProtocolMath._min(
                         remainingDebtToken,
                         netDebt.sub(MIN_NET_DEBT)
                     );
@@ -118,7 +118,7 @@ contract HintHelpers is LiquityBase, Ownable, CheckContract {
                     uint newDebt = netDebt.sub(maxRedeemableDebtToken);
 
                     uint compositeDebt = _getCompositeDebt(newDebt);
-                    partialRedemptionHintNICR = LiquityMath._computeNominalCR(
+                    partialRedemptionHintNICR = ProtocolMath._computeNominalCR(
                         newColl,
                         compositeDebt
                     );
@@ -157,7 +157,7 @@ contract HintHelpers is LiquityBase, Ownable, CheckContract {
         }
 
         hintAddress = sortedTroves.getLast();
-        diff = LiquityMath._getAbsoluteDifference(_CR, troveManager.getNominalICR(hintAddress));
+        diff = ProtocolMath._getAbsoluteDifference(_CR, troveManager.getNominalICR(hintAddress));
         latestRandomSeed = _inputRandomSeed;
 
         uint i = 1;
@@ -170,7 +170,7 @@ contract HintHelpers is LiquityBase, Ownable, CheckContract {
             uint currentNICR = troveManager.getNominalICR(currentAddress);
 
             // check if abs(current - CR) > abs(closest - CR), and update closest if current is closer
-            uint currentDiff = LiquityMath._getAbsoluteDifference(currentNICR, _CR);
+            uint currentDiff = ProtocolMath._getAbsoluteDifference(currentNICR, _CR);
 
             if (currentDiff < diff) {
                 diff = currentDiff;
@@ -181,10 +181,10 @@ contract HintHelpers is LiquityBase, Ownable, CheckContract {
     }
 
     function computeNominalCR(uint _coll, uint _debt) external pure returns (uint) {
-        return LiquityMath._computeNominalCR(_coll, _debt);
+        return ProtocolMath._computeNominalCR(_coll, _debt);
     }
 
     function computeCR(uint _coll, uint _debt, uint _price) external pure returns (uint) {
-        return LiquityMath._computeCR(_coll, _debt, _price);
+        return ProtocolMath._computeCR(_coll, _debt, _price);
     }
 }

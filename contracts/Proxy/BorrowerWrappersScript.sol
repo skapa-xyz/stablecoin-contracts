@@ -3,7 +3,7 @@
 pragma solidity 0.7.6;
 
 import "../Dependencies/SafeMath.sol";
-import "../Dependencies/LiquityMath.sol";
+import "../Dependencies/ProtocolMath.sol";
 import "../Dependencies/IERC20.sol";
 import "../Interfaces/IBorrowerOperations.sol";
 import "../Interfaces/ITroveManager.sol";
@@ -184,8 +184,8 @@ contract BorrowerWrappersScript is
 
         uint debtAmount = _collateral.mul(price).div(ICR);
         uint borrowingRate = troveManager.getBorrowingRateWithDecay();
-        uint netDebt = debtAmount.mul(LiquityMath.DECIMAL_PRECISION).div(
-            LiquityMath.DECIMAL_PRECISION.add(borrowingRate)
+        uint netDebt = debtAmount.mul(ProtocolMath.DECIMAL_PRECISION).div(
+            ProtocolMath.DECIMAL_PRECISION.add(borrowingRate)
         );
 
         return netDebt;

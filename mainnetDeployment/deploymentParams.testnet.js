@@ -14,7 +14,7 @@ const externalAddrs = {
   WRAPPED_NATIVE_TOKEN: "0xaC26a4Ab9cF2A8c5DBaB6fb4351ec0F4b07356c4",
 };
 
-const liquityAddrs = {
+const walletAddrs = {
   GENERAL_SAFE: "0x001D0E50D2ca06647446cED79392d4F3Bce17009", // TODO
   PROTOCOL_TOKEN_SAFE: "0xe96D28Fe3E959FE7721624B56e2A4d40C3213D3d", // TODO
   DEPLOYER: "0xDBA767F3DFF3835BEf5dE1eDEe91A9901402AB21",
@@ -41,7 +41,7 @@ const ETHERSCAN_BASE_URL = undefined;
 
 module.exports = {
   externalAddrs,
-  liquityAddrs,
+  walletAddrs,
   beneficiaries,
   OUTPUT_FILE,
   waitFunction,

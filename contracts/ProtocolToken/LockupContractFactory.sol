@@ -13,8 +13,8 @@ import "../Dependencies/console.sol";
  * The LockupContractFactory deploys LockupContracts - its main purpose is to keep a registry of valid deployed
  * LockupContracts.
  *
- * This registry is checked by ProtocolToken when the Liquity deployer attempts to transfer ProtocolTokens. During the first year
- * since system deployment, the Liquity deployer is only allowed to transfer ProtocolToken to valid LockupContracts that have been
+ * This registry is checked by ProtocolToken when the deployer attempts to transfer ProtocolTokens. During the first year
+ * since system deployment, the deployer is only allowed to transfer ProtocolToken to valid LockupContracts that have been
  * deployed by and recorded in the LockupContractFactory. This ensures the deployer's ProtocolToken can't be traded or staked in the
  * first year, and can only be sent to a verified LockupContract which unlocks at least one year after system deployment.
  *

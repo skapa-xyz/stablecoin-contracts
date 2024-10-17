@@ -242,7 +242,7 @@ contract(
       });
 
       beforeEach(async () => {
-        contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+        contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
         const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
           bountyAddress,
           lpRewardsAddress,

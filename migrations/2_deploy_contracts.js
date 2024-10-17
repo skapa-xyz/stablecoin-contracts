@@ -37,7 +37,7 @@ module.exports = function (deployer) {
     const debtToken = await DebtToken.deployed();
     const functionCaller = await FunctionCaller.deployed();
 
-    const liquityContracts = {
+    const coreContracts = {
       borrowerOperations,
       priceFeed,
       debtToken,
@@ -50,12 +50,12 @@ module.exports = function (deployer) {
     };
 
     // Grab contract addresses
-    const liquityAddresses = getAddresses(liquityContracts);
+    const contractAddresses = getAddresses(coreContracts);
     console.log("deploy_contracts.js - Deployed contract addresses: \n");
-    console.log(liquityAddresses);
+    console.log(contractAddresses);
     console.log("\n");
 
     // Connect contracts to each other
-    await connectContracts(liquityContracts, liquityAddresses);
+    await connectContracts(coreContracts, contractAddresses);
   });
 };

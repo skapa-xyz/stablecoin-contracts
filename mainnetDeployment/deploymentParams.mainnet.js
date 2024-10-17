@@ -8,7 +8,7 @@ const externalAddrs = {
   WRAPPED_NATIVE_TOKEN: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
 };
 
-const liquityAddrs = {
+const walletAddrs = {
   GENERAL_SAFE: "0xF06016D822943C42e3Cb7FC3a6A3B1889C1045f8", // to be passed to ProtocolToken as the bounties/hackathons address
   PROTOCOL_TOKEN_SAFE: "0xb8a9faDA75c6d891fB77a7988Ff9BaD9e485Ca1C", // to be passed to ProtocolToken as the multisig address
   DEPLOYER: "0xa850535D3628CD4dFEB528dC85cfA93051Ff2984", // Mainnet REAL deployment address
@@ -65,7 +65,7 @@ const ETHERSCAN_BASE_URL = "https://etherscan.io/address";
 
 module.exports = {
   externalAddrs,
-  liquityAddrs,
+  walletAddrs,
   beneficiaries,
   OUTPUT_FILE,
   waitFunction,

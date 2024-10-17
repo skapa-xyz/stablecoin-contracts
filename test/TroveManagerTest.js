@@ -73,7 +73,7 @@ contract("TroveManager", async (accounts) => {
   const withdrawDebtToken = async (params) => th.withdrawDebtToken(contracts, params);
 
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     contracts.troveManager = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     contracts.debtToken = await DebtTokenTester.new(
       contracts.troveManager.address,

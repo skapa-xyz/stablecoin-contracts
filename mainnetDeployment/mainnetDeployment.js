@@ -17,7 +17,7 @@ async function mainnetDeploy(configParams) {
   const deploymentState = mdh.loadPreviousDeployment();
 
   console.log(`deployer address: ${deployerWallet.address}`);
-  assert.equal(deployerWallet.address, configParams.liquityAddrs.DEPLOYER);
+  assert.equal(deployerWallet.address, configParams.walletAddrs.DEPLOYER);
   // assert.equal(account2Wallet.address, configParams.beneficiaries.ACCOUNT_2)
   let deployerFILBalance = await ethers.provider.getBalance(deployerWallet.address);
   console.log(`deployerFILBalance before: ${deployerFILBalance}`);
@@ -42,22 +42,22 @@ async function mainnetDeploy(configParams) {
   console.log(`deployer's FIL balance before deployments: ${deployerFILBalance}`);
 
   // Deploy core logic contracts
-  const liquityCore = await mdh.deployLiquityCoreMainnet(deploymentState);
-  await mdh.logContractObjects(liquityCore);
+  const coreContracts = await mdh.deployProtocolCoreMainnet(deploymentState);
+  await mdh.logContractObjects(coreContracts);
 
   // // Check Uniswap Pair DebtToken-FIL pair before pair creation
-  // let DebtTokenWFILPairAddr = await uniswapV2Factory.getPair(liquityCore.debtToken.address, configParams.externalAddrs.WRAPPED_NATIVE_TOKEN)
-  // let WFILDebtTokenPairAddr = await uniswapV2Factory.getPair(configParams.externalAddrs.WRAPPED_NATIVE_TOKEN, liquityCore.debtToken.address)
+  // let DebtTokenWFILPairAddr = await uniswapV2Factory.getPair(coreContracts.debtToken.address, configParams.externalAddrs.WRAPPED_NATIVE_TOKEN)
+  // let WFILDebtTokenPairAddr = await uniswapV2Factory.getPair(configParams.externalAddrs.WRAPPED_NATIVE_TOKEN, coreContracts.debtToken.address)
   // assert.equal(DebtTokenWFILPairAddr, WFILDebtTokenPairAddr)
   let [DebtTokenWFILPairAddr, WFILDebtTokenPairAddr] = uniswapExits
     ? await Promise.all([
         uniswapV2Factory.getPair(
-          liquityCore.debtToken.address,
+          coreContracts.debtToken.address,
           configParams.externalAddrs.WRAPPED_NATIVE_TOKEN,
         ),
         uniswapV2Factory.getPair(
           configParams.externalAddrs.WRAPPED_NATIVE_TOKEN,
-          liquityCore.debtToken.address,
+          coreContracts.debtToken.address,
         ),
       ])
     : [undefined, undefined];
@@ -68,19 +68,19 @@ async function mainnetDeploy(configParams) {
     await mdh.sendAndWaitForTransaction(
       uniswapV2Factory.createPair(
         configParams.externalAddrs.WRAPPED_NATIVE_TOKEN,
-        liquityCore.debtToken.address,
+        coreContracts.debtToken.address,
       ),
     );
 
     // Check Uniswap Pair DebtToken-WFIL pair after pair creation (forwards and backwards should have same address)
     DebtTokenWFILPairAddr = await uniswapV2Factory.getPair(
-      liquityCore.debtToken.address,
+      coreContracts.debtToken.address,
       configParams.externalAddrs.WRAPPED_NATIVE_TOKEN,
     );
     assert.notEqual(DebtTokenWFILPairAddr, th.ZERO_ADDRESS);
     WFILDebtTokenPairAddr = await uniswapV2Factory.getPair(
       configParams.externalAddrs.WRAPPED_NATIVE_TOKEN,
-      liquityCore.debtToken.address,
+      coreContracts.debtToken.address,
     );
     console.log(
       `DebtToken-WFIL pair contract address after Uniswap pair creation: ${DebtTokenWFILPairAddr}`,
@@ -93,19 +93,19 @@ async function mainnetDeploy(configParams) {
 
   // Deploy ProtocolToken Contracts
   const protocolTokenContracts = await mdh.deployProtocolTokenContractsMainnet(
-    configParams.liquityAddrs.GENERAL_SAFE, // bounty address
+    configParams.walletAddrs.GENERAL_SAFE, // bounty address
     unipool.address, // lp rewards address
-    configParams.liquityAddrs.PROTOCOL_TOKEN_SAFE, // multisig endowment address
+    configParams.walletAddrs.PROTOCOL_TOKEN_SAFE, // multisig endowment address
     deploymentState,
   );
 
   // Connect all core contracts up
-  await mdh.connectCoreContractsMainnet(liquityCore, protocolTokenContracts);
+  await mdh.connectCoreContractsMainnet(coreContracts, protocolTokenContracts);
   await mdh.connectProtocolTokenContractsMainnet(protocolTokenContracts);
-  await mdh.connectProtocolTokenContractsToCoreMainnet(protocolTokenContracts, liquityCore);
+  await mdh.connectProtocolTokenContractsToCoreMainnet(protocolTokenContracts, coreContracts);
 
   // Deploy a read-only multi-trove getter
-  const multiTroveGetter = await mdh.deployMultiTroveGetterMainnet(liquityCore, deploymentState);
+  const multiTroveGetter = await mdh.deployMultiTroveGetterMainnet(coreContracts, deploymentState);
 
   // Connect Unipool to ProtocolToken and the DebtToken-WFIL pair address, with a 6 week duration
   if (uniswapExits) {
@@ -188,24 +188,24 @@ async function mainnetDeploy(configParams) {
   // // --- TESTS AND CHECKS  ---
 
   // Deployer repay DebtToken
-  // console.log(`deployer trove debt before repaying: ${await liquityCore.troveManager.getTroveDebt(deployerWallet.address)}`)
-  // await mdh.sendAndWaitForTransaction(liquityCore.borrowerOperations.repayDebtToken(dec(800, 18), th.ZERO_ADDRESS, th.ZERO_ADDRESS, {gasPrice, gasLimit: 1000000}))
-  // console.log(`deployer trove debt after repaying: ${await liquityCore.troveManager.getTroveDebt(deployerWallet.address)}`)
+  // console.log(`deployer trove debt before repaying: ${await coreContracts.troveManager.getTroveDebt(deployerWallet.address)}`)
+  // await mdh.sendAndWaitForTransaction(coreContracts.borrowerOperations.repayDebtToken(dec(800, 18), th.ZERO_ADDRESS, th.ZERO_ADDRESS, {gasPrice, gasLimit: 1000000}))
+  // console.log(`deployer trove debt after repaying: ${await coreContracts.troveManager.getTroveDebt(deployerWallet.address)}`)
 
   // Deployer add coll
-  // console.log(`deployer trove coll before adding coll: ${await liquityCore.troveManager.getTroveColl(deployerWallet.address)}`)
-  // await mdh.sendAndWaitForTransaction(liquityCore.borrowerOperations.addColl(th.ZERO_ADDRESS, th.ZERO_ADDRESS, {value: dec(2, 'ether'), gasPrice, gasLimit: 1000000}))
-  // console.log(`deployer trove coll after addingColl: ${await liquityCore.troveManager.getTroveColl(deployerWallet.address)}`)
+  // console.log(`deployer trove coll before adding coll: ${await coreContracts.troveManager.getTroveColl(deployerWallet.address)}`)
+  // await mdh.sendAndWaitForTransaction(coreContracts.borrowerOperations.addColl(th.ZERO_ADDRESS, th.ZERO_ADDRESS, {value: dec(2, 'ether'), gasPrice, gasLimit: 1000000}))
+  // console.log(`deployer trove coll after addingColl: ${await coreContracts.troveManager.getTroveColl(deployerWallet.address)}`)
 
   // Check oracle proxy prices ---
 
   // Get latest price
-  let pythPriceResponse = await liquityCore.pythCaller.latestRoundData();
+  let pythPriceResponse = await coreContracts.pythCaller.latestRoundData();
   console.log(`current Pyth price: ${pythPriceResponse[1]}`);
   console.log(`current Pyth timestamp: ${pythPriceResponse[3]}`);
 
   // Check Tellor price directly (through our TellorCaller)
-  let tellorPriceResponse = await liquityCore.tellorCaller.getTellorCurrentValue(); // id == 1: the FIL-USD request ID
+  let tellorPriceResponse = await coreContracts.tellorCaller.getTellorCurrentValue(); // id == 1: the FIL-USD request ID
   console.log(`current Tellor price: ${tellorPriceResponse[1]}`);
   console.log(`current Tellor timestamp: ${tellorPriceResponse[2]}`);
 
@@ -241,9 +241,9 @@ async function mainnetDeploy(configParams) {
   // // --- Check correct addresses set in ProtocolToken
   // console.log("STORED ADDRESSES IN ProtocolToken TOKEN")
   // const storedMultisigAddress = await protocolTokenContracts.protocolToken.multisigAddress()
-  // assert.equal(configParams.liquityAddrs.PROTOCOL_TOKEN_SAFE.toLowerCase(), storedMultisigAddress.toLowerCase())
+  // assert.equal(configParams.walletAddrs.PROTOCOL_TOKEN_SAFE.toLowerCase(), storedMultisigAddress.toLowerCase())
   // console.log(`multi-sig address stored in ProtocolToken : ${th.squeezeAddr(storedMultisigAddress)}`)
-  // console.log(`ProtocolToken Safe address: ${th.squeezeAddr(configParams.liquityAddrs.PROTOCOL_TOKEN_SAFE)}`)
+  // console.log(`ProtocolToken Safe address: ${th.squeezeAddr(configParams.walletAddrs.PROTOCOL_TOKEN_SAFE)}`)
 
   // // --- ProtocolToken allowances of different addresses ---
   // console.log("INITIAL ProtocolToken BALANCES")
@@ -253,12 +253,12 @@ async function mainnetDeploy(configParams) {
   // th.logBN('Unipool ProtocolToken balance       ', unipoolProtocolTokenBal)
 
   // // ProtocolToken Safe
-  // const protocolTokenSafeBal = await protocolTokenContracts.protocolToken.balanceOf(configParams.liquityAddrs.PROTOCOL_TOKEN_SAFE)
+  // const protocolTokenSafeBal = await protocolTokenContracts.protocolToken.balanceOf(configParams.walletAddrs.PROTOCOL_TOKEN_SAFE)
   // assert.equal(protocolTokenSafeBal.toString(), '64666666666666666666666667')
   // th.logBN('ProtocolToken Safe balance     ', protocolTokenSafeBal)
 
   // // Bounties/hackathons (General Safe)
-  // const generalSafeBal = await protocolTokenContracts.protocolToken.balanceOf(configParams.liquityAddrs.GENERAL_SAFE)
+  // const generalSafeBal = await protocolTokenContracts.protocolToken.balanceOf(configParams.walletAddrs.GENERAL_SAFE)
   // assert.equal(generalSafeBal.toString(), '2000000000000000000000000')
   // th.logBN('General Safe balance       ', generalSafeBal)
 
@@ -270,19 +270,19 @@ async function mainnetDeploy(configParams) {
   // // --- PriceFeed ---
   // console.log("PRICEFEED CHECKS")
   // // Check Pricefeed's status and last good price
-  // const lastGoodPrice = await liquityCore.priceFeed.lastGoodPrice()
-  // const priceFeedInitialStatus = await liquityCore.priceFeed.status()
+  // const lastGoodPrice = await coreContracts.priceFeed.lastGoodPrice()
+  // const priceFeedInitialStatus = await coreContracts.priceFeed.status()
   // th.logBN('PriceFeed first stored price', lastGoodPrice)
   // console.log(`PriceFeed initial status: ${priceFeedInitialStatus}`)
 
   // // Check PriceFeed's & TellorCaller's stored addresses
-  // const priceFeedCLAddress = await liquityCore.priceFeed.priceAggregator()
-  // const priceFeedTellorCallerAddress = await liquityCore.priceFeed.tellorCaller()
+  // const priceFeedCLAddress = await coreContracts.priceFeed.priceAggregator()
+  // const priceFeedTellorCallerAddress = await coreContracts.priceFeed.tellorCaller()
   // assert.equal(priceFeedCLAddress, configParams.externalAddrs.CHAINLINK_FILUSD_PROXY)
-  // assert.equal(priceFeedTellorCallerAddress, liquityCore.tellorCaller.address)
+  // assert.equal(priceFeedTellorCallerAddress, coreContracts.tellorCaller.address)
 
   // // Check Tellor address
-  // const tellorCallerTellorMasterAddress = await liquityCore.tellorCaller.tellor()
+  // const tellorCallerTellorMasterAddress = await coreContracts.tellorCaller.tellor()
   // assert.equal(tellorCallerTellorMasterAddress, configParams.externalAddrs.TELLOR_MASTER)
 
   // // --- Unipool ---
@@ -295,13 +295,13 @@ async function mainnetDeploy(configParams) {
   // // --- Sorted Troves ---
 
   // // Check max size
-  // const sortedTrovesMaxSize = (await liquityCore.sortedTroves.data())[2]
+  // const sortedTrovesMaxSize = (await coreContracts.sortedTroves.data())[2]
   // assert.equal(sortedTrovesMaxSize, '115792089237316195423570985008687907853269984665640564039457584007913129639935')
 
   // // --- TroveManager ---
 
-  // const liqReserve = await liquityCore.troveManager.GAS_COMPENSATION()
-  // const minNetDebt = await liquityCore.troveManager.MIN_NET_DEBT()
+  // const liqReserve = await coreContracts.troveManager.GAS_COMPENSATION()
+  // const minNetDebt = await coreContracts.troveManager.MIN_NET_DEBT()
 
   // th.logBN('system liquidation reserve', liqReserve)
   // th.logBN('system min net debt      ', minNetDebt)
@@ -309,13 +309,13 @@ async function mainnetDeploy(configParams) {
   // // --- Make first DebtToken-FIL liquidity provision ---
 
   // // Open trove if not yet opened
-  // const troveStatus = await liquityCore.troveManager.getTroveStatus(deployerWallet.address)
+  // const troveStatus = await coreContracts.troveManager.getTroveStatus(deployerWallet.address)
   // if (troveStatus.toString() != '1') {
   //   let _3kDebtTokenWithdrawal = th.dec(3000, 18) // 3000 tokens
   //   let _3FILcoll = th.dec(3, 'ether') // 3 FIL
   //   console.log('Opening trove...')
   //   await mdh.sendAndWaitForTransaction(
-  //     liquityCore.borrowerOperations.openTrove(
+  //     coreContracts.borrowerOperations.openTrove(
   //       th._100pct,
   //       _3kDebtTokenWithdrawal,
   //       th.ZERO_ADDRESS,
@@ -328,16 +328,16 @@ async function mainnetDeploy(configParams) {
   // }
 
   // // Check deployer now has an open trove
-  // console.log(`deployer is in sorted list after making trove: ${await liquityCore.sortedTroves.contains(deployerWallet.address)}`)
+  // console.log(`deployer is in sorted list after making trove: ${await coreContracts.sortedTroves.contains(deployerWallet.address)}`)
 
-  // const deployerTrove = await liquityCore.troveManager.Troves(deployerWallet.address)
+  // const deployerTrove = await coreContracts.troveManager.Troves(deployerWallet.address)
   // th.logBN('deployer debt', deployerTrove[0])
   // th.logBN('deployer coll', deployerTrove[1])
   // th.logBN('deployer stake', deployerTrove[2])
   // console.log(`deployer's trove status: ${deployerTrove[3]}`)
 
   // // Check deployer has DebtToken
-  // let deployerDebtTokenBal = await liquityCore.debtToken.balanceOf(deployerWallet.address)
+  // let deployerDebtTokenBal = await coreContracts.debtToken.balanceOf(deployerWallet.address)
   // th.logBN("deployer's debt token balance", deployerDebtTokenBal)
 
   // // Check Uniswap pool has the debt token and WFIL tokens
@@ -348,7 +348,7 @@ async function mainnetDeploy(configParams) {
   // const token0Addr = await DebtTokenFILPair.token0()
   // const token1Addr = await DebtTokenFILPair.token1()
   // console.log(`DebtToken-FIL Pair token 0: ${th.squeezeAddr(token0Addr)},
-  //       DebtToken contract addr: ${th.squeezeAddr(liquityCore.debtToken.address)}`)
+  //       DebtToken contract addr: ${th.squeezeAddr(coreContracts.debtToken.address)}`)
   // console.log(`DebtToken-FIL Pair token 1: ${th.squeezeAddr(token1Addr)},
   //       WFIL ERC20 contract addr: ${th.squeezeAddr(configParams.externalAddrs.WRAPPED_NATIVE_TOKEN)}`)
 
@@ -369,10 +369,10 @@ async function mainnetDeploy(configParams) {
   // if (deployerLPTokenBal.toString() == '0') {
   //   console.log('Providing liquidity to Uniswap...')
   //   // Give router an allowance for DebtToken
-  //   await liquityCore.debtToken.increaseAllowance(uniswapV2Router02.address, dec(10000, 18))
+  //   await coreContracts.debtToken.increaseAllowance(uniswapV2Router02.address, dec(10000, 18))
 
   //   // Check Router's spending allowance
-  //   const routerDebtTokenAllowanceFromDeployer = await liquityCore.debtToken.allowance(deployerWallet.address, uniswapV2Router02.address)
+  //   const routerDebtTokenAllowanceFromDeployer = await coreContracts.debtToken.allowance(deployerWallet.address, uniswapV2Router02.address)
   //   th.logBN("router's spending allowance for deployer's debt token", routerDebtTokenAllowanceFromDeployer)
 
   //   // Get amounts for liquidity provision
@@ -393,7 +393,7 @@ async function mainnetDeploy(configParams) {
   //   // Provide liquidity to DebtToken-FIL pair
   //   await mdh.sendAndWaitForTransaction(
   //     uniswapV2Router02.addLiquidityFIL(
-  //       liquityCore.debtToken.address, // address of debt token
+  //       coreContracts.debtToken.address, // address of debt token
   //       debtTokenAmount, // debt token provision
   //       minDebtTokenAmount, // minimum debt token provision
   //       LP_FIL, // minimum FIL provision
@@ -453,14 +453,14 @@ async function mainnetDeploy(configParams) {
   // // --- Make SP deposit and earn ProtocolToken ---
   // console.log("CHECK DEPLOYER MAKING DEPOSIT AND EARNING ProtocolToken")
 
-  // let SPDeposit = await liquityCore.stabilityPool.getCompoundedDebtTokenDeposit(deployerWallet.address)
+  // let SPDeposit = await coreContracts.stabilityPool.getCompoundedDebtTokenDeposit(deployerWallet.address)
   // th.logBN("deployer SP deposit before making deposit", SPDeposit)
 
   // // Provide to SP
-  // await mdh.sendAndWaitForTransaction(liquityCore.stabilityPool.provideToSP(dec(15, 18), th.ZERO_ADDRESS, { gasPrice, gasLimit: 400000 }))
+  // await mdh.sendAndWaitForTransaction(coreContracts.stabilityPool.provideToSP(dec(15, 18), th.ZERO_ADDRESS, { gasPrice, gasLimit: 400000 }))
 
   // // Get SP deposit
-  // SPDeposit = await liquityCore.stabilityPool.getCompoundedDebtTokenDeposit(deployerWallet.address)
+  // SPDeposit = await coreContracts.stabilityPool.getCompoundedDebtTokenDeposit(deployerWallet.address)
   // th.logBN("deployer SP deposit after depositing 15 tokens", SPDeposit)
 
   // console.log("wait 90 seconds before withdrawing...")
@@ -468,9 +468,9 @@ async function mainnetDeploy(configParams) {
   // await configParams.waitFunction()
 
   // // Withdraw from SP
-  // // await mdh.sendAndWaitForTransaction(liquityCore.stabilityPool.withdrawFromSP(dec(1000, 18), { gasPrice, gasLimit: 400000 }))
+  // // await mdh.sendAndWaitForTransaction(coreContracts.stabilityPool.withdrawFromSP(dec(1000, 18), { gasPrice, gasLimit: 400000 }))
 
-  // // SPDeposit = await liquityCore.stabilityPool.getCompoundedDebtTokenDeposit(deployerWallet.address)
+  // // SPDeposit = await coreContracts.stabilityPool.getCompoundedDebtTokenDeposit(deployerWallet.address)
   // // th.logBN("deployer SP deposit after full withdrawal", SPDeposit)
 
   // // deployerProtocolTokenBal = await protocolTokenContracts.protocolToken.balanceOf(deployerWallet.address)
@@ -527,20 +527,20 @@ async function mainnetDeploy(configParams) {
   // th.logBN("deployer pending debt token revenue share", deployerDebtTokenRevShare)
 
   // // --- 2nd Account opens trove ---
-  // const trove2Status = await liquityCore.troveManager.getTroveStatus(account2Wallet.address)
+  // const trove2Status = await coreContracts.troveManager.getTroveStatus(account2Wallet.address)
   // if (trove2Status.toString() != '1') {
   //   console.log("Acct 2 opens a trove ...")
   //   let _2kDebtTokenWithdrawal = th.dec(2000, 18) // 2000 tokens
   //   let _1pt5_FILcoll = th.dec(15, 17) // 1.5 FIL
   //   const borrowerOpsEthersFactory = await ethers.getContractFactory("BorrowerOperations", account2Wallet)
-  //   const borrowerOpsAcct2 = await new ethers.Contract(liquityCore.borrowerOperations.address, borrowerOpsEthersFactory.interface, account2Wallet)
+  //   const borrowerOpsAcct2 = await new ethers.Contract(coreContracts.borrowerOperations.address, borrowerOpsEthersFactory.interface, account2Wallet)
 
   //   await mdh.sendAndWaitForTransaction(borrowerOpsAcct2.openTrove(th._100pct, _2kDebtTokenWithdrawal, th.ZERO_ADDRESS, th.ZERO_ADDRESS, { value: _1pt5_FILcoll, gasPrice, gasLimit: 1000000 }))
   // } else {
   //   console.log('Acct 2 already has an active trove')
   // }
 
-  // const acct2Trove = await liquityCore.troveManager.Troves(account2Wallet.address)
+  // const acct2Trove = await coreContracts.troveManager.Troves(account2Wallet.address)
   // th.logBN('acct2 debt', acct2Trove[0])
   // th.logBN('acct2 coll', acct2Trove[1])
   // th.logBN('acct2 stake', acct2Trove[2])
@@ -554,14 +554,14 @@ async function mainnetDeploy(configParams) {
   // console.log("CHECK DEPLOYER WITHDRAWING STAKING GAINS")
 
   // // check deployer's debt token balance before withdrawing staking gains
-  // deployerDebtTokenBal = await liquityCore.debtToken.balanceOf(deployerWallet.address)
+  // deployerDebtTokenBal = await coreContracts.debtToken.balanceOf(deployerWallet.address)
   // th.logBN('deployer debt token bal before withdrawing staking gains', deployerDebtTokenBal)
 
   // // Deployer withdraws staking gains
   // await mdh.sendAndWaitForTransaction(protocolTokenContracts.protocolTokenStaking.unstake(0, { gasPrice, gasLimit: 1000000 }))
 
   // // check deployer's debt token balance after withdrawing staking gains
-  // deployerDebtTokenBal = await liquityCore.debtToken.balanceOf(deployerWallet.address)
+  // deployerDebtTokenBal = await coreContracts.debtToken.balanceOf(deployerWallet.address)
   // th.logBN('deployer debt token bal after withdrawing staking gains', deployerDebtTokenBal)
 
   // // --- System stats  ---
@@ -574,31 +574,31 @@ async function mainnetDeploy(configParams) {
   }
 
   // Number of troves
-  const numTroves = await liquityCore.troveManager.getTroveOwnersCount();
+  const numTroves = await coreContracts.troveManager.getTroveOwnersCount();
   console.log(`number of troves: ${numTroves} `);
 
   // Sorted list size
-  const listSize = await liquityCore.sortedTroves.getSize();
+  const listSize = await coreContracts.sortedTroves.getSize();
   console.log(`Trove list size: ${listSize} `);
 
   // Total system debt and coll
-  const entireSystemDebt = await liquityCore.troveManager.getEntireSystemDebt();
-  const entireSystemColl = await liquityCore.troveManager.getEntireSystemColl();
+  const entireSystemDebt = await coreContracts.troveManager.getEntireSystemDebt();
+  const entireSystemColl = await coreContracts.troveManager.getEntireSystemColl();
   th.logBN("Entire system debt", entireSystemDebt);
   th.logBN("Entire system coll", entireSystemColl);
 
   // TCR
-  const TCR = await liquityCore.troveManager.getTCR(pythPriceResponse[1]);
+  const TCR = await coreContracts.troveManager.getTCR(pythPriceResponse[1]);
   console.log(`TCR: ${TCR}`);
 
   // current borrowing rate
-  const baseRate = await liquityCore.troveManager.baseRate();
-  const currentBorrowingRate = await liquityCore.troveManager.getBorrowingRateWithDecay();
+  const baseRate = await coreContracts.troveManager.baseRate();
+  const currentBorrowingRate = await coreContracts.troveManager.getBorrowingRateWithDecay();
   th.logBN("Base rate", baseRate);
   th.logBN("Current borrowing rate", currentBorrowingRate);
 
   // total SP deposits
-  const totalSPDeposits = await liquityCore.stabilityPool.getTotalDebtTokenDeposits();
+  const totalSPDeposits = await coreContracts.stabilityPool.getTotalDebtTokenDeposits();
   th.logBN("Total debt token SP deposits", totalSPDeposits);
 
   // total ProtocolToken Staked in ProtocolTokenStaking
@@ -614,25 +614,25 @@ async function mainnetDeploy(configParams) {
 
   // TroveManager
   console.log("TroveManager state variables:");
-  const totalStakes = await liquityCore.troveManager.totalStakes();
-  const totalStakesSnapshot = await liquityCore.troveManager.totalStakesSnapshot();
-  const totalCollateralSnapshot = await liquityCore.troveManager.totalCollateralSnapshot();
+  const totalStakes = await coreContracts.troveManager.totalStakes();
+  const totalStakesSnapshot = await coreContracts.troveManager.totalStakesSnapshot();
+  const totalCollateralSnapshot = await coreContracts.troveManager.totalCollateralSnapshot();
   th.logBN("Total trove stakes", totalStakes);
   th.logBN("Snapshot of total trove stakes before last liq. ", totalStakesSnapshot);
   th.logBN("Snapshot of total trove collateral before last liq. ", totalCollateralSnapshot);
 
-  const L_FIL = await liquityCore.troveManager.L_FIL();
-  const L_Debt = await liquityCore.troveManager.L_Debt();
+  const L_FIL = await coreContracts.troveManager.L_FIL();
+  const L_Debt = await coreContracts.troveManager.L_Debt();
   th.logBN("L_FIL", L_FIL);
   th.logBN("L_Debt", L_Debt);
 
   // StabilityPool
   console.log("StabilityPool state variables:");
-  const P = await liquityCore.stabilityPool.P();
-  const currentScale = await liquityCore.stabilityPool.currentScale();
-  const currentEpoch = await liquityCore.stabilityPool.currentEpoch();
-  const S = await liquityCore.stabilityPool.epochToScaleToSum(currentEpoch, currentScale);
-  const G = await liquityCore.stabilityPool.epochToScaleToG(currentEpoch, currentScale);
+  const P = await coreContracts.stabilityPool.P();
+  const currentScale = await coreContracts.stabilityPool.currentScale();
+  const currentEpoch = await coreContracts.stabilityPool.currentEpoch();
+  const S = await coreContracts.stabilityPool.epochToScaleToSum(currentEpoch, currentScale);
+  const G = await coreContracts.stabilityPool.epochToScaleToG(currentEpoch, currentScale);
   th.logBN("Product P", P);
   th.logBN("Current epoch", currentEpoch);
   th.logBN("Current scale", currentScale);

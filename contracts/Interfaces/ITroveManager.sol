@@ -2,14 +2,14 @@
 
 pragma solidity 0.7.6;
 
-import "./ILiquityBase.sol";
+import "./IProtocolBase.sol";
 import "./IStabilityPool.sol";
 import "./IDebtToken.sol";
 import "./IProtocolToken.sol";
 import "./IProtocolTokenStaking.sol";
 
 // Common interface for the Trove Manager.
-interface ITroveManager is ILiquityBase {
+interface ITroveManager is IProtocolBase {
     // --- Events ---
 
     event BorrowerOperationsAddressChanged(address _newBorrowerOperationsAddress);

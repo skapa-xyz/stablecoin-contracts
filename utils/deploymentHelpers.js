@@ -23,7 +23,7 @@ const CommunityIssuanceTester = artifacts.require("./CommunityIssuanceTester.sol
 const StabilityPoolTester = artifacts.require("./StabilityPoolTester.sol");
 const ActivePoolTester = artifacts.require("./ActivePoolTester.sol");
 const DefaultPoolTester = artifacts.require("./DefaultPoolTester.sol");
-const LiquityMathTester = artifacts.require("./LiquityMathTester.sol");
+const ProtocolMathTester = artifacts.require("./ProtocolMathTester.sol");
 const BorrowerOperationsTester = artifacts.require("./BorrowerOperationsTester.sol");
 const TroveManagerTester = artifacts.require("./TroveManagerTester.sol");
 const DebtTokenTester = artifacts.require("./DebtTokenTester.sol");
@@ -46,7 +46,7 @@ const {
   ProtocolTokenStakingProxy,
 } = require("../utils/proxyHelpers.js");
 
-/* "Liquity core" consists of all contracts in the core Liquity system.
+/* "Protocol core" consists of all contracts in the core protocol system.
 
 ProtocolToken contracts consist of only those contracts related to the ProtocolToken:
 
@@ -60,15 +60,15 @@ const ZERO_ADDRESS = "0x" + "0".repeat(40);
 const maxBytes32 = "0x" + "f".repeat(64);
 
 class DeploymentHelper {
-  static async deployLiquityCore(gasCompensation, minNetDebt) {
+  static async deployProtocolCore(gasCompensation, minNetDebt) {
     const cmdLineArgs = process.argv;
     const frameworkPath = cmdLineArgs[1];
     // console.log(`Framework used:  ${frameworkPath}`)
 
     if (frameworkPath.includes("hardhat")) {
-      return this.deployLiquityCoreHardhat(gasCompensation, minNetDebt);
+      return this.deployProtocolCoreHardhat(gasCompensation, minNetDebt);
     } else if (frameworkPath.includes("truffle")) {
-      return this.deployLiquityCoreTruffle(gasCompensation, minNetDebt);
+      return this.deployProtocolCoreTruffle(gasCompensation, minNetDebt);
     }
   }
 
@@ -92,7 +92,7 @@ class DeploymentHelper {
     }
   }
 
-  static async deployLiquityCoreHardhat(gasCompensation, minNetDebt) {
+  static async deployProtocolCoreHardhat(gasCompensation, minNetDebt) {
     const priceFeedTestnet = await PriceFeedTestnet.new();
     const sortedTroves = await SortedTroves.new();
     const troveManager = await TroveManager.new(gasCompensation, minNetDebt);
@@ -152,7 +152,7 @@ class DeploymentHelper {
     testerContracts.stabilityPool = await StabilityPoolTester.new(gasCompensation, minNetDebt);
     testerContracts.gasPool = await GasPool.new();
     testerContracts.collSurplusPool = await CollSurplusPool.new();
-    testerContracts.math = await LiquityMathTester.new();
+    testerContracts.math = await ProtocolMathTester.new();
     testerContracts.borrowerOperations = await BorrowerOperationsTester.new(
       gasCompensation,
       minNetDebt,
@@ -234,7 +234,7 @@ class DeploymentHelper {
     return protocolTokenContracts;
   }
 
-  static async deployLiquityCoreTruffle(gasCompensation, minNetDebt) {
+  static async deployProtocolCoreTruffle(gasCompensation, minNetDebt) {
     const priceFeedTestnet = await PriceFeedTestnet.new();
     const sortedTroves = await SortedTroves.new();
     const troveManager = await TroveManager.new(gasCompensation, minNetDebt);

@@ -25,7 +25,7 @@ contract(
     let lockupContractFactory;
 
     before(async () => {
-      const coreContracts = await deploymentHelper.deployLiquityCore(
+      const coreContracts = await deploymentHelper.deployProtocolCore(
         th.GAS_COMPENSATION,
         th.MIN_NET_DEBT,
       );

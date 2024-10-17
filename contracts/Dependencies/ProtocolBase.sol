@@ -3,17 +3,17 @@
 pragma solidity 0.7.6;
 
 import "./BaseMath.sol";
-import "./LiquityMath.sol";
+import "./ProtocolMath.sol";
 import "../Interfaces/IActivePool.sol";
 import "../Interfaces/IDefaultPool.sol";
 import "../Interfaces/IPriceFeed.sol";
-import "../Interfaces/ILiquityBase.sol";
+import "../Interfaces/IProtocolBase.sol";
 
 /*
  * Base contract for TroveManager, BorrowerOperations and StabilityPool. Contains global system constants and
  * common functions.
  */
-contract LiquityBase is BaseMath, ILiquityBase {
+contract ProtocolBase is BaseMath, IProtocolBase {
     using SafeMath for uint;
 
     uint public constant _100pct = 1000000000000000000; // 1e18 == 100%
@@ -79,7 +79,7 @@ contract LiquityBase is BaseMath, ILiquityBase {
         uint entireSystemColl = getEntireSystemColl();
         uint entireSystemDebt = getEntireSystemDebt();
 
-        TCR = LiquityMath._computeCR(entireSystemColl, entireSystemDebt, _price);
+        TCR = ProtocolMath._computeCR(entireSystemColl, entireSystemDebt, _price);
 
         return TCR;
     }
@@ -97,11 +97,11 @@ contract LiquityBase is BaseMath, ILiquityBase {
 
     function _requireSameInitialParameters(address contractAddress) internal view {
         require(
-            LiquityBase(contractAddress).GAS_COMPENSATION() == GAS_COMPENSATION,
+            ProtocolBase(contractAddress).GAS_COMPENSATION() == GAS_COMPENSATION,
             "GAS_COMPENSATION mismatch"
         );
         require(
-            LiquityBase(contractAddress).MIN_NET_DEBT() == MIN_NET_DEBT,
+            ProtocolBase(contractAddress).MIN_NET_DEBT() == MIN_NET_DEBT,
             "MIN_NET_DEBT mismatch"
         );
     }

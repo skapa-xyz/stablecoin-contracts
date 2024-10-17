@@ -1,4 +1,4 @@
-/* Script that logs gas costs for Liquity operations under various conditions. 
+/* Script that logs gas costs for protocol operations under various conditions. 
 
   Note: uses Mocha testing structure, but the purpose of each test is simply to print gas costs.
 
@@ -36,7 +36,7 @@ contract("Gas cost tests", async (accounts) => {
   let data = [];
 
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
       bountyAddress,
       lpRewardsAddress,

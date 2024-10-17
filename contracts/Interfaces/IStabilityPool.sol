@@ -74,7 +74,7 @@ interface IStabilityPool {
     // --- Functions ---
 
     /*
-     * Called only once on init, to set addresses of other Liquity contracts
+     * Called only once on init, to set addresses of other protocol contracts
      * Callable only by owner, renounces ownership at the end
      */
     function setAddresses(

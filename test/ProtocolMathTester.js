@@ -1,13 +1,13 @@
-const LiquityMathTester = artifacts.require("./LiquityMathTester.sol");
+const ProtocolMathTester = artifacts.require("./ProtocolMathTester.sol");
 
-contract("LiquityMath", async (accounts) => {
-  let liquityMathTester;
+contract("ProtocolMathTester", async (accounts) => {
+  let protocolMathTester;
   beforeEach("deploy tester", async () => {
-    liquityMathTester = await LiquityMathTester.new();
+    protocolMathTester = await ProtocolMathTester.new();
   });
 
   const checkFunction = async (func, cond, params) => {
-    assert.equal(await liquityMathTester[func](...params), cond(...params));
+    assert.equal(await protocolMathTester[func](...params), cond(...params));
   };
 
   it("max works if a > b", async () => {

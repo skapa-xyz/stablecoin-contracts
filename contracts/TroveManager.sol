@@ -9,12 +9,12 @@ import "./Interfaces/IDebtToken.sol";
 import "./Interfaces/ISortedTroves.sol";
 import "./Interfaces/IProtocolToken.sol";
 import "./Interfaces/IProtocolTokenStaking.sol";
-import "./Dependencies/LiquityBase.sol";
+import "./Dependencies/ProtocolBase.sol";
 import "./Dependencies/Ownable.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
-contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
+contract TroveManager is ProtocolBase, Ownable, CheckContract, ITroveManager {
     using SafeMath for uint;
 
     string public constant NAME = "TroveManager";
@@ -197,7 +197,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
     constructor(
         uint _gasCompensation,
         uint _minNetDebt
-    ) LiquityBase(_gasCompensation, _minNetDebt) {}
+    ) ProtocolBase(_gasCompensation, _minNetDebt) {}
 
     // --- Dependency setter ---
 
@@ -490,7 +490,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
              *  - Send a fraction of the trove's collateral to the Stability Pool, equal to the fraction of its offset debt
              *
              */
-            debtToOffset = LiquityMath._min(_debt, _debtTokenInStabPool);
+            debtToOffset = ProtocolMath._min(_debt, _debtTokenInStabPool);
             collToSendToSP = _coll.mul(debtToOffset).div(_debt);
             debtToRedistribute = _debt.sub(debtToOffset);
             collToRedistribute = _coll.sub(collToSendToSP);
@@ -641,7 +641,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
                     break;
                 }
 
-                uint TCR = LiquityMath._computeCR(
+                uint TCR = ProtocolMath._computeCR(
                     vars.entireSystemColl,
                     vars.entireSystemDebt,
                     _price
@@ -841,7 +841,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
                     continue;
                 }
 
-                uint TCR = LiquityMath._computeCR(
+                uint TCR = ProtocolMath._computeCR(
                     vars.entireSystemColl,
                     vars.entireSystemDebt,
                     _price
@@ -1002,7 +1002,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
         uint _partialRedemptionHintNICR
     ) internal returns (SingleRedemptionValues memory singleRedemption) {
         // Determine the remaining amount (lot) to be redeemed, capped by the entire debt of the Trove minus the liquidation reserve
-        singleRedemption.debtLot = LiquityMath._min(
+        singleRedemption.debtLot = ProtocolMath._min(
             _maxDebtTokenAmount,
             Troves[_borrower].debt.sub(GAS_COMPENSATION)
         );
@@ -1021,7 +1021,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
             _redeemCloseTrove(_contractsCache, _borrower, GAS_COMPENSATION, newColl);
             emit TroveUpdated(_borrower, 0, 0, 0, TroveManagerOperation.redeemCollateral);
         } else {
-            uint newNICR = LiquityMath._computeNominalCR(newColl, newDebt);
+            uint newNICR = ProtocolMath._computeNominalCR(newColl, newDebt);
 
             /*
              * If the provided hint is out of date, we bail since trying to reinsert without a good hint will almost
@@ -1256,7 +1256,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
     function getNominalICR(address _borrower) public view override returns (uint) {
         (uint currentFIL, uint currentDebt) = _getCurrentTroveAmounts(_borrower);
 
-        uint NICR = LiquityMath._computeNominalCR(currentFIL, currentDebt);
+        uint NICR = ProtocolMath._computeNominalCR(currentFIL, currentDebt);
         return NICR;
     }
 
@@ -1264,7 +1264,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
     function getCurrentICR(address _borrower, uint _price) public view override returns (uint) {
         (uint currentFIL, uint currentDebt) = _getCurrentTroveAmounts(_borrower);
 
-        uint ICR = LiquityMath._computeCR(currentFIL, currentDebt, _price);
+        uint ICR = ProtocolMath._computeCR(currentFIL, currentDebt, _price);
         return ICR;
     }
 
@@ -1591,7 +1591,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
         uint _entireSystemDebt,
         uint _price
     ) internal pure returns (bool) {
-        uint TCR = LiquityMath._computeCR(_entireSystemColl, _entireSystemDebt, _price);
+        uint TCR = ProtocolMath._computeCR(_entireSystemColl, _entireSystemDebt, _price);
 
         return TCR < CCR;
     }
@@ -1616,7 +1616,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
         uint redeemedDebtTokenFraction = _FILDrawn.mul(_price).div(_totalDebtTokenSupply);
 
         uint newBaseRate = decayedBaseRate.add(redeemedDebtTokenFraction.div(BETA));
-        newBaseRate = LiquityMath._min(newBaseRate, DECIMAL_PRECISION); // cap baseRate at a maximum of 100%
+        newBaseRate = ProtocolMath._min(newBaseRate, DECIMAL_PRECISION); // cap baseRate at a maximum of 100%
         //assert(newBaseRate <= DECIMAL_PRECISION); // This is already enforced in the line above
         assert(newBaseRate > 0); // Base rate is always non-zero after redemption
 
@@ -1639,7 +1639,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
 
     function _calcRedemptionRate(uint _baseRate) internal pure returns (uint) {
         return
-            LiquityMath._min(
+            ProtocolMath._min(
                 REDEMPTION_FEE_FLOOR.add(_baseRate),
                 DECIMAL_PRECISION // cap at a maximum of 100%
             );
@@ -1673,7 +1673,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
     }
 
     function _calcBorrowingRate(uint _baseRate) internal pure returns (uint) {
-        return LiquityMath._min(BORROWING_FEE_FLOOR.add(_baseRate), MAX_BORROWING_FEE);
+        return ProtocolMath._min(BORROWING_FEE_FLOOR.add(_baseRate), MAX_BORROWING_FEE);
     }
 
     function getBorrowingFee(uint _debt) external view override returns (uint) {
@@ -1715,7 +1715,7 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
 
     function _calcDecayedBaseRate() internal view returns (uint) {
         uint minutesPassed = _minutesPassedSinceLastFeeOp();
-        uint decayFactor = LiquityMath._decPow(MINUTE_DECAY_FACTOR, minutesPassed);
+        uint decayFactor = ProtocolMath._decPow(MINUTE_DECAY_FACTOR, minutesPassed);
 
         return baseRate.mul(decayFactor).div(DECIMAL_PRECISION);
     }

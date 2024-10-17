@@ -18,7 +18,7 @@ const HintHelpers = artifacts.require("./HintHelpers.sol");
 const CommunityIssuanceTester = artifacts.require("./ProtocolToken/CommunityIssuanceTester.sol");
 const ActivePoolTester = artifacts.require("./ActivePoolTester.sol");
 const DefaultPoolTester = artifacts.require("./DefaultPoolTester.sol");
-const LiquityMathTester = artifacts.require("./LiquityMathTester.sol");
+const ProtocolMathTester = artifacts.require("./ProtocolMathTester.sol");
 const BorrowerOperationsTester = artifacts.require("./BorrowerOperationsTester.sol");
 const TroveManagerTester = artifacts.require("./TroveManagerTester.sol");
 const DebtTokenTester = artifacts.require("./DebtTokenTester.sol");
@@ -52,7 +52,7 @@ const TesterContractABIs = [
   CommunityIssuanceTester,
   ActivePoolTester,
   DefaultPoolTester,
-  LiquityMathTester,
+  ProtocolMathTester,
   BorrowerOperationsTester,
   TroveManagerTester,
   DebtTokenTester,
@@ -110,7 +110,7 @@ const logContractBytecodeLengths = (contractABIs) => {
 
 // Run script: log deployment gas costs and bytecode lengths for all contracts
 async function main() {
-  const coreContracts = await dh.deployLiquityCoreHardhat();
+  const coreContracts = await dh.deployProtocolCoreHardhat();
   const protocolTokenContracts = await dh.deployProtocolTokenContractsHardhat(
     ARBITRARY_ADDRESS,
     ARBITRARY_ADDRESS,

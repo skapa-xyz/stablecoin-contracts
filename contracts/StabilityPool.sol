@@ -9,9 +9,9 @@ import "./Interfaces/ITroveManager.sol";
 import "./Interfaces/IDebtToken.sol";
 import "./Interfaces/ISortedTroves.sol";
 import "./Interfaces/ICommunityIssuance.sol";
-import "./Dependencies/LiquityBase.sol";
+import "./Dependencies/ProtocolBase.sol";
 import "./Dependencies/SafeMath.sol";
-import "./Dependencies/LiquitySafeMath128.sol";
+import "./Dependencies/ProtocolSafeMath128.sol";
 import "./Dependencies/Ownable.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
@@ -145,8 +145,8 @@ import "./Dependencies/console.sol";
  * The product P (and snapshot P_t) is re-used, as the ratio P/P_t tracks a deposit's depletion due to liquidations.
  *
  */
-contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
-    using LiquitySafeMath128 for uint128;
+contract StabilityPool is ProtocolBase, Ownable, CheckContract, IStabilityPool {
+    using ProtocolSafeMath128 for uint128;
     using SafeMath for uint;
 
     string public constant NAME = "StabilityPool";
@@ -240,7 +240,7 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
     constructor(
         uint _gasCompensation,
         uint _minNetDebt
-    ) LiquityBase(_gasCompensation, _minNetDebt) {}
+    ) ProtocolBase(_gasCompensation, _minNetDebt) {}
 
     // --- Contract setters ---
 
@@ -366,7 +366,7 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
         uint depositorFILGain = getDepositorFILGain(msg.sender);
 
         uint compoundedDebtTokenDeposit = getCompoundedDebtTokenDeposit(msg.sender);
-        uint debtTokenToWithdraw = LiquityMath._min(_amount, compoundedDebtTokenDeposit);
+        uint debtTokenToWithdraw = ProtocolMath._min(_amount, compoundedDebtTokenDeposit);
         uint debtTokenLoss = initialDeposit.sub(compoundedDebtTokenDeposit); // Needed only for event log
 
         // First pay out any ProtocolToken gains

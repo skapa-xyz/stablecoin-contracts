@@ -72,7 +72,7 @@ contract("StabilityPool", async (accounts) => {
     });
 
     beforeEach(async () => {
-      contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+      contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
       contracts.troveManager = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
       contracts.debtToken = await DebtToken.new(
         contracts.troveManager.address,

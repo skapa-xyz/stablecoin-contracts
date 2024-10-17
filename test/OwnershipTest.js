@@ -1,10 +1,10 @@
 const deploymentHelper = require("../utils/deploymentHelpers.js");
 const { TestHelper: th, MoneyValues: mv } = require("../utils/testHelpers.js");
 
-const LiquityBase = artifacts.require("./LiquityBase.sol");
+const ProtocolBase = artifacts.require("./ProtocolBase.sol");
 const BorrowerOperationsTester = artifacts.require("./BorrowerOperationsTester.sol");
 
-contract("All Liquity functions with onlyOwner modifier", async (accounts) => {
+contract("All functions with onlyOwner modifier", async (accounts) => {
   const [owner, alice, bob] = accounts;
 
   const [bountyAddress, lpRewardsAddress, multisig] = accounts.slice(997, 1000);
@@ -24,7 +24,7 @@ contract("All Liquity functions with onlyOwner modifier", async (accounts) => {
   let lockupContractFactory;
 
   before(async () => {
-    contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     contracts.borrowerOperations = await BorrowerOperationsTester.new(
       th.GAS_COMPENSATION,
       th.MIN_NET_DEBT,
@@ -72,7 +72,7 @@ contract("All Liquity functions with onlyOwner modifier", async (accounts) => {
   };
 
   const testSetAddresses = async (contract, numberOfAddresses) => {
-    const dumbContract = await LiquityBase.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+    const dumbContract = await ProtocolBase.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     const params = Array(numberOfAddresses).fill(dumbContract.address);
 
     // Attempt call from alice
@@ -122,7 +122,7 @@ contract("All Liquity functions with onlyOwner modifier", async (accounts) => {
 
   describe("SortedTroves", async (accounts) => {
     it("setParams(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
-      const dumbContract = await LiquityBase.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+      const dumbContract = await ProtocolBase.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
       const params = [10000001, dumbContract.address, dumbContract.address];
 
       // Attempt call from alice

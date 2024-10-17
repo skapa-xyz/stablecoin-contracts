@@ -74,7 +74,7 @@ contract("BorrowerWrappers", async (accounts) => {
   const openTrove = async (params) => th.openTrove(contracts, params);
 
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     contracts.troveManager = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     contracts = await deploymentHelper.deployDebtToken(contracts);
     const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContractsHardhat(

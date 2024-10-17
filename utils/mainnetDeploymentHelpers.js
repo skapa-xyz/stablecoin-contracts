@@ -64,7 +64,7 @@ class MainnetDeploymentHelper {
     return contract;
   }
 
-  async deployLiquityCoreMainnet(deploymentState) {
+  async deployProtocolCoreMainnet(deploymentState) {
     const tellorMasterAddr = this.configParams.externalAddrs.TELLOR_MASTER;
     const pythPriceFeedAddr = this.configParams.externalAddrs.PYTH_PRICE_FEED;
     const pythPriceId = this.configParams.externalAddrs.PYTH_PRICE_ID;
@@ -262,11 +262,11 @@ class MainnetDeploymentHelper {
     return unipool;
   }
 
-  async deployMultiTroveGetterMainnet(liquityCore, deploymentState) {
+  async deployMultiTroveGetterMainnet(protocolCore, deploymentState) {
     const multiTroveGetterFactory = await this.getFactory("MultiTroveGetter");
     const multiTroveGetterParams = [
-      liquityCore.troveManager.address,
-      liquityCore.sortedTroves.address,
+      protocolCore.troveManager.address,
+      protocolCore.sortedTroves.address,
     ];
     const multiTroveGetter = await this.loadOrDeploy(
       multiTroveGetterFactory,

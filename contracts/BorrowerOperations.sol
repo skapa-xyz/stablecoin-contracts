@@ -8,12 +8,12 @@ import "./Interfaces/IDebtToken.sol";
 import "./Interfaces/ICollSurplusPool.sol";
 import "./Interfaces/ISortedTroves.sol";
 import "./Interfaces/IProtocolTokenStaking.sol";
-import "./Dependencies/LiquityBase.sol";
+import "./Dependencies/ProtocolBase.sol";
 import "./Dependencies/Ownable.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
-contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOperations {
+contract BorrowerOperations is ProtocolBase, Ownable, CheckContract, IBorrowerOperations {
     using SafeMath for uint;
 
     string public constant NAME = "BorrowerOperations";
@@ -79,7 +79,7 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
     constructor(
         uint _gasCompensation,
         uint _minNetDebt
-    ) LiquityBase(_gasCompensation, _minNetDebt) {}
+    ) ProtocolBase(_gasCompensation, _minNetDebt) {}
 
     // --- Dependency setters ---
 
@@ -173,8 +173,8 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
         vars.compositeDebt = _getCompositeDebt(vars.netDebt);
         assert(vars.compositeDebt > 0);
 
-        vars.ICR = LiquityMath._computeCR(msg.value, vars.compositeDebt, vars.price);
-        vars.NICR = LiquityMath._computeNominalCR(msg.value, vars.compositeDebt);
+        vars.ICR = ProtocolMath._computeCR(msg.value, vars.compositeDebt, vars.price);
+        vars.NICR = ProtocolMath._computeNominalCR(msg.value, vars.compositeDebt);
 
         if (isRecoveryMode) {
             _requireICRisAboveCCR(vars.ICR);
@@ -358,7 +358,7 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
         vars.coll = contractsCache.troveManager.getTroveColl(_borrower);
 
         // Get the trove's old ICR before the adjustment, and what its new ICR will be after the adjustment
-        vars.oldICR = LiquityMath._computeCR(vars.coll, vars.debt, vars.price);
+        vars.oldICR = ProtocolMath._computeCR(vars.coll, vars.debt, vars.price);
         vars.newICR = _getNewICRFromTroveChange(
             vars.coll,
             vars.debt,
@@ -771,7 +771,7 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
             _isDebtIncrease
         );
 
-        uint newNICR = LiquityMath._computeNominalCR(newColl, newDebt);
+        uint newNICR = ProtocolMath._computeNominalCR(newColl, newDebt);
         return newNICR;
     }
 
@@ -794,7 +794,7 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
             _isDebtIncrease
         );
 
-        uint newICR = LiquityMath._computeCR(newColl, newDebt, _price);
+        uint newICR = ProtocolMath._computeCR(newColl, newDebt, _price);
         return newICR;
     }
 
@@ -828,7 +828,7 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
         totalColl = _isCollIncrease ? totalColl.add(_collChange) : totalColl.sub(_collChange);
         totalDebt = _isDebtIncrease ? totalDebt.add(_debtChange) : totalDebt.sub(_debtChange);
 
-        uint newTCR = LiquityMath._computeCR(totalColl, totalDebt, _price);
+        uint newTCR = ProtocolMath._computeCR(totalColl, totalDebt, _price);
         return newTCR;
     }
 

@@ -11,7 +11,7 @@ const dec = th.dec;
 contract(
   "Deploying the ProtocolToken contracts: LCF, CI, ProtocolTokenStaking, and ProtocolToken ",
   async (accounts) => {
-    const [liquityAG, A, B] = accounts;
+    const [deployer, A, B] = accounts;
     const [bountyAddress, lpRewardsAddress, multisig] = accounts.slice(997, 1000);
 
     let protocolTokenContracts;
@@ -43,7 +43,7 @@ contract(
       it("Stores the deployer's address", async () => {
         const storedDeployerAddress = await communityIssuance.owner();
 
-        assert.equal(liquityAG, storedDeployerAddress);
+        assert.equal(deployer, storedDeployerAddress);
       });
     });
 
@@ -51,7 +51,7 @@ contract(
       it("Stores the deployer's address", async () => {
         const storedDeployerAddress = await protocolTokenStaking.owner();
 
-        assert.equal(liquityAG, storedDeployerAddress);
+        assert.equal(deployer, storedDeployerAddress);
       });
     });
 
@@ -113,7 +113,7 @@ contract(
       it("Stores the deployer's address", async () => {
         const storedDeployerAddress = await communityIssuance.owner();
 
-        assert.equal(storedDeployerAddress, liquityAG);
+        assert.equal(storedDeployerAddress, deployer);
       });
 
       it("Has a supply cap of 32 million", async () => {
@@ -122,12 +122,12 @@ contract(
         assert.isTrue(expectedCISupplyCap.eq(supplyCap));
       });
 
-      it("Liquity AG can set addresses if CI's ProtocolToken balance is equal or greater than 32 million ", async () => {
+      it("Deployer can set addresses if CI's ProtocolToken balance is equal or greater than 32 million ", async () => {
         const protocolTokenBalance = await protocolToken.balanceOf(communityIssuance.address);
         assert.isTrue(protocolTokenBalance.eq(expectedCISupplyCap));
 
         // Deploy core contracts, just to get the Stability Pool address
-        const coreContracts = await deploymentHelper.deployLiquityCore(
+        const coreContracts = await deploymentHelper.deployProtocolCore(
           th.GAS_COMPENSATION,
           th.MIN_NET_DEBT,
         );
@@ -136,20 +136,20 @@ contract(
           protocolToken.address,
           coreContracts.stabilityPool.address,
           {
-            from: liquityAG,
+            from: deployer,
           },
         );
         assert.isTrue(tx.receipt.status);
       });
 
-      it("Liquity AG can't set addresses if CI's ProtocolToken balance is < 32 million ", async () => {
+      it("Deployer can't set addresses if CI's ProtocolToken balance is < 32 million ", async () => {
         const newCI = await CommunityIssuance.new();
 
         const protocolTokenBalance = await protocolToken.balanceOf(newCI.address);
         assert.equal(protocolTokenBalance, "0");
 
         // Deploy core contracts, just to get the Stability Pool address
-        const coreContracts = await deploymentHelper.deployLiquityCore(
+        const coreContracts = await deploymentHelper.deployProtocolCore(
           th.GAS_COMPENSATION,
           th.MIN_NET_DEBT,
         );
@@ -164,7 +164,7 @@ contract(
             protocolToken.address,
             coreContracts.stabilityPool.address,
             {
-              from: liquityAG,
+              from: deployer,
             },
           );
 
@@ -178,7 +178,7 @@ contract(
     describe("Connecting ProtocolToken to LCF, CI and ProtocolTokenStaking", async (accounts) => {
       it("sets the correct ProtocolToken address in ProtocolTokenStaking", async () => {
         // Deploy core contracts and set the ProtocolToken address in the CI and ProtocolTokenStaking
-        const coreContracts = await deploymentHelper.deployLiquityCore(
+        const coreContracts = await deploymentHelper.deployProtocolCore(
           th.GAS_COMPENSATION,
           th.MIN_NET_DEBT,
         );
@@ -202,7 +202,7 @@ contract(
 
       it("sets the correct ProtocolToken address in CommunityIssuance", async () => {
         // Deploy core contracts and set the ProtocolToken address in the CI and ProtocolTokenStaking
-        const coreContracts = await deploymentHelper.deployLiquityCore(
+        const coreContracts = await deploymentHelper.deployProtocolCore(
           th.GAS_COMPENSATION,
           th.MIN_NET_DEBT,
         );

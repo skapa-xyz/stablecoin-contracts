@@ -83,7 +83,7 @@ contract("BorrowerOperations", async (accounts) => {
 
   const testCorpus = ({ withProxy = false }) => {
     beforeEach(async () => {
-      contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+      contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
       contracts.borrowerOperations = await BorrowerOperationsTester.new(
         th.GAS_COMPENSATION,
         th.MIN_NET_DEBT,
@@ -6263,7 +6263,7 @@ contract("BorrowerOperations", async (accounts) => {
     describe("getNewTCRFromTroveChange() returns the correct TCR", async () => {
       // 0, 0
       it("collChange = 0, debtChange = 0", async () => {
-        // --- SETUP --- Create a Liquity instance with an Active Pool and pending rewards (Default Pool)
+        // --- SETUP --- Create a protocol instance with an Active Pool and pending rewards (Default Pool)
         const troveColl = toBN(dec(1000, "ether"));
         const troveTotalDebt = toBN(dec(100000, 18));
         const troveDebtTokenAmount = await getOpenTroveDebtTokenAmount(troveTotalDebt);
@@ -6308,7 +6308,7 @@ contract("BorrowerOperations", async (accounts) => {
 
       // 0, +ve
       it("collChange = 0, debtChange is positive", async () => {
-        // --- SETUP --- Create a Liquity instance with an Active Pool and pending rewards (Default Pool)
+        // --- SETUP --- Create a protocol instance with an Active Pool and pending rewards (Default Pool)
         const troveColl = toBN(dec(1000, "ether"));
         const troveTotalDebt = toBN(dec(100000, 18));
         const troveDebtTokenAmount = await getOpenTroveDebtTokenAmount(troveTotalDebt);
@@ -6353,7 +6353,7 @@ contract("BorrowerOperations", async (accounts) => {
 
       // 0, -ve
       it("collChange = 0, debtChange is negative", async () => {
-        // --- SETUP --- Create a Liquity instance with an Active Pool and pending rewards (Default Pool)
+        // --- SETUP --- Create a protocol instance with an Active Pool and pending rewards (Default Pool)
         const troveColl = toBN(dec(1000, "ether"));
         const troveTotalDebt = toBN(dec(100000, 18));
         const troveDebtTokenAmount = await getOpenTroveDebtTokenAmount(troveTotalDebt);
@@ -6397,7 +6397,7 @@ contract("BorrowerOperations", async (accounts) => {
 
       // +ve, 0
       it("collChange is positive, debtChange is 0", async () => {
-        // --- SETUP --- Create a Liquity instance with an Active Pool and pending rewards (Default Pool)
+        // --- SETUP --- Create a protocol instance with an Active Pool and pending rewards (Default Pool)
         const troveColl = toBN(dec(1000, "ether"));
         const troveTotalDebt = toBN(dec(100000, 18));
         const troveDebtTokenAmount = await getOpenTroveDebtTokenAmount(troveTotalDebt);
@@ -6442,7 +6442,7 @@ contract("BorrowerOperations", async (accounts) => {
 
       // -ve, 0
       it("collChange is negative, debtChange is 0", async () => {
-        // --- SETUP --- Create a Liquity instance with an Active Pool and pending rewards (Default Pool)
+        // --- SETUP --- Create a protocol instance with an Active Pool and pending rewards (Default Pool)
         const troveColl = toBN(dec(1000, "ether"));
         const troveTotalDebt = toBN(dec(100000, 18));
         const troveDebtTokenAmount = await getOpenTroveDebtTokenAmount(troveTotalDebt);
@@ -6488,7 +6488,7 @@ contract("BorrowerOperations", async (accounts) => {
 
       // -ve, -ve
       it("collChange is negative, debtChange is negative", async () => {
-        // --- SETUP --- Create a Liquity instance with an Active Pool and pending rewards (Default Pool)
+        // --- SETUP --- Create a protocol instance with an Active Pool and pending rewards (Default Pool)
         const troveColl = toBN(dec(1000, "ether"));
         const troveTotalDebt = toBN(dec(100000, 18));
         const troveDebtTokenAmount = await getOpenTroveDebtTokenAmount(troveTotalDebt);
@@ -6534,7 +6534,7 @@ contract("BorrowerOperations", async (accounts) => {
 
       // +ve, +ve
       it("collChange is positive, debtChange is positive", async () => {
-        // --- SETUP --- Create a Liquity instance with an Active Pool and pending rewards (Default Pool)
+        // --- SETUP --- Create a protocol instance with an Active Pool and pending rewards (Default Pool)
         const troveColl = toBN(dec(1000, "ether"));
         const troveTotalDebt = toBN(dec(100000, 18));
         const troveDebtTokenAmount = await getOpenTroveDebtTokenAmount(troveTotalDebt);
@@ -6580,7 +6580,7 @@ contract("BorrowerOperations", async (accounts) => {
 
       // +ve, -ve
       it("collChange is positive, debtChange is negative", async () => {
-        // --- SETUP --- Create a Liquity instance with an Active Pool and pending rewards (Default Pool)
+        // --- SETUP --- Create a protocol instance with an Active Pool and pending rewards (Default Pool)
         const troveColl = toBN(dec(1000, "ether"));
         const troveTotalDebt = toBN(dec(100000, 18));
         const troveDebtTokenAmount = await getOpenTroveDebtTokenAmount(troveTotalDebt);
@@ -6626,7 +6626,7 @@ contract("BorrowerOperations", async (accounts) => {
 
       // -ve, +ve
       it("collChange is negative, debtChange is positive", async () => {
-        // --- SETUP --- Create a Liquity instance with an Active Pool and pending rewards (Default Pool)
+        // --- SETUP --- Create a protocol instance with an Active Pool and pending rewards (Default Pool)
         const troveColl = toBN(dec(1000, "ether"));
         const troveTotalDebt = toBN(dec(100000, 18));
         const troveDebtTokenAmount = await getOpenTroveDebtTokenAmount(troveTotalDebt);

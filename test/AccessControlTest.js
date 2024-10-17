@@ -10,12 +10,12 @@ const toBN = th.toBN;
 const assertRevert = th.assertRevert;
 
 /* The majority of access control tests are contained in this file. However, tests for restrictions 
-on the Liquity admin address's capabilities during the first year are found in:
+on the protocol admin address's capabilities during the first year are found in:
 
 test/launchSequenceTest/DuringLockupPeriodTest.js */
 
 contract(
-  "Access Control: Liquity functions with the caller restricted to Liquity contract(s)",
+  "Access Control: Protocol functions with the caller restricted to protocol contract(s)",
   async (accounts) => {
     const [owner, alice, bob, carol] = accounts;
     const [bountyAddress, lpRewardsAddress, multisig] = accounts.slice(997, 1000);
@@ -39,7 +39,7 @@ contract(
     let lockupContractFactory;
 
     before(async () => {
-      coreContracts = await deploymentHelper.deployLiquityCore(
+      coreContracts = await deploymentHelper.deployProtocolCore(
         th.GAS_COMPENSATION,
         th.MIN_NET_DEBT,
       );

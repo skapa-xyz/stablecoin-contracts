@@ -4,7 +4,7 @@ const deploymentHelper = require("../utils/deploymentHelpers.js");
 const { BNConverter } = require("../utils/BNConverter.js");
 const testHelpers = require("../utils/testHelpers.js");
 const TroveManagerTester = artifacts.require("./TroveManagerTester.sol");
-const LiquityMathTester = artifacts.require("./LiquityMathTester.sol");
+const ProtocolMathTester = artifacts.require("./ProtocolMathTester.sol");
 
 const th = testHelpers.TestHelper;
 const timeValues = testHelpers.TimeValues;
@@ -206,12 +206,12 @@ contract("Fee arithmetic tests", async (accounts) => {
     troveManagerTester = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     TroveManagerTester.setAsDeployed(troveManagerTester);
 
-    mathTester = await LiquityMathTester.new();
-    LiquityMathTester.setAsDeployed(mathTester);
+    mathTester = await ProtocolMathTester.new();
+    ProtocolMathTester.setAsDeployed(mathTester);
   });
 
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployLiquityCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
       bountyAddress,
       lpRewardsAddress,

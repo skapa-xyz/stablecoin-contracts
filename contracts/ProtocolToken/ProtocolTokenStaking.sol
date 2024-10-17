@@ -9,7 +9,7 @@ import "../Dependencies/CheckContract.sol";
 import "../Dependencies/console.sol";
 import "../Interfaces/IProtocolToken.sol";
 import "../Interfaces/IProtocolTokenStaking.sol";
-import "../Dependencies/LiquityMath.sol";
+import "../Dependencies/ProtocolMath.sol";
 import "../Interfaces/IDebtToken.sol";
 
 contract ProtocolTokenStaking is IProtocolTokenStaking, Ownable, CheckContract, BaseMath {
@@ -118,7 +118,7 @@ contract ProtocolTokenStaking is IProtocolTokenStaking, Ownable, CheckContract, 
         _updateUserSnapshots(msg.sender);
 
         if (_tokenAmount > 0) {
-            uint protocolTokenToWithdraw = LiquityMath._min(_tokenAmount, currentStake);
+            uint protocolTokenToWithdraw = ProtocolMath._min(_tokenAmount, currentStake);
 
             uint newStake = currentStake.sub(protocolTokenToWithdraw);
 
@@ -140,7 +140,7 @@ contract ProtocolTokenStaking is IProtocolTokenStaking, Ownable, CheckContract, 
         _sendFILGainToUser(FILGain);
     }
 
-    // --- Reward-per-unit-staked increase functions. Called by Liquity core contracts ---
+    // --- Reward-per-unit-staked increase functions. Called by core contracts ---
 
     function increaseF_FIL(uint _FILFee) external override {
         _requireCallerIsTroveManager();

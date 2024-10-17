@@ -5,7 +5,7 @@ pragma solidity 0.7.6;
 import "./SafeMath.sol";
 import "./console.sol";
 
-library LiquityMath {
+library ProtocolMath {
     using SafeMath for uint;
 
     uint internal constant DECIMAL_PRECISION = 1e18;
