@@ -149,15 +149,4 @@ contract EchidnaProxy {
     ) external returns (bool) {
         return debtToken.transferFrom(sender, recipient, amount);
     }
-
-    function increaseAllowancePrx(address spender, uint256 addedValue) external returns (bool) {
-        return debtToken.increaseAllowance(spender, addedValue);
-    }
-
-    function decreaseAllowancePrx(
-        address spender,
-        uint256 subtractedValue
-    ) external returns (bool) {
-        return debtToken.decreaseAllowance(spender, subtractedValue);
-    }
 }

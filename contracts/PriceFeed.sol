@@ -4,9 +4,9 @@ pragma solidity 0.7.6;
 
 import "./Interfaces/IPriceFeed.sol";
 import "./Interfaces/ITellorCaller.sol";
+import "./Dependencies/OpenZeppelin/access/Ownable.sol";
+import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/AggregatorV3Interface.sol";
-import "./Dependencies/SafeMath.sol";
-import "./Dependencies/Ownable.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/BaseMath.sol";
 import "./Dependencies/ProtocolMath.sol";
@@ -89,7 +89,7 @@ contract PriceFeed is Ownable, CheckContract, BaseMath, IPriceFeed {
 
         _storeChainlinkPrice(chainlinkResponse);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     // --- Functions ---

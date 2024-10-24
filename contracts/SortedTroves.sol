@@ -5,8 +5,8 @@ pragma solidity 0.7.6;
 import "./Interfaces/ISortedTroves.sol";
 import "./Interfaces/ITroveManager.sol";
 import "./Interfaces/IBorrowerOperations.sol";
-import "./Dependencies/SafeMath.sol";
-import "./Dependencies/Ownable.sol";
+import "./Dependencies/OpenZeppelin/access/Ownable.sol";
+import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
@@ -89,7 +89,7 @@ contract SortedTroves is Ownable, CheckContract, ISortedTroves {
         emit TroveManagerAddressChanged(_troveManagerAddress);
         emit BorrowerOperationsAddressChanged(_borrowerOperationsAddress);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     /*

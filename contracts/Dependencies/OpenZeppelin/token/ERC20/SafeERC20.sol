@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.7.6;
+pragma solidity >=0.6.0 <0.8.0;
 
-import "../../Dependencies/IERC20.sol";
-import "../../Dependencies/SafeMath.sol";
-import "./Address.sol";
+import "./IERC20.sol";
+import "../../math/SafeMath.sol";
+import "../../utils/Address.sol";
 
 /**
+ * Based on the OpenZeppelin SafeERC20:
+ * https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v3.4.2/contracts/token/ERC20/SafeERC20.sol
+ *
  * @title SafeERC20
  * @dev Wrappers around ERC20 operations that throw on failure (when the token
  * contract returns false). Tokens that return no value (and instead revert or

@@ -9,8 +9,8 @@ import "./Interfaces/IDebtToken.sol";
 import "./Interfaces/ISortedTroves.sol";
 import "./Interfaces/IProtocolToken.sol";
 import "./Interfaces/IProtocolTokenStaking.sol";
+import "./Dependencies/OpenZeppelin/access/Ownable.sol";
 import "./Dependencies/ProtocolBase.sol";
-import "./Dependencies/Ownable.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
@@ -253,7 +253,7 @@ contract TroveManager is ProtocolBase, Ownable, CheckContract, ITroveManager {
         emit ProtocolTokenAddressChanged(_protocolTokenAddress);
         emit ProtocolTokenStakingAddressChanged(_protocolTokenStakingAddress);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     // --- Getters ---

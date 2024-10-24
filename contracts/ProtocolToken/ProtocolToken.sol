@@ -2,8 +2,8 @@
 
 pragma solidity 0.7.6;
 
+import "../Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "../Dependencies/CheckContract.sol";
-import "../Dependencies/SafeMath.sol";
 import "../Interfaces/IProtocolToken.sol";
 import "../Interfaces/ILockupContractFactory.sol";
 import "../Dependencies/console.sol";
@@ -39,7 +39,7 @@ import "../Dependencies/console.sol";
 * 9) Until one year from deployment:
 * -The multisig may only transfer() tokens to LockupContracts that have been deployed via & registered in the 
 *  LockupContractFactory 
-* -approve(), increaseAllowance(), decreaseAllowance() revert when called by the multisig
+* -approve() revert when called by the multisig
 * -transferFrom() reverts when the multisig is the sender
 * -sendToProtocolTokenStaking() reverts when the multisig is the sender, blocking the multisig from staking its ProtocolToken.
 * 
@@ -208,37 +208,6 @@ contract ProtocolToken is CheckContract, IProtocolToken {
             sender,
             msg.sender,
             _allowances[sender][msg.sender].sub(amount, "ERC20: transfer amount exceeds allowance")
-        );
-        return true;
-    }
-
-    function increaseAllowance(
-        address spender,
-        uint256 addedValue
-    ) external override returns (bool) {
-        if (_isFirstYear()) {
-            _requireCallerIsNotMultisig();
-        }
-
-        _approve(msg.sender, spender, _allowances[msg.sender][spender].add(addedValue));
-        return true;
-    }
-
-    function decreaseAllowance(
-        address spender,
-        uint256 subtractedValue
-    ) external override returns (bool) {
-        if (_isFirstYear()) {
-            _requireCallerIsNotMultisig();
-        }
-
-        _approve(
-            msg.sender,
-            spender,
-            _allowances[msg.sender][spender].sub(
-                subtractedValue,
-                "ERC20: decreased allowance below zero"
-            )
         );
         return true;
     }

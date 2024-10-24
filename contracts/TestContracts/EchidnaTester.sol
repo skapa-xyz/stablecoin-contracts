@@ -377,26 +377,6 @@ contract EchidnaTester {
         return true;
     }
 
-    function increaseAllowanceExt(
-        uint _i,
-        address spender,
-        uint256 addedValue
-    ) external returns (bool) {
-        uint actor = _i % NUMBER_OF_ACTORS;
-        echidnaProxies[actor].increaseAllowancePrx(spender, addedValue);
-        return true;
-    }
-
-    function decreaseAllowanceExt(
-        uint _i,
-        address spender,
-        uint256 subtractedValue
-    ) external returns (bool) {
-        uint actor = _i % NUMBER_OF_ACTORS;
-        echidnaProxies[actor].decreaseAllowancePrx(spender, subtractedValue);
-        return true;
-    }
-
     // PriceFeed
 
     function setPriceExt(uint256 _price) external {

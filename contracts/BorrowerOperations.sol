@@ -8,8 +8,8 @@ import "./Interfaces/IDebtToken.sol";
 import "./Interfaces/ICollSurplusPool.sol";
 import "./Interfaces/ISortedTroves.sol";
 import "./Interfaces/IProtocolTokenStaking.sol";
+import "./Dependencies/OpenZeppelin/access/Ownable.sol";
 import "./Dependencies/ProtocolBase.sol";
-import "./Dependencies/Ownable.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
@@ -135,7 +135,7 @@ contract BorrowerOperations is ProtocolBase, Ownable, CheckContract, IBorrowerOp
         emit DebtTokenAddressChanged(_debtTokenAddress);
         emit ProtocolTokenStakingAddressChanged(_protocolTokenStakingAddress);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     // --- Borrower Trove Operations ---

@@ -254,16 +254,6 @@ contract("DebtToken", async (accounts) => {
       await assertRevert(debtTokenTester.transfer(borrowerOperations.address, 1, { from: alice }));
     });
 
-    it("increaseAllowance(): increases an account's allowance by the correct amount", async () => {
-      const allowance_A_Before = await debtTokenTester.allowance(bob, alice);
-      assert.equal(allowance_A_Before, "0");
-
-      await debtTokenTester.increaseAllowance(alice, 100, { from: bob });
-
-      const allowance_A_After = await debtTokenTester.allowance(bob, alice);
-      assert.equal(allowance_A_After, 100);
-    });
-
     if (!withProxy) {
       it("mint(): issues correct amount of tokens to the given address", async () => {
         const alice_balanceBefore = await debtTokenTester.balanceOf(alice);
@@ -325,23 +315,6 @@ contract("DebtToken", async (accounts) => {
       await assertRevert(debtTokenTester.transfer(troveManager.address, 1, { from: alice }));
       await assertRevert(debtTokenTester.transfer(stabilityPool.address, 1, { from: alice }));
       await assertRevert(debtTokenTester.transfer(borrowerOperations.address, 1, { from: alice }));
-    });
-
-    it("decreaseAllowance(): decreases allowance by the expected amount", async () => {
-      await debtTokenTester.approve(bob, dec(3, 18), { from: alice });
-      assert.equal((await debtTokenTester.allowance(alice, bob)).toString(), dec(3, 18));
-      await debtTokenTester.decreaseAllowance(bob, dec(1, 18), { from: alice });
-      assert.equal((await debtTokenTester.allowance(alice, bob)).toString(), dec(2, 18));
-    });
-
-    it("decreaseAllowance(): fails trying to decrease more than previously allowed", async () => {
-      await debtTokenTester.approve(bob, dec(3, 18), { from: alice });
-      assert.equal((await debtTokenTester.allowance(alice, bob)).toString(), dec(3, 18));
-      await assertRevert(
-        debtTokenTester.decreaseAllowance(bob, dec(4, 18), { from: alice }),
-        "ERC20: decreased allowance below zero",
-      );
-      assert.equal((await debtTokenTester.allowance(alice, bob)).toString(), dec(3, 18));
     });
 
     // EIP2612 tests

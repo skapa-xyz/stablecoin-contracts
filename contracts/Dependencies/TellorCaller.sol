@@ -3,8 +3,8 @@
 pragma solidity 0.7.6;
 
 import "../Interfaces/ITellorCaller.sol";
+import "./OpenZeppelin/math/SafeMath.sol";
 import "./ITellor.sol";
-import "./SafeMath.sol";
 /*
  * This contract has a single external function that calls Tellor: getTellorCurrentValue().
  *

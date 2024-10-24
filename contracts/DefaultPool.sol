@@ -3,8 +3,8 @@
 pragma solidity 0.7.6;
 
 import "./Interfaces/IDefaultPool.sol";
-import "./Dependencies/SafeMath.sol";
-import "./Dependencies/Ownable.sol";
+import "./Dependencies/OpenZeppelin/access/Ownable.sol";
+import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
@@ -40,7 +40,7 @@ contract DefaultPool is Ownable, CheckContract, IDefaultPool {
         emit TroveManagerAddressChanged(_troveManagerAddress);
         emit ActivePoolAddressChanged(_activePoolAddress);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     // --- Getters for public variables. Required by IPool interface ---

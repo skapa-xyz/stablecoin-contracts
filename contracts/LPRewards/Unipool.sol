@@ -2,12 +2,12 @@
 
 pragma solidity 0.7.6;
 
+import "../Dependencies/OpenZeppelin/access/Ownable.sol";
+import "../Dependencies/OpenZeppelin/math/SafeMath.sol";
+import "../Dependencies/OpenZeppelin/token/ERC20/SafeERC20.sol";
 import "../Dependencies/ProtocolMath.sol";
-import "../Dependencies/SafeMath.sol";
-import "../Dependencies/Ownable.sol";
 import "../Dependencies/CheckContract.sol";
 import "../Interfaces/IProtocolToken.sol";
-import "./Dependencies/SafeERC20.sol";
 import "./Interfaces/ILPTokenWrapper.sol";
 import "./Interfaces/IUnipool.sol";
 import "../Dependencies/console.sol";
@@ -110,7 +110,7 @@ contract Unipool is LPTokenWrapper, Ownable, CheckContract, IUnipool {
         emit ProtocolTokenAddressChanged(_protocolTokenAddress);
         emit UniTokenAddressChanged(_uniTokenAddress);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     // Returns current timestamp if the rewards program has not finished yet, end time otherwise

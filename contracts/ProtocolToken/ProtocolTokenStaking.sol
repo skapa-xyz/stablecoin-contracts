@@ -2,9 +2,9 @@
 
 pragma solidity 0.7.6;
 
+import "../Dependencies/OpenZeppelin/access/Ownable.sol";
+import "../Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "../Dependencies/BaseMath.sol";
-import "../Dependencies/SafeMath.sol";
-import "../Dependencies/Ownable.sol";
 import "../Dependencies/CheckContract.sol";
 import "../Dependencies/console.sol";
 import "../Interfaces/IProtocolToken.sol";
@@ -66,7 +66,7 @@ contract ProtocolTokenStaking is IProtocolTokenStaking, Ownable, CheckContract, 
         emit BorrowerOperationsAddressSet(_borrowerOperationsAddress);
         emit ActivePoolAddressSet(_activePoolAddress);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     // If caller has a pre-existing stake, send any accumulated FIL and Debt Token gains to them.

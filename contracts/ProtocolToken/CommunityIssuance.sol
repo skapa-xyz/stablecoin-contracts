@@ -4,11 +4,11 @@ pragma solidity 0.7.6;
 
 import "../Interfaces/IProtocolToken.sol";
 import "../Interfaces/ICommunityIssuance.sol";
+import "../Dependencies/OpenZeppelin/access/Ownable.sol";
+import "../Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "../Dependencies/BaseMath.sol";
 import "../Dependencies/ProtocolMath.sol";
-import "../Dependencies/Ownable.sol";
 import "../Dependencies/CheckContract.sol";
-import "../Dependencies/SafeMath.sol";
 
 contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMath {
     using SafeMath for uint;
@@ -73,7 +73,7 @@ contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMa
         emit ProtocolTokenAddressSet(_protocolTokenAddress);
         emit StabilityPoolAddressSet(_stabilityPoolAddress);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     function issueProtocolToken() external override returns (uint) {

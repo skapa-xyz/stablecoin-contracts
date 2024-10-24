@@ -2,7 +2,7 @@
 
 pragma solidity 0.7.6;
 
-import "./SafeMath.sol";
+import "./OpenZeppelin/math/SafeMath.sol";
 import "./console.sol";
 
 library ProtocolMath {

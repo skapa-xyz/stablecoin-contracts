@@ -349,18 +349,6 @@ class TokenProxy extends Proxy {
     return this.forwardFunction(params, "approve(address,uint256)");
   }
 
-  async increaseAllowance(...params) {
-    // switch destination to proxy if any
-    params[0] = this.getProxyAddressFromUser(params[0]);
-    return this.forwardFunction(params, "increaseAllowance(address,uint256)");
-  }
-
-  async decreaseAllowance(...params) {
-    // switch destination to proxy if any
-    params[0] = this.getProxyAddressFromUser(params[0]);
-    return this.forwardFunction(params, "decreaseAllowance(address,uint256)");
-  }
-
   async totalSupply(...params) {
     return this.proxyFunction("totalSupply", params);
   }

@@ -3,8 +3,8 @@
 pragma solidity 0.7.6;
 
 import "./Interfaces/ICollSurplusPool.sol";
-import "./Dependencies/SafeMath.sol";
-import "./Dependencies/Ownable.sol";
+import "./Dependencies/OpenZeppelin/access/Ownable.sol";
+import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
@@ -41,7 +41,7 @@ contract CollSurplusPool is Ownable, CheckContract, ICollSurplusPool {
         emit TroveManagerAddressChanged(_troveManagerAddress);
         emit ActivePoolAddressChanged(_activePoolAddress);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     /* Returns the FIL state variable at ActivePool address.

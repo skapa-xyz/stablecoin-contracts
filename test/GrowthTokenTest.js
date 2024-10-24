@@ -337,28 +337,6 @@ contract("ProtocolToken", async (accounts) => {
     await assertRevert(tx);
   });
 
-  it("increaseAllowance(): increases an account's allowance by the correct amount", async () => {
-    const allowance_A_Before = await protocolTokenTester.allowance(B, A);
-    assert.equal(allowance_A_Before, "0");
-
-    await protocolTokenTester.increaseAllowance(A, dec(100, 18), { from: B });
-
-    const allowance_A_After = await protocolTokenTester.allowance(B, A);
-    assert.equal(allowance_A_After, dec(100, 18));
-  });
-
-  it("decreaseAllowance(): decreases an account's allowance by the correct amount", async () => {
-    await protocolTokenTester.increaseAllowance(A, dec(100, 18), { from: B });
-
-    const A_allowance = await protocolTokenTester.allowance(B, A);
-    assert.equal(A_allowance, dec(100, 18));
-
-    await protocolTokenTester.decreaseAllowance(A, dec(100, 18), { from: B });
-
-    const A_allowanceAfterDecrease = await protocolTokenTester.allowance(B, A);
-    assert.equal(A_allowanceAfterDecrease, "0");
-  });
-
   it("sendToProtocolTokenStaking(): changes balances of ProtocolTokenStaking and calling account by the correct amounts", async () => {
     // mint some tokens to A
     await protocolTokenTester.unprotectedMint(A, dec(150, 18));

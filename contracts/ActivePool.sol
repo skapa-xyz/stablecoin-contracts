@@ -3,8 +3,8 @@
 pragma solidity 0.7.6;
 
 import "./Interfaces/IActivePool.sol";
-import "./Dependencies/SafeMath.sol";
-import "./Dependencies/Ownable.sol";
+import "./Dependencies/OpenZeppelin/access/Ownable.sol";
+import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
@@ -50,7 +50,7 @@ contract ActivePool is Ownable, CheckContract, IActivePool {
         emit StabilityPoolAddressChanged(_stabilityPoolAddress);
         emit DefaultPoolAddressChanged(_defaultPoolAddress);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     // --- Getters for public variables. Required by IPool interface ---

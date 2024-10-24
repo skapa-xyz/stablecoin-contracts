@@ -3,7 +3,7 @@
 pragma solidity 0.7.6;
 
 import "./Interfaces/IDebtToken.sol";
-import "./Dependencies/SafeMath.sol";
+import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 /*
@@ -150,29 +150,6 @@ contract DebtToken is CheckContract, IDebtToken {
             sender,
             msg.sender,
             _allowances[sender][msg.sender].sub(amount, "ERC20: transfer amount exceeds allowance")
-        );
-        return true;
-    }
-
-    function increaseAllowance(
-        address spender,
-        uint256 addedValue
-    ) external override returns (bool) {
-        _approve(msg.sender, spender, _allowances[msg.sender][spender].add(addedValue));
-        return true;
-    }
-
-    function decreaseAllowance(
-        address spender,
-        uint256 subtractedValue
-    ) external override returns (bool) {
-        _approve(
-            msg.sender,
-            spender,
-            _allowances[msg.sender][spender].sub(
-                subtractedValue,
-                "ERC20: decreased allowance below zero"
-            )
         );
         return true;
     }

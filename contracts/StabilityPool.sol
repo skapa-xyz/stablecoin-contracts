@@ -9,10 +9,10 @@ import "./Interfaces/ITroveManager.sol";
 import "./Interfaces/IDebtToken.sol";
 import "./Interfaces/ISortedTroves.sol";
 import "./Interfaces/ICommunityIssuance.sol";
+import "./Dependencies/OpenZeppelin/access/Ownable.sol";
+import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/ProtocolBase.sol";
-import "./Dependencies/SafeMath.sol";
 import "./Dependencies/ProtocolSafeMath128.sol";
-import "./Dependencies/Ownable.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
@@ -280,7 +280,7 @@ contract StabilityPool is ProtocolBase, Ownable, CheckContract, IStabilityPool {
         emit PriceFeedAddressChanged(_priceFeedAddress);
         emit CommunityIssuanceAddressChanged(_communityIssuanceAddress);
 
-        _renounceOwnership();
+        renounceOwnership();
     }
 
     // --- Getters for public variables. Required by IPool interface ---

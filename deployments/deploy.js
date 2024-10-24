@@ -370,7 +370,7 @@ async function deploy(configParams) {
   // if (deployerLPTokenBal.toString() == '0') {
   //   console.log('Providing liquidity to Uniswap...')
   //   // Give router an allowance for DebtToken
-  //   await coreContracts.debtToken.increaseAllowance(uniswapV2Router02.address, dec(10000, 18))
+  //   await coreContracts.debtToken.approve(uniswapV2Router02.address, dec(10000, 18))
 
   //   // Check Router's spending allowance
   //   const routerDebtTokenAllowanceFromDeployer = await coreContracts.debtToken.allowance(deployerWallet.address, uniswapV2Router02.address)

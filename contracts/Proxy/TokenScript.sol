@@ -2,8 +2,8 @@
 
 pragma solidity 0.7.6;
 
+import "../Dependencies/OpenZeppelin/token/ERC20/IERC20.sol";
 import "../Dependencies/CheckContract.sol";
-import "../Dependencies/IERC20.sol";
 
 contract TokenScript is CheckContract {
     string public constant NAME = "TokenScript";
@@ -35,16 +35,6 @@ contract TokenScript is CheckContract {
         uint256 amount
     ) external returns (bool) {
         token.transferFrom(sender, recipient, amount);
-        return true;
-    }
-
-    function increaseAllowance(address spender, uint256 addedValue) external returns (bool) {
-        token.increaseAllowance(spender, addedValue);
-        return true;
-    }
-
-    function decreaseAllowance(address spender, uint256 subtractedValue) external returns (bool) {
-        token.decreaseAllowance(spender, subtractedValue);
         return true;
     }
 }

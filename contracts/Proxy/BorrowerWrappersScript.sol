@@ -2,9 +2,9 @@
 
 pragma solidity 0.7.6;
 
-import "../Dependencies/SafeMath.sol";
+import "../Dependencies/OpenZeppelin/math/SafeMath.sol";
+import "../Dependencies/OpenZeppelin/token/ERC20/IERC20.sol";
 import "../Dependencies/ProtocolMath.sol";
-import "../Dependencies/IERC20.sol";
 import "../Interfaces/IBorrowerOperations.sol";
 import "../Interfaces/ITroveManager.sol";
 import "../Interfaces/IStabilityPool.sol";
