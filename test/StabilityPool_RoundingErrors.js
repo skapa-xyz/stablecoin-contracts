@@ -1,9 +1,5 @@
-const deploymentHelpers = require("../utils/truffleDeploymentHelpers.js");
+const deploymentHelper = require("../utils/deploymentHelpers.js");
 const testHelpers = require("../utils/testHelpers.js");
-
-const deployProtocol = deploymentHelpers.deployProtocol;
-const getAddresses = deploymentHelpers.getAddresses;
-const connectContracts = deploymentHelpers.connectContracts;
 
 const th = testHelpers.TestHelper;
 const dec = th.dec;
@@ -19,17 +15,16 @@ contract("Pool Manager: Sum-Product rounding errors", async (accounts) => {
   let troveManager;
   let borrowerOperations;
 
+  const openTrove = async (params) => openTrove(contracts, params);
+
   beforeEach(async () => {
-    contracts = await deployProtocol();
+    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
 
     priceFeed = contracts.priceFeedTestnet;
     debtToken = contracts.debtToken;
     stabilityPool = contracts.stabilityPool;
     troveManager = contracts.troveManager;
     borrowerOperations = contracts.borrowerOperations;
-
-    const contractAddresses = getAddresses(contracts);
-    await connectContracts(contracts, contractAddresses);
   });
 
   // skipped to not slow down CI
@@ -40,8 +35,8 @@ contract("Pool Manager: Sum-Product rounding errors", async (accounts) => {
 
     for (let account of depositors) {
       await openTrove({
-        extraDebtTokenAmount: toBN(dec(10000, 18)),
-        ICR: toBN(dec(2, 18)),
+        extraDebtTokenAmount: th.toBN(dec(10000, 18)),
+        ICR: th.toBN(dec(2, 18)),
         extraParams: { from: account },
       });
       await stabilityPool.provideToSP(dec(100, 18), { from: account });
@@ -49,7 +44,7 @@ contract("Pool Manager: Sum-Product rounding errors", async (accounts) => {
 
     // Defaulter opens trove with 200% ICR
     for (let defaulter of defaulters) {
-      await openTrove({ ICR: toBN(dec(2, 18)), extraParams: { from: defaulter } });
+      await openTrove({ ICR: th.toBN(dec(2, 18)), extraParams: { from: defaulter } });
     }
     const price = await priceFeed.getPrice();
 

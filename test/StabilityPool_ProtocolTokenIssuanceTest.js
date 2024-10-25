@@ -71,12 +71,11 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
         contracts.stabilityPool.address,
         contracts.borrowerOperations.address,
       );
-      const protocolTokenContracts =
-        await deploymentHelper.deployProtocolTokenTesterContractsHardhat(
-          bountyAddress,
-          lpRewardsAddress,
-          multisig,
-        );
+      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
+        bountyAddress,
+        lpRewardsAddress,
+        multisig,
+      );
 
       priceFeed = contracts.priceFeedTestnet;
       debtToken = contracts.debtToken;

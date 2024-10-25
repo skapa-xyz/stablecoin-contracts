@@ -47,13 +47,13 @@ contract(
         th.GAS_COMPENSATION,
         th.MIN_NET_DEBT,
       );
+
       coreContracts = await deploymentHelper.deployDebtTokenTester(coreContracts);
-      const protocolTokenContracts =
-        await deploymentHelper.deployProtocolTokenTesterContractsHardhat(
-          bountyAddress,
-          lpRewardsAddress,
-          multisig,
-        );
+      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
+        bountyAddress,
+        lpRewardsAddress,
+        multisig,
+      );
 
       priceFeed = coreContracts.priceFeed;
       debtToken = coreContracts.debtToken;

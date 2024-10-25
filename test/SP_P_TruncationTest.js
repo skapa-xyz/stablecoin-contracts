@@ -46,12 +46,11 @@ contract("StabilityPool Scale Factor issue tests", async (accounts) => {
         contracts.borrowerOperations.address,
       );
 
-      const protocolTokenContracts =
-        await deploymentHelper.deployProtocolTokenTesterContractsHardhat(
-          bountyAddress,
-          lpRewardsAddress,
-          multisig,
-        );
+      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
+        bountyAddress,
+        lpRewardsAddress,
+        multisig,
+      );
 
       priceFeed = contracts.priceFeedTestnet;
       debtToken = contracts.debtToken;

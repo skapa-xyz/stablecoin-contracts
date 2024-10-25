@@ -50,7 +50,7 @@ contract("ProtocolTokenStaking revenue share tests", async (accounts) => {
     contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     contracts.troveManager = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     contracts = await deploymentHelper.deployDebtTokenTester(contracts);
-    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContractsHardhat(
+    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
       bountyAddress,
       lpRewardsAddress,
       multisig,

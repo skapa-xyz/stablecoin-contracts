@@ -90,12 +90,11 @@ contract("BorrowerOperations", async (accounts) => {
       );
       contracts.troveManager = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
       contracts = await deploymentHelper.deployDebtTokenTester(contracts);
-      const protocolTokenContracts =
-        await deploymentHelper.deployProtocolTokenTesterContractsHardhat(
-          bountyAddress,
-          lpRewardsAddress,
-          multisig,
-        );
+      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
+        bountyAddress,
+        lpRewardsAddress,
+        multisig,
+      );
 
       await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
       await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);

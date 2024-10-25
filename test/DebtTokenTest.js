@@ -91,7 +91,7 @@ contract("DebtToken", async (accounts) => {
 
   const testCorpus = ({ withProxy = false }) => {
     beforeEach(async () => {
-      const contracts = await deploymentHelper.deployTesterContractsHardhat(
+      const contracts = await deploymentHelper.deployTesterContracts(
         GAS_COMPENSATION,
         MIN_NET_DEBT,
       );

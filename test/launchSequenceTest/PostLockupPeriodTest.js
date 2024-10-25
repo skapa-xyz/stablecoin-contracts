@@ -80,7 +80,7 @@ contract("After the initial lockup period has passed", async (accounts) => {
 
   beforeEach(async () => {
     // Deploy all contracts from the first account
-    protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContractsHardhat(
+    protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
       bountyAddress,
       lpRewardsAddress,
       multisig,

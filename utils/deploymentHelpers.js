@@ -61,38 +61,6 @@ const maxBytes32 = "0x" + "f".repeat(64);
 
 class DeploymentHelper {
   static async deployProtocolCore(gasCompensation, minNetDebt) {
-    const cmdLineArgs = process.argv;
-    const frameworkPath = cmdLineArgs[1];
-    // console.log(`Framework used:  ${frameworkPath}`)
-
-    if (frameworkPath.includes("hardhat")) {
-      return this.deployProtocolCoreHardhat(gasCompensation, minNetDebt);
-    } else if (frameworkPath.includes("truffle")) {
-      return this.deployProtocolCoreTruffle(gasCompensation, minNetDebt);
-    }
-  }
-
-  static async deployProtocolTokenContracts(bountyAddress, lpRewardsAddress, multisigAddress) {
-    const cmdLineArgs = process.argv;
-    const frameworkPath = cmdLineArgs[1];
-    // console.log(`Framework used:  ${frameworkPath}`)
-
-    if (frameworkPath.includes("hardhat")) {
-      return this.deployProtocolTokenContractsHardhat(
-        bountyAddress,
-        lpRewardsAddress,
-        multisigAddress,
-      );
-    } else if (frameworkPath.includes("truffle")) {
-      return this.deployProtocolTokenContractsTruffle(
-        bountyAddress,
-        lpRewardsAddress,
-        multisigAddress,
-      );
-    }
-  }
-
-  static async deployProtocolCoreHardhat(gasCompensation, minNetDebt) {
     const priceFeedTestnet = await PriceFeedTestnet.new();
     const sortedTroves = await SortedTroves.new();
     const troveManager = await TroveManager.new(gasCompensation, minNetDebt);
@@ -109,6 +77,7 @@ class DeploymentHelper {
       stabilityPool.address,
       borrowerOperations.address,
     );
+
     DebtToken.setAsDeployed(debtToken);
     DefaultPool.setAsDeployed(defaultPool);
     PriceFeedTestnet.setAsDeployed(priceFeedTestnet);
@@ -139,7 +108,7 @@ class DeploymentHelper {
     return coreContracts;
   }
 
-  static async deployTesterContractsHardhat(gasCompensation, minNetDebt) {
+  static async deployTesterContracts(gasCompensation, minNetDebt) {
     const testerContracts = {};
 
     // Contract without testers (yet)
@@ -165,14 +134,11 @@ class DeploymentHelper {
       testerContracts.stabilityPool.address,
       testerContracts.borrowerOperations.address,
     );
+
     return testerContracts;
   }
 
-  static async deployProtocolTokenContractsHardhat(
-    bountyAddress,
-    lpRewardsAddress,
-    multisigAddress,
-  ) {
+  static async deployProtocolTokenContracts(bountyAddress, lpRewardsAddress, multisigAddress) {
     const protocolTokenStaking = await ProtocolTokenStaking.new();
     const lockupContractFactory = await LockupContractFactory.new();
     const communityIssuance = await CommunityIssuance.new();
@@ -201,7 +167,7 @@ class DeploymentHelper {
     return protocolTokenContracts;
   }
 
-  static async deployProtocolTokenTesterContractsHardhat(
+  static async deployProtocolTokenTesterContracts(
     bountyAddress,
     lpRewardsAddress,
     multisigAddress,
@@ -224,69 +190,6 @@ class DeploymentHelper {
       multisigAddress,
     );
     ProtocolTokenTester.setAsDeployed(protocolToken);
-
-    const protocolTokenContracts = {
-      protocolTokenStaking,
-      lockupContractFactory,
-      communityIssuance,
-      protocolToken,
-    };
-    return protocolTokenContracts;
-  }
-
-  static async deployProtocolCoreTruffle(gasCompensation, minNetDebt) {
-    const priceFeedTestnet = await PriceFeedTestnet.new();
-    const sortedTroves = await SortedTroves.new();
-    const troveManager = await TroveManager.new(gasCompensation, minNetDebt);
-    const activePool = await ActivePool.new();
-    const stabilityPool = await StabilityPool.new(gasCompensation, minNetDebt);
-    const gasPool = await GasPool.new();
-    const defaultPool = await DefaultPool.new();
-    const collSurplusPool = await CollSurplusPool.new();
-    const functionCaller = await FunctionCaller.new();
-    const borrowerOperations = await BorrowerOperations.new(gasCompensation, minNetDebt);
-    const hintHelpers = await HintHelpers.new(gasCompensation, minNetDebt);
-    const debtToken = await DebtToken.new(
-      troveManager.address,
-      stabilityPool.address,
-      borrowerOperations.address,
-    );
-    const coreContracts = {
-      priceFeedTestnet,
-      debtToken,
-      sortedTroves,
-      troveManager,
-      activePool,
-      stabilityPool,
-      gasPool,
-      defaultPool,
-      collSurplusPool,
-      functionCaller,
-      borrowerOperations,
-      hintHelpers,
-    };
-    return coreContracts;
-  }
-
-  static async deployProtocolTokenContractsTruffle(
-    bountyAddress,
-    lpRewardsAddress,
-    multisigAddress,
-  ) {
-    const protocolTokenStaking = await protocolTokenStaking.new();
-    const lockupContractFactory = await LockupContractFactory.new();
-    const communityIssuance = await CommunityIssuance.new();
-
-    /* Deploy ProtocolToken, passing Community Issuance,  ProtocolTokenStaking, and Factory addresses 
-    to the constructor  */
-    const protocolToken = await ProtocolToken.new(
-      communityIssuance.address,
-      protocolTokenStaking.address,
-      lockupContractFactory.address,
-      bountyAddress,
-      lpRewardsAddress,
-      multisigAddress,
-    );
 
     const protocolTokenContracts = {
       protocolTokenStaking,

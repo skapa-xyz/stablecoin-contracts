@@ -63,7 +63,7 @@ contract("During the initial lockup period", async (accounts) => {
   beforeEach(async () => {
     // Deploy all contracts from the first account
     coreContracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContractsHardhat(
+    protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
       bountyAddress,
       lpRewardsAddress,
       multisig,

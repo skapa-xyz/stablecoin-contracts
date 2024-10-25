@@ -49,7 +49,7 @@ contract("ProtocolToken community issuance arithmetic tests", async (accounts) =
 
   beforeEach(async () => {
     contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContractsHardhat(
+    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
       bountyAddress,
       lpRewardsAddress,
       multisig,
