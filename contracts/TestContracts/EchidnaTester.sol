@@ -51,18 +51,14 @@ contract EchidnaTester {
         defaultPool = new DefaultPool();
         stabilityPool = new StabilityPool(_gasCompensation, _minNetDebt);
         gasPool = new GasPool();
-        debtToken = new DebtToken(
-            address(troveManager),
-            address(stabilityPool),
-            address(borrowerOperations)
-        );
+        debtToken = new DebtToken();
 
         collSurplusPool = new CollSurplusPool();
         priceFeedTestnet = new PriceFeedTestnet();
 
         sortedTroves = new SortedTroves();
 
-        troveManager.setAddresses(
+        troveManager.initialize(
             address(borrowerOperations),
             address(activePool),
             address(defaultPool),
@@ -76,7 +72,7 @@ contract EchidnaTester {
             address(0)
         );
 
-        borrowerOperations.setAddresses(
+        borrowerOperations.initialize(
             address(troveManager),
             address(activePool),
             address(defaultPool),
@@ -89,16 +85,16 @@ contract EchidnaTester {
             address(0)
         );
 
-        activePool.setAddresses(
+        activePool.initialize(
             address(borrowerOperations),
             address(troveManager),
             address(stabilityPool),
             address(defaultPool)
         );
 
-        defaultPool.setAddresses(address(troveManager), address(activePool));
+        defaultPool.initialize(address(troveManager), address(activePool));
 
-        stabilityPool.setAddresses(
+        stabilityPool.initialize(
             address(borrowerOperations),
             address(troveManager),
             address(activePool),
@@ -108,13 +104,19 @@ contract EchidnaTester {
             address(0)
         );
 
-        collSurplusPool.setAddresses(
+        debtToken.initialize(
+            address(troveManager),
+            address(stabilityPool),
+            address(borrowerOperations)
+        );
+
+        collSurplusPool.initialize(
             address(borrowerOperations),
             address(troveManager),
             address(activePool)
         );
 
-        sortedTroves.setParams(1e18, address(troveManager), address(borrowerOperations));
+        sortedTroves.initialize(1e18, address(troveManager), address(borrowerOperations));
 
         for (uint i = 0; i < NUMBER_OF_ACTORS; i++) {
             echidnaProxies[i] = new EchidnaProxy(

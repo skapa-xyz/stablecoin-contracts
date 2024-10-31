@@ -60,7 +60,36 @@ const ZERO_ADDRESS = "0x" + "0".repeat(40);
 const maxBytes32 = "0x" + "f".repeat(64);
 
 class DeploymentHelper {
+  // static async getFactory(name) {
+  //   const factory = await ethers.getContractFactory(name);
+  //   return factory;
+  // }
+
+  // static async deploy(factory, params = []) {
+  //   const contract = await factory.deploy(...params);
+  //   // await this.deployerWallet.provider.waitForTransaction(
+  //   //   contract.deployTransaction.hash,
+  //   //   this.configParams.TX_CONFIRMATIONS,
+  //   // );
+
+  //   return contract;
+  // }
+
   static async deployProtocolCore(gasCompensation, minNetDebt) {
+    // Get contract factories
+    // const priceFeedTestnetFactory = await this.getFactory("PriceFeedTestnet");
+    // const sortedTrovesFactory = await this.getFactory("SortedTroves");
+    // const troveManagerFactory = await this.getFactory("TroveManager");
+    // const activePoolFactory = await this.getFactory("ActivePool");
+    // const stabilityPoolFactory = await this.getFactory("StabilityPool");
+    // const gasPoolFactory = await this.getFactory("GasPool");
+    // const defaultPoolFactory = await this.getFactory("DefaultPool");
+    // const collSurplusPoolFactory = await this.getFactory("CollSurplusPool");
+    // const functionCallerFactory = await this.getFactory("FunctionCaller");
+    // const borrowerOperationsFactory = await this.getFactory("BorrowerOperations");
+    // const hintHelpersFactory = await this.getFactory("HintHelpers");
+    // const debtTokenFactory = await this.getFactory("DebtToken");
+
     const priceFeedTestnet = await PriceFeedTestnet.new();
     const sortedTroves = await SortedTroves.new();
     const troveManager = await TroveManager.new(gasCompensation, minNetDebt);
@@ -72,11 +101,27 @@ class DeploymentHelper {
     const functionCaller = await FunctionCaller.new();
     const borrowerOperations = await BorrowerOperations.new(gasCompensation, minNetDebt);
     const hintHelpers = await HintHelpers.new(gasCompensation, minNetDebt);
-    const debtToken = await DebtToken.new(
-      troveManager.address,
-      stabilityPool.address,
-      borrowerOperations.address,
-    );
+    const debtToken = await DebtToken.new();
+
+    // const priceFeedTestnet = await this.deploy(priceFeedTestnetFactory);
+    // const sortedTroves = await this.deploy(sortedTrovesFactory);
+    // const troveManager = await this.deploy(troveManagerFactory, [gasCompensation, minNetDebt]);
+    // const activePool = await this.deploy(activePoolFactory);
+    // const stabilityPool = await this.deploy(stabilityPoolFactory, [gasCompensation, minNetDebt]);
+    // const gasPool = await this.deploy(gasPoolFactory);
+    // const defaultPool = await this.deploy(defaultPoolFactory);
+    // const collSurplusPool = await this.deploy(collSurplusPoolFactory);
+    // const functionCaller = await this.deploy(functionCallerFactory);
+    // const borrowerOperations = await this.deploy(borrowerOperationsFactory, [
+    //   gasCompensation,
+    //   minNetDebt,
+    // ]);
+    // const hintHelpers = await this.deploy(hintHelpersFactory, [gasCompensation, minNetDebt]);
+    // const debtToken = await this.deploy(debtTokenFactory, [
+    //   troveManager.address,
+    //   stabilityPool.address,
+    //   borrowerOperations.address,
+    // ]);
 
     DebtToken.setAsDeployed(debtToken);
     DefaultPool.setAsDeployed(defaultPool);
@@ -111,9 +156,27 @@ class DeploymentHelper {
   static async deployTesterContracts(gasCompensation, minNetDebt) {
     const testerContracts = {};
 
+    // const priceFeedTestnetFactory = await this.getFactory("PriceFeedTestnet");
+    // const sortedTrovesFactory = await this.getFactory("SortedTroves");
+
+    // const communityIssuanceTesterFactory = await this.getFactory("CommunityIssuanceTester");
+    // const activePoolTesterFactory = await this.getFactory("ActivePoolTester");
+    // const defaultPoolTesterFactory = await this.getFactory("DefaultPoolTester");
+    // const stabilityPoolTesterFactory = await this.getFactory("StabilityPoolTester");
+    // const gasPoolFactory = await this.getFactory("GasPool");
+    // const collSurplusPoolFactory = await this.getFactory("CollSurplusPool");
+    // const protocolMathTesterFactory = await this.getFactory("ProtocolMathTester");
+    // const borrowerOperationsTesterFactory = await this.getFactory("BorrowerOperationsTester");
+    // const troveManagerTesterFactory = await this.getFactory("TroveManagerTester");
+    // const functionCallerFactory = await this.getFactory("FunctionCaller");
+    // const hintHelpersFactory = await this.getFactory("HintHelpers");
+    // const debtTokenTesterFactory = await this.getFactory("DebtTokenTester");
+
     // Contract without testers (yet)
     testerContracts.priceFeedTestnet = await PriceFeedTestnet.new();
     testerContracts.sortedTroves = await SortedTroves.new();
+    // testerContracts.priceFeedTestnet = await this.deploy(priceFeedTestnetFactory);
+    // testerContracts.sortedTroves = await this.deploy(sortedTrovesFactory);
     // Actual tester contracts
     testerContracts.communityIssuance = await CommunityIssuanceTester.new();
     testerContracts.activePool = await ActivePoolTester.new();
@@ -134,28 +197,66 @@ class DeploymentHelper {
       testerContracts.stabilityPool.address,
       testerContracts.borrowerOperations.address,
     );
+    // testerContracts.communityIssuance = await this.deploy(communityIssuanceTesterFactory);
+    // testerContracts.activePool = await this.deploy(activePoolTesterFactory);
+    // testerContracts.defaultPool = await this.deploy(defaultPoolTesterFactory);
+    // testerContracts.stabilityPool = await this.deploy(stabilityPoolTesterFactory, [
+    //   gasCompensation,
+    //   minNetDebt,
+    // ]);
+    // testerContracts.gasPool = await this.deploy(gasPoolFactory);
+    // testerContracts.collSurplusPool = await this.deploy(collSurplusPoolFactory);
+    // testerContracts.math = await this.deploy(protocolMathTesterFactory);
+    // testerContracts.borrowerOperations = await this.deploy(borrowerOperationsTesterFactory, [
+    //   gasCompensation,
+    //   minNetDebt,
+    // ]);
+    // testerContracts.troveManager = await this.deploy(troveManagerTesterFactory, [
+    //   gasCompensation,
+    //   minNetDebt,
+    // ]);
+    // testerContracts.functionCaller = await this.deploy(functionCallerFactory);
+    // testerContracts.hintHelpers = await this.deploy(hintHelpersFactory, [
+    //   gasCompensation,
+    //   minNetDebt,
+    // ]);
+    // testerContracts.debtToken = await this.deploy(debtTokenTesterFactory, [
+    //   testerContracts.troveManager.address,
+    //   testerContracts.stabilityPool.address,
+    //   testerContracts.borrowerOperations.address,
+    // ]);
 
     return testerContracts;
   }
 
   static async deployProtocolTokenContracts(bountyAddress, lpRewardsAddress, multisigAddress) {
+    // const protocolTokenStakingFactory = await this.getFactory("ProtocolTokenStaking");
+    // const lockupContractFactoryFactory = await this.getFactory("LockupContractFactory");
+    // const communityIssuanceFactory = await this.getFactory("CommunityIssuance");
+    // const protocolTokenFactory = await this.getFactory("ProtocolToken");
+
     const protocolTokenStaking = await ProtocolTokenStaking.new();
     const lockupContractFactory = await LockupContractFactory.new();
     const communityIssuance = await CommunityIssuance.new();
+
+    // const protocolTokenStaking = await this.deploy(protocolTokenStakingFactory);
+    // const lockupContractFactory = await this.deploy(lockupContractFactoryFactory);
+    // const communityIssuance = await this.deploy(communityIssuanceFactory);
+    // const protocolToken = await this.deploy(protocolTokenFactory, [
+    //   communityIssuance.address,
+    //   protocolTokenStaking.address,
+    //   lockupContractFactory.address,
+    //   bountyAddress,
+    //   lpRewardsAddress,
+    //   multisigAddress,
+    // ]);
 
     ProtocolTokenStaking.setAsDeployed(protocolTokenStaking);
     LockupContractFactory.setAsDeployed(lockupContractFactory);
     CommunityIssuance.setAsDeployed(communityIssuance);
 
     // Deploy ProtocolToken, passing Community Issuance and Factory addresses to the constructor
-    const protocolToken = await ProtocolToken.new(
-      communityIssuance.address,
-      protocolTokenStaking.address,
-      lockupContractFactory.address,
-      bountyAddress,
-      lpRewardsAddress,
-      multisigAddress,
-    );
+    const protocolToken = await ProtocolToken.new();
     ProtocolToken.setAsDeployed(protocolToken);
 
     const protocolTokenContracts = {
@@ -172,23 +273,33 @@ class DeploymentHelper {
     lpRewardsAddress,
     multisigAddress,
   ) {
+    // const protocolTokenStakingFactory = await this.getFactory("ProtocolTokenStaking");
+    // const lockupContractFactoryFactory = await this.getFactory("LockupContractFactory");
+    // const communityIssuanceFactory = await this.getFactory("CommunityIssuanceTester");
+    // const protocolTokenFactory = await this.getFactory("ProtocolTokenTester");
+
     const protocolTokenStaking = await ProtocolTokenStaking.new();
     const lockupContractFactory = await LockupContractFactory.new();
     const communityIssuance = await CommunityIssuanceTester.new();
+
+    // const protocolTokenStaking = await this.deploy(protocolTokenStakingFactory);
+    // const lockupContractFactory = await this.deploy(lockupContractFactoryFactory);
+    // const communityIssuance = await this.deploy(communityIssuanceFactory);
+    // const protocolToken = await this.deploy(protocolTokenFactory, [
+    //   communityIssuance.address,
+    //   protocolTokenStaking.address,
+    //   lockupContractFactory.address,
+    //   bountyAddress,
+    //   lpRewardsAddress,
+    //   multisigAddress,
+    // ]);
 
     ProtocolTokenStaking.setAsDeployed(protocolTokenStaking);
     LockupContractFactory.setAsDeployed(lockupContractFactory);
     CommunityIssuanceTester.setAsDeployed(communityIssuance);
 
     // Deploy ProtocolToken, passing Community Issuance and Factory addresses to the constructor
-    const protocolToken = await ProtocolTokenTester.new(
-      communityIssuance.address,
-      protocolTokenStaking.address,
-      lockupContractFactory.address,
-      bountyAddress,
-      lpRewardsAddress,
-      multisigAddress,
-    );
+    const protocolToken = await ProtocolTokenTester.new();
     ProtocolTokenTester.setAsDeployed(protocolToken);
 
     const protocolTokenContracts = {
@@ -201,31 +312,47 @@ class DeploymentHelper {
   }
 
   static async deployDebtToken(contracts) {
-    contracts.debtToken = await DebtToken.new(
-      contracts.troveManager.address,
-      contracts.stabilityPool.address,
-      contracts.borrowerOperations.address,
-    );
+    // const debtTokenFactory = await this.getFactory("DebtToken");
+    // contracts.debtToken = await this.deploy(debtTokenFactory, [
+    //   contracts.troveManager.address,
+    //   contracts.stabilityPool.address,
+    //   contracts.borrowerOperations.address,
+    // ]);
+    contracts.debtToken = await DebtToken.new();
     return contracts;
   }
 
   static async deployDebtTokenTester(contracts) {
-    contracts.debtToken = await DebtTokenTester.new(
-      contracts.troveManager.address,
-      contracts.stabilityPool.address,
-      contracts.borrowerOperations.address,
-    );
+    // const debtTokenFactory = await this.getFactory("DebtTokenTester");
+    // contracts.debtToken = await this.deploy(debtTokenFactory, [
+    //   contracts.troveManager.address,
+    //   contracts.stabilityPool.address,
+    //   contracts.borrowerOperations.address,
+    // ]);
+    contracts.debtToken = await DebtTokenTester.new();
     return contracts;
   }
 
   static async deployProxyScripts(contracts, protocolTokenContracts, owner, users) {
     const proxies = await buildUserProxies(users);
 
+    // const borrowerWrappersScriptFactory = await this.getFactory("BorrowerWrappersScript");
+    // const borrowerOperationsScriptFactory = await this.getFactory("BorrowerOperationsScript");
+    // const troveManagerScriptFactory = await this.getFactory("TroveManagerScript");
+    // const stabilityPoolScriptFactory = await this.getFactory("StabilityPoolScript");
+    // const tokenScriptFactory = await this.getFactory("TokenScript");
+    // const protocolStakingScriptFactory = await this.getFactory("ProtocolStakingScript");
+
     const borrowerWrappersScript = await BorrowerWrappersScript.new(
       contracts.borrowerOperations.address,
       contracts.troveManager.address,
       protocolTokenContracts.protocolTokenStaking.address,
     );
+    // const borrowerWrappersScript = await this.deploy(borrowerWrappersScriptFactory, [
+    //   contracts.borrowerOperations.address,
+    //   contracts.troveManager.address,
+    //   protocolTokenContracts.protocolTokenStaking.address,
+    // ]);
     contracts.borrowerWrappers = new BorrowerWrappersProxy(
       owner,
       proxies,
@@ -235,6 +362,9 @@ class DeploymentHelper {
     const borrowerOperationsScript = await BorrowerOperationsScript.new(
       contracts.borrowerOperations.address,
     );
+    // const borrowerOperationsScript = await this.deploy(borrowerOperationsScriptFactory, [
+    //   contracts.borrowerOperations.address,
+    // ]);
     contracts.borrowerOperations = new BorrowerOperationsProxy(
       owner,
       proxies,
@@ -243,6 +373,9 @@ class DeploymentHelper {
     );
 
     const troveManagerScript = await TroveManagerScript.new(contracts.troveManager.address);
+    // const troveManagerScript = await this.deploy(troveManagerScriptFactory, [
+    //   contracts.troveManager.address,
+    // ]);
     contracts.troveManager = new TroveManagerProxy(
       owner,
       proxies,
@@ -251,6 +384,9 @@ class DeploymentHelper {
     );
 
     const stabilityPoolScript = await StabilityPoolScript.new(contracts.stabilityPool.address);
+    // const stabilityPoolScript = await this.deploy(stabilityPoolScriptFactory, [
+    //   contracts.stabilityPool.address,
+    // ]);
     contracts.stabilityPool = new StabilityPoolProxy(
       owner,
       proxies,
@@ -261,6 +397,7 @@ class DeploymentHelper {
     contracts.sortedTroves = new SortedTrovesProxy(owner, proxies, contracts.sortedTroves);
 
     const debtTokenScript = await TokenScript.new(contracts.debtToken.address);
+    // const debtTokenScript = await this.deploy(tokenScriptFactory, [contracts.debtToken.address]);
     contracts.debtToken = new TokenProxy(
       owner,
       proxies,
@@ -269,6 +406,9 @@ class DeploymentHelper {
     );
 
     const protocolTokenScript = await TokenScript.new(protocolTokenContracts.protocolToken.address);
+    // const protocolTokenScript = await this.deploy(tokenScriptFactory, [
+    //   protocolTokenContracts.protocolToken.address,
+    // ]);
     protocolTokenContracts.protocolToken = new TokenProxy(
       owner,
       proxies,
@@ -279,6 +419,9 @@ class DeploymentHelper {
     const protocolTokenStakingScript = await ProtocolStakingScript.new(
       protocolTokenContracts.protocolTokenStaking.address,
     );
+    // const protocolTokenStakingScript = await this.deploy(protocolStakingScriptFactory, [
+    //   protocolTokenContracts.protocolTokenStaking.address,
+    // ]);
     protocolTokenContracts.protocolTokenStaking = new ProtocolTokenStakingProxy(
       owner,
       proxies,
@@ -363,9 +506,23 @@ class DeploymentHelper {
       contracts.sortedTroves.address,
       contracts.troveManager.address,
     );
+
+    await contracts.debtToken.setAddresses(
+      contracts.troveManager.address,
+      contracts.stabilityPool.address,
+      contracts.borrowerOperations.address,
+    );
   }
 
   static async connectProtocolTokenContracts(protocolTokenContracts) {
+    protocolTokenContracts.protocolToken.setAddresses(
+      protocolTokenContracts.communityIssuance.address,
+      protocolTokenContracts.protocolTokenStaking.address,
+      protocolTokenContracts.lockupContractFactory.address,
+      protocolTokenContracts.bountyAddress,
+      protocolTokenContracts.lpRewardsAddress,
+      protocolTokenContracts.multisigAddress,
+    );
     // Set ProtocolToken address in LCF
     await protocolTokenContracts.lockupContractFactory.setProtocolTokenAddress(
       protocolTokenContracts.protocolToken.address,

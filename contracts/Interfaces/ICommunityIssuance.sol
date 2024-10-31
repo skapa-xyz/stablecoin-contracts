@@ -11,7 +11,7 @@ interface ICommunityIssuance {
 
     // --- Functions ---
 
-    function setAddresses(address _protocolTokenAddress, address _stabilityPoolAddress) external;
+    function protocolTokenSupplyCap() external view returns (uint);
 
     function issueProtocolToken() external returns (uint);
 

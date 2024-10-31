@@ -2,7 +2,7 @@
 
 pragma solidity 0.7.6;
 
-import "../Dependencies/OpenZeppelin/access/Ownable.sol";
+import "../Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "../Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "../Dependencies/BaseMath.sol";
 import "../Dependencies/CheckContract.sol";
@@ -12,7 +12,12 @@ import "../Interfaces/IProtocolTokenStaking.sol";
 import "../Dependencies/ProtocolMath.sol";
 import "../Interfaces/IDebtToken.sol";
 
-contract ProtocolTokenStaking is IProtocolTokenStaking, Ownable, CheckContract, BaseMath {
+contract ProtocolTokenStaking is
+    IProtocolTokenStaking,
+    OwnableUpgradeable,
+    CheckContract,
+    BaseMath
+{
     using SafeMath for uint;
 
     // --- Data ---
@@ -41,13 +46,30 @@ contract ProtocolTokenStaking is IProtocolTokenStaking, Ownable, CheckContract, 
 
     // --- Functions ---
 
-    function setAddresses(
+    function initialize(
         address _protocolTokenAddress,
         address _debtTokenAddress,
         address _troveManagerAddress,
         address _borrowerOperationsAddress,
         address _activePoolAddress
-    ) external override onlyOwner {
+    ) external initializer {
+        __Ownable_init();
+        _setAddresses(
+            _protocolTokenAddress,
+            _debtTokenAddress,
+            _troveManagerAddress,
+            _borrowerOperationsAddress,
+            _activePoolAddress
+        );
+    }
+
+    function _setAddresses(
+        address _protocolTokenAddress,
+        address _debtTokenAddress,
+        address _troveManagerAddress,
+        address _borrowerOperationsAddress,
+        address _activePoolAddress
+    ) private {
         checkContract(_protocolTokenAddress);
         checkContract(_debtTokenAddress);
         checkContract(_troveManagerAddress);
@@ -65,8 +87,6 @@ contract ProtocolTokenStaking is IProtocolTokenStaking, Ownable, CheckContract, 
         emit TroveManagerAddressSet(_troveManagerAddress);
         emit BorrowerOperationsAddressSet(_borrowerOperationsAddress);
         emit ActivePoolAddressSet(_activePoolAddress);
-
-        renounceOwnership();
     }
 
     // If caller has a pre-existing stake, send any accumulated FIL and Debt Token gains to them.

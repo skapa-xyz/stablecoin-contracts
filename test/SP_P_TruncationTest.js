@@ -40,11 +40,7 @@ contract("StabilityPool Scale Factor issue tests", async (accounts) => {
     beforeEach(async () => {
       contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
       contracts.troveManager = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-      contracts.debtToken = await DebtToken.new(
-        contracts.troveManager.address,
-        contracts.stabilityPool.address,
-        contracts.borrowerOperations.address,
-      );
+      contracts.debtToken = await DebtToken.new();
 
       const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
         bountyAddress,

@@ -4,17 +4,9 @@ pragma solidity 0.7.6;
 
 contract CheckContract {
     /**
-     * Check that the account is an already deployed non-destroyed contract.
-     * See: https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol#L12
+     * Check that the account is not the zero address
      */
-    function checkContract(address _account) internal view {
+    function checkContract(address _account) internal pure {
         require(_account != address(0), "Account cannot be zero address");
-
-        uint256 size;
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            size := extcodesize(_account)
-        }
-        require(size > 0, "Account code size cannot be zero");
     }
 }

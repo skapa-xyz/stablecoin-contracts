@@ -74,20 +74,6 @@ interface IStabilityPool {
     // --- Functions ---
 
     /*
-     * Called only once on init, to set addresses of other protocol contracts
-     * Callable only by owner, renounces ownership at the end
-     */
-    function setAddresses(
-        address _borrowerOperationsAddress,
-        address _troveManagerAddress,
-        address _activePoolAddress,
-        address _debtTokenAddress,
-        address _sortedTrovesAddress,
-        address _priceFeedAddress,
-        address _communityIssuanceAddress
-    ) external;
-
-    /*
      * Initial checks:
      * - Frontend is registered or zero address
      * - Sender is not a registered frontend

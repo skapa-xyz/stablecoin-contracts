@@ -2,8 +2,10 @@
 
 pragma solidity 0.7.6;
 
+import "../Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "../Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "../Dependencies/CheckContract.sol";
+import "../Interfaces/ICommunityIssuance.sol";
 import "../Interfaces/IProtocolToken.sol";
 import "../Interfaces/ILockupContractFactory.sol";
 import "../Dependencies/console.sol";
@@ -47,7 +49,7 @@ import "../Dependencies/console.sol";
 * and the multisig has the same rights as any other address.
 */
 
-contract ProtocolToken is CheckContract, IProtocolToken {
+contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
     using SafeMath for uint256;
 
     // --- ERC20 Data ---
@@ -85,38 +87,22 @@ contract ProtocolToken is CheckContract, IProtocolToken {
     uint public constant ONE_YEAR_IN_SECONDS = 31536000; // 60 * 60 * 24 * 365
 
     // uint for use with SafeMath
-    uint internal _1_MILLION = 1e24; // 1e6 * 1e18 = 1e24
+    uint internal constant _1_MILLION = 1e24; // 1e6 * 1e18 = 1e24
 
     uint internal immutable deploymentStartTime;
-    address public immutable multisigAddress;
+    address public multisigAddress;
 
-    address public immutable communityIssuanceAddress;
-    address public immutable protocolTokenStakingAddress;
+    address public communityIssuanceAddress;
+    address public protocolTokenStakingAddress;
 
-    uint internal immutable lpRewardsEntitlement;
+    uint internal lpRewardsEntitlement;
 
-    ILockupContractFactory public immutable lockupContractFactory;
+    ILockupContractFactory public lockupContractFactory;
 
     // --- Functions ---
 
-    constructor(
-        address _communityIssuanceAddress,
-        address _protocolTokenStakingAddress,
-        address _lockupFactoryAddress,
-        address _bountyAddress,
-        address _lpRewardsAddress,
-        address _multisigAddress
-    ) {
-        checkContract(_communityIssuanceAddress);
-        checkContract(_protocolTokenStakingAddress);
-        checkContract(_lockupFactoryAddress);
-
-        multisigAddress = _multisigAddress;
+    constructor() {
         deploymentStartTime = block.timestamp;
-
-        communityIssuanceAddress = _communityIssuanceAddress;
-        protocolTokenStakingAddress = _protocolTokenStakingAddress;
-        lockupContractFactory = ILockupContractFactory(_lockupFactoryAddress);
 
         bytes32 hashedName = keccak256(bytes(_NAME));
         bytes32 hashedVersion = keccak256(bytes(_VERSION));
@@ -125,13 +111,53 @@ contract ProtocolToken is CheckContract, IProtocolToken {
         _HASHED_VERSION = hashedVersion;
         _CACHED_CHAIN_ID = _chainID();
         _CACHED_DOMAIN_SEPARATOR = _buildDomainSeparator(_TYPE_HASH, hashedName, hashedVersion);
+    }
+
+    function initialize(
+        address _communityIssuanceAddress,
+        address _protocolTokenStakingAddress,
+        address _lockupFactoryAddress,
+        address _bountyAddress,
+        address _lpRewardsAddress,
+        address _multisigAddress
+    ) external initializer {
+        __Ownable_init();
+        _setAddresses(
+            _communityIssuanceAddress,
+            _protocolTokenStakingAddress,
+            _lockupFactoryAddress,
+            _bountyAddress,
+            _lpRewardsAddress,
+            _multisigAddress
+        );
+    }
+
+    function _setAddresses(
+        address _communityIssuanceAddress,
+        address _protocolTokenStakingAddress,
+        address _lockupFactoryAddress,
+        address _bountyAddress,
+        address _lpRewardsAddress,
+        address _multisigAddress
+    ) private {
+        checkContract(_communityIssuanceAddress);
+        checkContract(_protocolTokenStakingAddress);
+        checkContract(_lockupFactoryAddress);
+
+        multisigAddress = _multisigAddress;
+
+        communityIssuanceAddress = _communityIssuanceAddress;
+        protocolTokenStakingAddress = _protocolTokenStakingAddress;
+        lockupContractFactory = ILockupContractFactory(_lockupFactoryAddress);
 
         // --- Initial ProtocolToken allocations ---
 
         uint bountyEntitlement = _1_MILLION.mul(2); // Allocate 2 million for bounties/hackathons
         _mint(_bountyAddress, bountyEntitlement);
 
-        uint depositorsAndFrontEndsEntitlement = _1_MILLION.mul(32); // Allocate 32 million to the algorithmic issuance schedule
+        // Allocate the amount set in the CommunityIssuance contract
+        uint depositorsAndFrontEndsEntitlement = ICommunityIssuance(_communityIssuanceAddress)
+            .protocolTokenSupplyCap();
         _mint(_communityIssuanceAddress, depositorsAndFrontEndsEntitlement);
 
         uint _lpRewardsEntitlement = _1_MILLION.mul(4).div(3); // Allocate 1.33 million for LP rewards

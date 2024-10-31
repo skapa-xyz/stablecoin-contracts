@@ -1,4 +1,5 @@
 const fs = require("fs");
+const { getContractAddress } = require("@ethersproject/address");
 
 const ZERO_ADDRESS = "0x" + "0".repeat(40);
 const maxBytes32 = "0x" + "f".repeat(64);
@@ -37,7 +38,7 @@ class HardhatDeploymentHelper {
     return tx.wait();
   }
 
-  async loadOrDeploy(factory, name, deploymentState, params = []) {
+  async loadOrDeploy(factory, name, deploymentState, constructorArgs = []) {
     if (deploymentState[name] && deploymentState[name].address) {
       console.log(
         `Using previously deployed ${name} contract at address ${deploymentState[name].address}`,
@@ -49,11 +50,8 @@ class HardhatDeploymentHelper {
       );
     }
 
-    const contract = await factory.deploy(...params);
-    await this.deployerWallet.provider.waitForTransaction(
-      contract.deployTransaction.hash,
-      this.configParams.TX_CONFIRMATIONS,
-    );
+    const contract = await factory.deploy(...constructorArgs);
+    await contract.deployed();
 
     deploymentState[name] = {
       address: contract.address,
@@ -65,11 +63,48 @@ class HardhatDeploymentHelper {
     return contract;
   }
 
-  async deployProtocolCoreMainnet(deploymentState) {
+  async loadOrDeployProxy(
+    factory,
+    name,
+    deploymentState,
+    initializationArgs,
+    constructorArgs = [],
+  ) {
+    if (deploymentState[name] && deploymentState[name].address) {
+      console.log(
+        `Using previously deployed ${name} contract at address ${deploymentState[name].address}`,
+      );
+      return new ethers.Contract(
+        deploymentState[name].address,
+        factory.interface,
+        this.deployerWallet,
+      );
+    }
+
+    const contract = await this.hre.upgrades.deployProxy(factory, initializationArgs, {
+      unsafeAllow: ["constructor", "state-variable-immutable"],
+      constructorArgs: constructorArgs,
+    });
+    await contract.deployed();
+
+    deploymentState[name] = {
+      address: contract.address,
+      txHash: contract.deployTransaction.hash,
+    };
+
+    this.saveDeployment(deploymentState);
+
+    return contract;
+  }
+
+  async deployProtocolCoreMainnet(deploymentState, cpContracts) {
     const tellorMasterAddr = this.configParams.externalAddrs.TELLOR_MASTER;
     const pythPriceFeedAddr = this.configParams.externalAddrs.PYTH_PRICE_FEED;
     const pythPriceId = this.configParams.externalAddrs.PYTH_PRICE_ID;
-    const protocolBaseParams = [this.configParams.GAS_COMPENSATION, this.configParams.MIN_NET_DEBT];
+    const constructorBaseArgs = [
+      this.configParams.GAS_COMPENSATION,
+      this.configParams.MIN_NET_DEBT,
+    ];
 
     // Get contract factories
     const priceFeedFactory = await this.getFactory("PriceFeed");
@@ -82,72 +117,132 @@ class HardhatDeploymentHelper {
     const collSurplusPoolFactory = await this.getFactory("CollSurplusPool");
     const borrowerOperationsFactory = await this.getFactory("BorrowerOperations");
     const hintHelpersFactory = await this.getFactory("HintHelpers");
-    const debtTokenFactory = await this.getFactory("DebtToken");
     const tellorCallerFactory = await this.getFactory("TellorCaller");
     const pythCallerFactory = await this.getFactory("PythCaller");
+    const debtTokenFactory = await this.getFactory("DebtToken");
 
     // Deploy txs
-    const priceFeed = await this.loadOrDeploy(priceFeedFactory, "priceFeed", deploymentState);
-    const sortedTroves = await this.loadOrDeploy(
-      sortedTrovesFactory,
-      "sortedTroves",
-      deploymentState,
-    );
-    const troveManager = await this.loadOrDeploy(
-      troveManagerFactory,
-      "troveManager",
-      deploymentState,
-      protocolBaseParams,
-    );
-    const activePool = await this.loadOrDeploy(activePoolFactory, "activePool", deploymentState);
-    const stabilityPool = await this.loadOrDeploy(
-      stabilityPoolFactory,
-      "stabilityPool",
-      deploymentState,
-      protocolBaseParams,
-    );
-    const gasPool = await this.loadOrDeploy(gasPoolFactory, "gasPool", deploymentState);
-    const defaultPool = await this.loadOrDeploy(defaultPoolFactory, "defaultPool", deploymentState);
-    const collSurplusPool = await this.loadOrDeploy(
-      collSurplusPoolFactory,
-      "collSurplusPool",
-      deploymentState,
-    );
-    const borrowerOperations = await this.loadOrDeploy(
-      borrowerOperationsFactory,
-      "borrowerOperations",
-      deploymentState,
-      protocolBaseParams,
-    );
-    const hintHelpers = await this.loadOrDeploy(
-      hintHelpersFactory,
-      "hintHelpers",
-      deploymentState,
-      protocolBaseParams,
-    );
     const tellorCaller = await this.loadOrDeploy(
       tellorCallerFactory,
       "tellorCaller",
       deploymentState,
       [tellorMasterAddr],
     );
+
     const pythCaller = await this.loadOrDeploy(pythCallerFactory, "pythCaller", deploymentState, [
       pythPriceFeedAddr,
       pythPriceId,
       "FIL / USD",
     ]);
 
-    const debtTokenParams = [
-      troveManager.address,
-      stabilityPool.address,
-      borrowerOperations.address,
-    ];
-    const debtToken = await this.loadOrDeploy(
-      debtTokenFactory,
-      "debtToken",
+    const priceFeed = await this.loadOrDeployProxy(priceFeedFactory, "priceFeed", deploymentState, [
+      cpContracts.pythCaller,
+      cpContracts.tellorCaller,
+    ]);
+
+    const sortedTroves = await this.loadOrDeployProxy(
+      sortedTrovesFactory,
+      "sortedTroves",
       deploymentState,
-      debtTokenParams,
+      [maxBytes32, cpContracts.troveManager, cpContracts.borrowerOperations],
     );
+
+    const troveManager = await this.loadOrDeployProxy(
+      troveManagerFactory,
+      "troveManager",
+      deploymentState,
+      [
+        cpContracts.borrowerOperations,
+        cpContracts.activePool,
+        cpContracts.defaultPool,
+        cpContracts.stabilityPool,
+        cpContracts.gasPool,
+        cpContracts.collSurplusPool,
+        cpContracts.priceFeed,
+        cpContracts.debtToken,
+        cpContracts.sortedTroves,
+        cpContracts.protocolToken,
+        cpContracts.protocolTokenStaking,
+      ],
+      constructorBaseArgs,
+    );
+
+    const activePool = await this.loadOrDeployProxy(
+      activePoolFactory,
+      "activePool",
+      deploymentState,
+      [
+        cpContracts.borrowerOperations,
+        cpContracts.troveManager,
+        cpContracts.stabilityPool,
+        cpContracts.defaultPool,
+      ],
+    );
+
+    const stabilityPool = await this.loadOrDeployProxy(
+      stabilityPoolFactory,
+      "stabilityPool",
+      deploymentState,
+      [
+        cpContracts.borrowerOperations,
+        cpContracts.troveManager,
+        cpContracts.activePool,
+        cpContracts.debtToken,
+        cpContracts.sortedTroves,
+        cpContracts.priceFeed,
+        cpContracts.communityIssuance,
+      ],
+      constructorBaseArgs,
+    );
+
+    const gasPool = await this.loadOrDeployProxy(gasPoolFactory, "gasPool", deploymentState);
+
+    const defaultPool = await this.loadOrDeployProxy(
+      defaultPoolFactory,
+      "defaultPool",
+      deploymentState,
+      [cpContracts.troveManager, cpContracts.activePool],
+    );
+
+    const collSurplusPool = await this.loadOrDeployProxy(
+      collSurplusPoolFactory,
+      "collSurplusPool",
+      deploymentState,
+      [cpContracts.borrowerOperations, cpContracts.troveManager, cpContracts.activePool],
+    );
+
+    const borrowerOperations = await this.loadOrDeployProxy(
+      borrowerOperationsFactory,
+      "borrowerOperations",
+      deploymentState,
+      [
+        cpContracts.troveManager,
+        cpContracts.activePool,
+        cpContracts.defaultPool,
+        cpContracts.stabilityPool,
+        cpContracts.gasPool,
+        cpContracts.collSurplusPool,
+        cpContracts.priceFeed,
+        cpContracts.sortedTroves,
+        cpContracts.debtToken,
+        cpContracts.protocolTokenStaking,
+      ],
+      constructorBaseArgs,
+    );
+
+    const hintHelpers = await this.loadOrDeployProxy(
+      hintHelpersFactory,
+      "hintHelpers",
+      deploymentState,
+      [cpContracts.sortedTroves, cpContracts.troveManager],
+      constructorBaseArgs,
+    );
+
+    const debtToken = await this.loadOrDeployProxy(debtTokenFactory, "debtToken", deploymentState, [
+      cpContracts.troveManager,
+      cpContracts.stabilityPool,
+      cpContracts.borrowerOperations,
+    ]);
 
     if (!this.configParams.ETHERSCAN_BASE_URL) {
       console.log("No Etherscan Url defined, skipping verification");
@@ -172,8 +267,9 @@ class HardhatDeploymentHelper {
     }
 
     const coreContracts = {
+      tellorCaller,
+      pythCaller,
       priceFeed,
-      debtToken,
       sortedTroves,
       troveManager,
       activePool,
@@ -183,8 +279,7 @@ class HardhatDeploymentHelper {
       collSurplusPool,
       borrowerOperations,
       hintHelpers,
-      tellorCaller,
-      pythCaller,
+      debtToken,
     };
     return coreContracts;
   }
@@ -194,42 +289,53 @@ class HardhatDeploymentHelper {
     lpRewardsAddress,
     multisigAddress,
     deploymentState,
+    cpContracts,
   ) {
     const protocolTokenStakingFactory = await this.getFactory("ProtocolTokenStaking");
     const lockupContractFactory_Factory = await this.getFactory("LockupContractFactory");
     const communityIssuanceFactory = await this.getFactory("CommunityIssuance");
     const protocolTokenFactory = await this.getFactory("ProtocolToken");
 
-    const protocolTokenStaking = await this.loadOrDeploy(
+    const protocolTokenStaking = await this.loadOrDeployProxy(
       protocolTokenStakingFactory,
       "protocolTokenStaking",
       deploymentState,
+      [
+        cpContracts.protocolToken,
+        cpContracts.debtToken,
+        cpContracts.troveManager,
+        cpContracts.borrowerOperations,
+        cpContracts.activePool,
+      ],
     );
-    const lockupContractFactory = await this.loadOrDeploy(
+
+    const lockupContractFactory = await this.loadOrDeployProxy(
       lockupContractFactory_Factory,
       "lockupContractFactory",
       deploymentState,
+      [cpContracts.protocolToken],
     );
-    const communityIssuance = await this.loadOrDeploy(
+
+    const communityIssuance = await this.loadOrDeployProxy(
       communityIssuanceFactory,
       "communityIssuance",
       deploymentState,
+      [cpContracts.protocolToken, cpContracts.stabilityPool],
     );
 
     // Deploy ProtocolToken, passing Community Issuance and Factory addresses to the constructor
-    const protocolTokenParams = [
-      communityIssuance.address,
-      protocolTokenStaking.address,
-      lockupContractFactory.address,
-      bountyAddress,
-      lpRewardsAddress,
-      multisigAddress,
-    ];
-    const protocolToken = await this.loadOrDeploy(
+    const protocolToken = await this.loadOrDeployProxy(
       protocolTokenFactory,
       "protocolToken",
       deploymentState,
-      protocolTokenParams,
+      [
+        cpContracts.communityIssuance,
+        cpContracts.protocolTokenStaking,
+        cpContracts.lockupContractFactory,
+        bountyAddress,
+        lpRewardsAddress,
+        multisigAddress,
+      ],
     );
 
     if (!this.configParams.ETHERSCAN_BASE_URL) {
@@ -252,7 +358,7 @@ class HardhatDeploymentHelper {
 
   async deployUnipoolMainnet(deploymentState) {
     const unipoolFactory = await this.getFactory("Unipool");
-    const unipool = await this.loadOrDeploy(unipoolFactory, "unipool", deploymentState);
+    const unipool = await this.loadOrDeployProxy(unipoolFactory, "unipool", deploymentState);
 
     if (!this.configParams.ETHERSCAN_BASE_URL) {
       console.log("No Etherscan Url defined, skipping verification");
@@ -263,12 +369,9 @@ class HardhatDeploymentHelper {
     return unipool;
   }
 
-  async deployMultiTroveGetterMainnet(protocolCore, deploymentState) {
+  async deployMultiTroveGetterMainnet(protocolCore, deploymentState, cpContracts) {
     const multiTroveGetterFactory = await this.getFactory("MultiTroveGetter");
-    const multiTroveGetterParams = [
-      protocolCore.troveManager.address,
-      protocolCore.sortedTroves.address,
-    ];
+    const multiTroveGetterParams = [cpContracts.troveManager, cpContracts.sortedTroves];
     const multiTroveGetter = await this.loadOrDeploy(
       multiTroveGetterFactory,
       "multiTroveGetter",
@@ -290,144 +393,8 @@ class HardhatDeploymentHelper {
     const owner = await contract.owner();
     return owner === ZERO_ADDRESS;
   }
+
   // Connect contracts to their dependencies
-  async connectCoreContractsMainnet(contracts, protocolTokenContracts) {
-    // Set ChainlinkAggregatorProxy and TellorCaller in the PriceFeed
-    (await this.isOwnershipRenounced(contracts.priceFeed)) ||
-      (await this.sendAndWaitForTransaction(
-        contracts.priceFeed.setAddresses(
-          contracts.pythCaller.address,
-          contracts.tellorCaller.address,
-        ),
-      ));
-
-    // set TroveManager addr in SortedTroves
-    (await this.isOwnershipRenounced(contracts.sortedTroves)) ||
-      (await this.sendAndWaitForTransaction(
-        contracts.sortedTroves.setParams(
-          maxBytes32,
-          contracts.troveManager.address,
-          contracts.borrowerOperations.address,
-        ),
-      ));
-
-    // set contracts in the Trove Manager
-    (await this.isOwnershipRenounced(contracts.troveManager)) ||
-      (await this.sendAndWaitForTransaction(
-        contracts.troveManager.setAddresses(
-          contracts.borrowerOperations.address,
-          contracts.activePool.address,
-          contracts.defaultPool.address,
-          contracts.stabilityPool.address,
-          contracts.gasPool.address,
-          contracts.collSurplusPool.address,
-          contracts.priceFeed.address,
-          contracts.debtToken.address,
-          contracts.sortedTroves.address,
-          protocolTokenContracts.protocolToken.address,
-          protocolTokenContracts.protocolTokenStaking.address,
-        ),
-      ));
-
-    // set contracts in BorrowerOperations
-    (await this.isOwnershipRenounced(contracts.borrowerOperations)) ||
-      (await this.sendAndWaitForTransaction(
-        contracts.borrowerOperations.setAddresses(
-          contracts.troveManager.address,
-          contracts.activePool.address,
-          contracts.defaultPool.address,
-          contracts.stabilityPool.address,
-          contracts.gasPool.address,
-          contracts.collSurplusPool.address,
-          contracts.priceFeed.address,
-          contracts.sortedTroves.address,
-          contracts.debtToken.address,
-          protocolTokenContracts.protocolTokenStaking.address,
-        ),
-      ));
-
-    // set contracts in the Pools
-    (await this.isOwnershipRenounced(contracts.stabilityPool)) ||
-      (await this.sendAndWaitForTransaction(
-        contracts.stabilityPool.setAddresses(
-          contracts.borrowerOperations.address,
-          contracts.troveManager.address,
-          contracts.activePool.address,
-          contracts.debtToken.address,
-          contracts.sortedTroves.address,
-          contracts.priceFeed.address,
-          protocolTokenContracts.communityIssuance.address,
-        ),
-      ));
-
-    (await this.isOwnershipRenounced(contracts.activePool)) ||
-      (await this.sendAndWaitForTransaction(
-        contracts.activePool.setAddresses(
-          contracts.borrowerOperations.address,
-          contracts.troveManager.address,
-          contracts.stabilityPool.address,
-          contracts.defaultPool.address,
-        ),
-      ));
-
-    (await this.isOwnershipRenounced(contracts.defaultPool)) ||
-      (await this.sendAndWaitForTransaction(
-        contracts.defaultPool.setAddresses(
-          contracts.troveManager.address,
-          contracts.activePool.address,
-        ),
-      ));
-
-    (await this.isOwnershipRenounced(contracts.collSurplusPool)) ||
-      (await this.sendAndWaitForTransaction(
-        contracts.collSurplusPool.setAddresses(
-          contracts.borrowerOperations.address,
-          contracts.troveManager.address,
-          contracts.activePool.address,
-        ),
-      ));
-
-    // set contracts in HintHelpers
-    (await this.isOwnershipRenounced(contracts.hintHelpers)) ||
-      (await this.sendAndWaitForTransaction(
-        contracts.hintHelpers.setAddresses(
-          contracts.sortedTroves.address,
-          contracts.troveManager.address,
-        ),
-      ));
-  }
-
-  async connectProtocolTokenContractsMainnet(protocolTokenContracts) {
-    // Set ProtocolToken address in LCF
-    (await this.isOwnershipRenounced(protocolTokenContracts.protocolTokenStaking)) ||
-      (await this.sendAndWaitForTransaction(
-        protocolTokenContracts.lockupContractFactory.setProtocolTokenAddress(
-          protocolTokenContracts.protocolToken.address,
-        ),
-      ));
-  }
-
-  async connectProtocolTokenContractsToCoreMainnet(protocolTokenContracts, coreContracts) {
-    (await this.isOwnershipRenounced(protocolTokenContracts.protocolTokenStaking)) ||
-      (await this.sendAndWaitForTransaction(
-        protocolTokenContracts.protocolTokenStaking.setAddresses(
-          protocolTokenContracts.protocolToken.address,
-          coreContracts.debtToken.address,
-          coreContracts.troveManager.address,
-          coreContracts.borrowerOperations.address,
-          coreContracts.activePool.address,
-        ),
-      ));
-
-    (await this.isOwnershipRenounced(protocolTokenContracts.communityIssuance)) ||
-      (await this.sendAndWaitForTransaction(
-        protocolTokenContracts.communityIssuance.setAddresses(
-          protocolTokenContracts.protocolToken.address,
-          coreContracts.stabilityPool.address,
-        ),
-      ));
-  }
-
   async connectUnipoolMainnet(uniPool, protocolTokenContracts, DebtTokenWFILPairAddr, duration) {
     (await this.isOwnershipRenounced(uniPool)) ||
       (await this.sendAndWaitForTransaction(
@@ -476,6 +443,32 @@ class HardhatDeploymentHelper {
     console.log(`Contract objects addresses:`);
     for (const contractName of Object.keys(contracts)) {
       console.log(`${contractName}: ${contracts[contractName].address}`);
+    }
+  }
+
+  async computeContractAddresses(count) {
+    const transactionCount = await this.deployerWallet.getTransactionCount();
+    const contractAddresses = [];
+
+    for (let i = 0; i < count; i++) {
+      const contractAddress = getContractAddress({
+        from: this.deployerWallet.address,
+        nonce: transactionCount + i,
+      });
+      contractAddresses.push(contractAddress);
+    }
+
+    return contractAddresses;
+  }
+
+  async checkContractAddresses(deployedContracts, cpContractAddresses) {
+    for (const [name, contract] of Object.entries(deployedContracts)) {
+      const cpContractAddress = cpContractAddresses[name];
+      if (contract.address !== cpContractAddress) {
+        throw new Error(
+          `Contract address mismatch for ${name}: ${contract.address} != ${cpContractAddress}`,
+        );
+      }
     }
   }
 }

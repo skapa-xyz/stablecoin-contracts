@@ -21,14 +21,6 @@ interface IProtocolTokenStaking {
 
     // --- Functions ---
 
-    function setAddresses(
-        address _protocolTokenAddress,
-        address _debtTokenAddress,
-        address _troveManagerAddress,
-        address _borrowerOperationsAddress,
-        address _activePoolAddress
-    ) external;
-
     function stake(uint _tokenAmount) external;
 
     function unstake(uint _tokenAmount) external;

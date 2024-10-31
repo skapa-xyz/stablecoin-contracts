@@ -2,7 +2,7 @@
 
 pragma solidity 0.7.6;
 
-import "../Dependencies/OpenZeppelin/access/Ownable.sol";
+import "../Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "../Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "../Dependencies/OpenZeppelin/token/ERC20/SafeERC20.sol";
 import "../Dependencies/ProtocolMath.sol";
@@ -70,7 +70,7 @@ contract LPTokenWrapper is ILPTokenWrapper {
  * either ProtocolToken contract is deployed, and therefore ProtocolTokens are minted to Unipool contract,
  * or first liquidity provider stakes UNIv2 LP tokens into it.
  */
-contract Unipool is LPTokenWrapper, Ownable, CheckContract, IUnipool {
+contract Unipool is LPTokenWrapper, OwnableUpgradeable, CheckContract, IUnipool {
     using SafeMath for uint256;
 
     string public constant NAME = "Unipool";
@@ -78,8 +78,8 @@ contract Unipool is LPTokenWrapper, Ownable, CheckContract, IUnipool {
     uint256 public duration;
     IProtocolToken public protocolToken;
 
-    uint256 public periodFinish = 0;
-    uint256 public rewardRate = 0;
+    uint256 public periodFinish;
+    uint256 public rewardRate;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
     mapping(address => uint256) public userRewardPerTokenPaid;
@@ -91,6 +91,13 @@ contract Unipool is LPTokenWrapper, Ownable, CheckContract, IUnipool {
     event Staked(address indexed user, uint256 amount);
     event Withdrawn(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward);
+
+    function initialize() external {
+        __Ownable_init();
+
+        periodFinish = 0;
+        rewardRate = 0;
+    }
 
     // initialization function
     function setParams(
@@ -109,8 +116,6 @@ contract Unipool is LPTokenWrapper, Ownable, CheckContract, IUnipool {
 
         emit ProtocolTokenAddressChanged(_protocolTokenAddress);
         emit UniTokenAddressChanged(_uniTokenAddress);
-
-        renounceOwnership();
     }
 
     // Returns current timestamp if the rewards program has not finished yet, end time otherwise

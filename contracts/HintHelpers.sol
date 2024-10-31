@@ -4,11 +4,11 @@ pragma solidity 0.7.6;
 
 import "./Interfaces/ITroveManager.sol";
 import "./Interfaces/ISortedTroves.sol";
-import "./Dependencies/OpenZeppelin/access/Ownable.sol";
+import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "./Dependencies/ProtocolBase.sol";
 import "./Dependencies/CheckContract.sol";
 
-contract HintHelpers is ProtocolBase, Ownable, CheckContract {
+contract HintHelpers is ProtocolBase, OwnableUpgradeable, CheckContract {
     using SafeMath for uint;
 
     string public constant NAME = "HintHelpers";
@@ -30,10 +30,15 @@ contract HintHelpers is ProtocolBase, Ownable, CheckContract {
 
     // --- Dependency setters ---
 
-    function setAddresses(
+    function initialize(
         address _sortedTrovesAddress,
         address _troveManagerAddress
-    ) external onlyOwner {
+    ) external initializer {
+        __Ownable_init();
+        _setAddresses(_sortedTrovesAddress, _troveManagerAddress);
+    }
+
+    function _setAddresses(address _sortedTrovesAddress, address _troveManagerAddress) private {
         checkContract(_sortedTrovesAddress);
         checkContract(_troveManagerAddress);
 
@@ -44,8 +49,6 @@ contract HintHelpers is ProtocolBase, Ownable, CheckContract {
 
         emit SortedTrovesAddressChanged(_sortedTrovesAddress);
         emit TroveManagerAddressChanged(_troveManagerAddress);
-
-        renounceOwnership();
     }
 
     /* getRedemptionHints() - Helper function for finding the right hints to pass to redeemCollateral().

@@ -13,12 +13,6 @@ interface ISortedTroves {
 
     // --- Functions ---
 
-    function setParams(
-        uint256 _size,
-        address _TroveManagerAddress,
-        address _borrowerOperationsAddress
-    ) external;
-
     function insert(address _id, uint256 _ICR, address _prevId, address _nextId) external;
 
     function remove(address _id) external;

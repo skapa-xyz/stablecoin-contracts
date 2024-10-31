@@ -15,8 +15,6 @@ interface ILockupContractFactory {
 
     // --- Functions ---
 
-    function setProtocolTokenAddress(address _protocolTokenAddress) external;
-
     function deployLockupContract(address _beneficiary, uint _unlockTime) external;
 
     function isRegisteredLockup(address _addr) external view returns (bool);

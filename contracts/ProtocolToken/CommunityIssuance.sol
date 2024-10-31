@@ -4,13 +4,13 @@ pragma solidity 0.7.6;
 
 import "../Interfaces/IProtocolToken.sol";
 import "../Interfaces/ICommunityIssuance.sol";
-import "../Dependencies/OpenZeppelin/access/Ownable.sol";
+import "../Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "../Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "../Dependencies/BaseMath.sol";
 import "../Dependencies/ProtocolMath.sol";
 import "../Dependencies/CheckContract.sol";
 
-contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMath {
+contract CommunityIssuance is ICommunityIssuance, OwnableUpgradeable, CheckContract, BaseMath {
     using SafeMath for uint;
 
     // --- Data ---
@@ -41,7 +41,7 @@ contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMa
      *
      * Set to 32M (slightly less than 1/3) of total ProtocolToken supply.
      */
-    uint public constant protocolTokenSupplyCap = 32e24; // 32 million
+    uint public constant override protocolTokenSupplyCap = 32e24; // 32 million
 
     IProtocolToken public protocolToken;
 
@@ -56,24 +56,23 @@ contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMa
         deploymentTime = block.timestamp;
     }
 
-    function setAddresses(
+    function initialize(
         address _protocolTokenAddress,
         address _stabilityPoolAddress
-    ) external override onlyOwner {
+    ) external initializer {
+        __Ownable_init();
+        _setAddresses(_protocolTokenAddress, _stabilityPoolAddress);
+    }
+
+    function _setAddresses(address _protocolTokenAddress, address _stabilityPoolAddress) private {
         checkContract(_protocolTokenAddress);
         checkContract(_stabilityPoolAddress);
 
         protocolToken = IProtocolToken(_protocolTokenAddress);
         stabilityPoolAddress = _stabilityPoolAddress;
 
-        // When ProtocolToken deployed, it should have transferred CommunityIssuance's ProtocolToken entitlement
-        uint protocolTokenBalance = protocolToken.balanceOf(address(this));
-        assert(protocolTokenBalance >= protocolTokenSupplyCap);
-
         emit ProtocolTokenAddressSet(_protocolTokenAddress);
         emit StabilityPoolAddressSet(_stabilityPoolAddress);
-
-        renounceOwnership();
     }
 
     function issueProtocolToken() external override returns (uint) {

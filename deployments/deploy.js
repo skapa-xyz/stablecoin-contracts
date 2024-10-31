@@ -23,48 +23,122 @@ async function deploy(configParams) {
   let deployerFILBalance = await ethers.provider.getBalance(deployerWallet.address);
   console.log(`deployerFILBalance before: ${deployerFILBalance}`);
 
-  // Get UniswapV2Factory instance at its deployed address
-  const uniswapExits = !!configParams.externalAddrs.UNISWAP_V2_FACTORY;
-  const uniswapV2Factory = uniswapExits
-    ? new ethers.Contract(
-        configParams.externalAddrs.UNISWAP_V2_FACTORY,
-        UniswapV2Factory.abi,
-        deployerWallet,
-      )
-    : undefined;
-
-  if (uniswapExits) {
-    console.log(`Uniswp addr: ${uniswapV2Factory.address}`);
-    const uniAllPairsLength = await uniswapV2Factory.allPairsLength();
-    console.log(`Uniswap Factory number of pairs: ${uniAllPairsLength}`);
-  }
-
   deployerFILBalance = await ethers.provider.getBalance(deployerWallet.address);
   console.log(`deployer's FIL balance before deployments: ${deployerFILBalance}`);
 
+  // Computed contracts address
+  // Note: This contract list order is the same as the order in which the contracts are deployed.
+  // This is necessary for the deployment helper to compute the correct addresses.
+  const contractList = [
+    "tellorCaller",
+    "pythCaller",
+    "priceFeed",
+    "sortedTroves",
+    "troveManager",
+    "activePool",
+    "stabilityPool",
+    "gasPool",
+    "defaultPool",
+    "collSurplusPool",
+    "borrowerOperations",
+    "hintHelpers",
+    "debtToken",
+    "unipool",
+    "protocolTokenStaking",
+    "lockupContractFactory",
+    "communityIssuance",
+    "protocolToken",
+    "multiTroveGetter",
+  ];
+
+  const addressList = await mdh.computeContractAddresses(contractList.length);
+  const cpContracts = contractList.reduce((acc, contract) => {
+    acc[contract] = deploymentState[contract]?.address || addressList.shift();
+    return acc;
+  }, {});
+
   // Deploy core logic contracts
-  const coreContracts = await mdh.deployProtocolCoreMainnet(deploymentState);
+  const coreContracts = await mdh.deployProtocolCoreMainnet(deploymentState, cpContracts);
+  await mdh.checkContractAddresses(coreContracts, cpContracts);
   await mdh.logContractObjects(coreContracts);
 
-  // // Check Uniswap Pair DebtToken-FIL pair before pair creation
-  // let DebtTokenWFILPairAddr = await uniswapV2Factory.getPair(coreContracts.debtToken.address, configParams.externalAddrs.WRAPPED_NATIVE_TOKEN)
-  // let WFILDebtTokenPairAddr = await uniswapV2Factory.getPair(configParams.externalAddrs.WRAPPED_NATIVE_TOKEN, coreContracts.debtToken.address)
-  // assert.equal(DebtTokenWFILPairAddr, WFILDebtTokenPairAddr)
-  let [DebtTokenWFILPairAddr, WFILDebtTokenPairAddr] = uniswapExits
-    ? await Promise.all([
-        uniswapV2Factory.getPair(
-          coreContracts.debtToken.address,
-          configParams.externalAddrs.WRAPPED_NATIVE_TOKEN,
-        ),
-        uniswapV2Factory.getPair(
-          configParams.externalAddrs.WRAPPED_NATIVE_TOKEN,
-          coreContracts.debtToken.address,
-        ),
-      ])
-    : [undefined, undefined];
-  assert.equal(DebtTokenWFILPairAddr, WFILDebtTokenPairAddr);
+  // Deploy Unipool
+  const unipool = await mdh.deployUnipoolMainnet(deploymentState, cpContracts);
+  await mdh.checkContractAddresses({ unipool }, cpContracts);
 
-  if (DebtTokenWFILPairAddr === th.ZERO_ADDRESS) {
+  // Deploy ProtocolToken Contracts
+  const protocolTokenContracts = await mdh.deployProtocolTokenContractsMainnet(
+    configParams.walletAddrs.GENERAL_SAFE, // bounty address
+    unipool.address, // lp rewards address
+    configParams.walletAddrs.PROTOCOL_TOKEN_SAFE, // multisig endowment address
+    deploymentState,
+    cpContracts,
+  );
+  await mdh.checkContractAddresses(protocolTokenContracts, cpContracts);
+
+  // Deploy a read-only multi-trove getter
+  const multiTroveGetter = await mdh.deployMultiTroveGetterMainnet(
+    coreContracts,
+    deploymentState,
+    cpContracts,
+  );
+  await mdh.checkContractAddresses({ multiTroveGetter }, cpContracts);
+
+  // Get UniswapV2Factory instance at its deployed address
+  const uniswapExits = !!configParams.externalAddrs.UNISWAP_V2_FACTORY;
+
+  if (uniswapExits) {
+    const uniswapV2Factory = new ethers.Contract(
+      configParams.externalAddrs.UNISWAP_V2_FACTORY,
+      UniswapV2Factory.abi,
+      deployerWallet,
+    );
+
+    console.log(`Uniswp addr: ${uniswapV2Factory.address}`);
+    const uniAllPairsLength = await uniswapV2Factory.allPairsLength();
+    console.log(`Uniswap Factory number of pairs: ${uniAllPairsLength}`);
+
+    // Check Uniswap Pair DebtToken-FIL pair before pair creation
+    // let DebtTokenWFILPairAddr = await uniswapV2Factory.getPair(coreContracts.debtToken.address, configParams.externalAddrs.WRAPPED_NATIVE_TOKEN)
+    // let WFILDebtTokenPairAddr = await uniswapV2Factory.getPair(configParams.externalAddrs.WRAPPED_NATIVE_TOKEN, coreContracts.debtToken.address)
+    // assert.equal(DebtTokenWFILPairAddr, WFILDebtTokenPairAddr)
+    let [DebtTokenWFILPairAddr, WFILDebtTokenPairAddr] = await Promise.all([
+      uniswapV2Factory.getPair(
+        coreContracts.debtToken.address,
+        configParams.externalAddrs.WRAPPED_NATIVE_TOKEN,
+      ),
+      uniswapV2Factory.getPair(
+        configParams.externalAddrs.WRAPPED_NATIVE_TOKEN,
+        coreContracts.debtToken.address,
+      ),
+    ]);
+    assert.equal(DebtTokenWFILPairAddr, WFILDebtTokenPairAddr);
+
+    if (DebtTokenWFILPairAddr === th.ZERO_ADDRESS) {
+      // Deploy Unipool for DebtToken-WFIL
+      await mdh.sendAndWaitForTransaction(
+        uniswapV2Factory.createPair(
+          configParams.externalAddrs.WRAPPED_NATIVE_TOKEN,
+          coreContracts.debtToken.address,
+        ),
+      );
+
+      // Check Uniswap Pair DebtToken-WFIL pair after pair creation (forwards and backwards should have same address)
+      DebtTokenWFILPairAddr = await uniswapV2Factory.getPair(
+        coreContracts.debtToken.address,
+        configParams.externalAddrs.WRAPPED_NATIVE_TOKEN,
+      );
+      assert.notEqual(DebtTokenWFILPairAddr, th.ZERO_ADDRESS);
+      WFILDebtTokenPairAddr = await uniswapV2Factory.getPair(
+        configParams.externalAddrs.WRAPPED_NATIVE_TOKEN,
+        coreContracts.debtToken.address,
+      );
+      console.log(
+        `DebtToken-WFIL pair contract address after Uniswap pair creation: ${DebtTokenWFILPairAddr}`,
+      );
+      assert.equal(WFILDebtTokenPairAddr, DebtTokenWFILPairAddr);
+    }
+
     // Deploy Unipool for DebtToken-WFIL
     await mdh.sendAndWaitForTransaction(
       uniswapV2Factory.createPair(
@@ -87,29 +161,8 @@ async function deploy(configParams) {
       `DebtToken-WFIL pair contract address after Uniswap pair creation: ${DebtTokenWFILPairAddr}`,
     );
     assert.equal(WFILDebtTokenPairAddr, DebtTokenWFILPairAddr);
-  }
 
-  // Deploy Unipool
-  const unipool = await mdh.deployUnipoolMainnet(deploymentState);
-
-  // Deploy ProtocolToken Contracts
-  const protocolTokenContracts = await mdh.deployProtocolTokenContractsMainnet(
-    configParams.walletAddrs.GENERAL_SAFE, // bounty address
-    unipool.address, // lp rewards address
-    configParams.walletAddrs.PROTOCOL_TOKEN_SAFE, // multisig endowment address
-    deploymentState,
-  );
-
-  // Connect all core contracts up
-  await mdh.connectCoreContractsMainnet(coreContracts, protocolTokenContracts);
-  await mdh.connectProtocolTokenContractsMainnet(protocolTokenContracts);
-  await mdh.connectProtocolTokenContractsToCoreMainnet(protocolTokenContracts, coreContracts);
-
-  // Deploy a read-only multi-trove getter
-  const multiTroveGetter = await mdh.deployMultiTroveGetterMainnet(coreContracts, deploymentState);
-
-  // Connect Unipool to ProtocolToken and the DebtToken-WFIL pair address, with a 6 week duration
-  if (uniswapExits) {
+    // Connect Unipool to ProtocolToken and the DebtToken-WFIL pair address, with a 6 week duration
     const LPRewardsDuration = timeVals.SECONDS_IN_SIX_WEEKS;
     await mdh.connectUnipoolMainnet(
       unipool,
@@ -177,7 +230,7 @@ async function deploy(configParams) {
 
     const protocolTokenAddr = protocolTokenContracts.protocolToken.address;
     // verify
-    if (configParams.FILERSCAN_BASE_URL) {
+    if (configParams.ETHERSCAN_BASE_URL) {
       await mdh.verifyContract(investor, deploymentState, [
         protocolTokenAddr,
         investorAddr,

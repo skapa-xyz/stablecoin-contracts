@@ -74,20 +74,6 @@ interface ITroveManager is IProtocolBase {
 
     // --- Functions ---
 
-    function setAddresses(
-        address _borrowerOperationsAddress,
-        address _activePoolAddress,
-        address _defaultPoolAddress,
-        address _stabilityPoolAddress,
-        address _gasPoolAddress,
-        address _collSurplusPoolAddress,
-        address _priceFeedAddress,
-        address _debtTokenAddress,
-        address _sortedTrovesAddress,
-        address _protocolTokenAddress,
-        address _protocolTokenStakingAddress
-    ) external;
-
     function stabilityPool() external view returns (IStabilityPool);
     function debtToken() external view returns (IDebtToken);
     function protocolToken() external view returns (IProtocolToken);

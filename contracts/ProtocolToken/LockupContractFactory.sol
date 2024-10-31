@@ -2,7 +2,7 @@
 
 pragma solidity 0.7.6;
 
-import "../Dependencies/OpenZeppelin/access/Ownable.sol";
+import "../Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "../Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "../Dependencies/CheckContract.sol";
 import "../Interfaces/ILockupContractFactory.sol";
@@ -23,7 +23,7 @@ import "../Dependencies/console.sol";
  * LockupContract.
  */
 
-contract LockupContractFactory is ILockupContractFactory, Ownable, CheckContract {
+contract LockupContractFactory is ILockupContractFactory, OwnableUpgradeable, CheckContract {
     using SafeMath for uint;
 
     // --- Data ---
@@ -38,13 +38,16 @@ contract LockupContractFactory is ILockupContractFactory, Ownable, CheckContract
 
     // --- Functions ---
 
-    function setProtocolTokenAddress(address _protocolTokenAddress) external override onlyOwner {
+    function initialize(address _protocolTokenAddress) external initializer {
+        __Ownable_init();
+        _setAddresses(_protocolTokenAddress);
+    }
+
+    function _setAddresses(address _protocolTokenAddress) private {
         checkContract(_protocolTokenAddress);
 
         protocolTokenAddress = _protocolTokenAddress;
         emit ProtocolTokenAddressSet(_protocolTokenAddress);
-
-        renounceOwnership();
     }
 
     function deployLockupContract(address _beneficiary, uint _unlockTime) external override {

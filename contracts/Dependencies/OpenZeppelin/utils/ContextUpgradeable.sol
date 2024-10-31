@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity >=0.6.0 <0.8.0;
+import "../proxy/Initializable.sol";
 
 /*
- * Based on the OpenZeppelin Context:
- * https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v3.4.2/contracts/utils/Context.sol
+ * Based on OpenZeppelin's OwnableUpgradeable contract:
+ * https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/v3.4.2/contracts/utils/ContextUpgradeable.sol
  *
  * @dev Provides information about the current execution context, including the
  * sender of the transaction and its data. While these are generally available
@@ -15,7 +16,12 @@ pragma solidity >=0.6.0 <0.8.0;
  *
  * This contract is only required for intermediate, library-like contracts.
  */
-abstract contract Context {
+abstract contract ContextUpgradeable is Initializable {
+    function __Context_init() internal initializer {
+        __Context_init_unchained();
+    }
+
+    function __Context_init_unchained() internal initializer {}
     function _msgSender() internal view virtual returns (address payable) {
         return msg.sender;
     }
@@ -24,4 +30,5 @@ abstract contract Context {
         this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
         return msg.data;
     }
+    uint256[50] private __gap;
 }

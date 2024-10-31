@@ -4,7 +4,7 @@ pragma solidity 0.7.6;
 
 import "./Interfaces/IPriceFeed.sol";
 import "./Interfaces/ITellorCaller.sol";
-import "./Dependencies/OpenZeppelin/access/Ownable.sol";
+import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/AggregatorV3Interface.sol";
 import "./Dependencies/CheckContract.sol";
@@ -20,7 +20,7 @@ import "./Dependencies/console.sol";
  * switching oracles based on oracle failures, timeouts, and conditions for returning to the primary
  * Pyth oracle.
  */
-contract PriceFeed is Ownable, CheckContract, BaseMath, IPriceFeed {
+contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
     using SafeMath for uint256;
 
     string public constant NAME = "PriceFeed";
@@ -71,10 +71,15 @@ contract PriceFeed is Ownable, CheckContract, BaseMath, IPriceFeed {
 
     // --- Dependency setters ---
 
-    function setAddresses(
+    function initialize(
         address _priceAggregatorAddress,
         address _tellorCallerAddress
-    ) external onlyOwner {
+    ) external initializer {
+        __Ownable_init();
+        _setAddresses(_priceAggregatorAddress, _tellorCallerAddress);
+    }
+
+    function _setAddresses(address _priceAggregatorAddress, address _tellorCallerAddress) private {
         checkContract(_priceAggregatorAddress);
         checkContract(_tellorCallerAddress);
 
@@ -88,8 +93,6 @@ contract PriceFeed is Ownable, CheckContract, BaseMath, IPriceFeed {
         ChainlinkResponse memory chainlinkResponse = _getCurrentChainlinkResponse();
 
         _storeChainlinkPrice(chainlinkResponse);
-
-        renounceOwnership();
     }
 
     // --- Functions ---

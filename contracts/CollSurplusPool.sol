@@ -3,12 +3,12 @@
 pragma solidity 0.7.6;
 
 import "./Interfaces/ICollSurplusPool.sol";
-import "./Dependencies/OpenZeppelin/access/Ownable.sol";
+import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
-contract CollSurplusPool is Ownable, CheckContract, ICollSurplusPool {
+contract CollSurplusPool is OwnableUpgradeable, CheckContract, ICollSurplusPool {
     using SafeMath for uint256;
 
     string public constant NAME = "CollSurplusPool";
@@ -24,11 +24,20 @@ contract CollSurplusPool is Ownable, CheckContract, ICollSurplusPool {
 
     // --- Contract setters ---
 
-    function setAddresses(
+    function initialize(
         address _borrowerOperationsAddress,
         address _troveManagerAddress,
         address _activePoolAddress
-    ) external override onlyOwner {
+    ) external initializer {
+        __Ownable_init();
+        _setAddresses(_borrowerOperationsAddress, _troveManagerAddress, _activePoolAddress);
+    }
+
+    function _setAddresses(
+        address _borrowerOperationsAddress,
+        address _troveManagerAddress,
+        address _activePoolAddress
+    ) private {
         checkContract(_borrowerOperationsAddress);
         checkContract(_troveManagerAddress);
         checkContract(_activePoolAddress);
@@ -40,8 +49,6 @@ contract CollSurplusPool is Ownable, CheckContract, ICollSurplusPool {
         emit BorrowerOperationsAddressChanged(_borrowerOperationsAddress);
         emit TroveManagerAddressChanged(_troveManagerAddress);
         emit ActivePoolAddressChanged(_activePoolAddress);
-
-        renounceOwnership();
     }
 
     /* Returns the FIL state variable at ActivePool address.

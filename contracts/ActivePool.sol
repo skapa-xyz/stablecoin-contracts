@@ -3,7 +3,7 @@
 pragma solidity 0.7.6;
 
 import "./Interfaces/IActivePool.sol";
-import "./Dependencies/OpenZeppelin/access/Ownable.sol";
+import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
@@ -15,7 +15,7 @@ import "./Dependencies/console.sol";
  * Stability Pool, the Default Pool, or both, depending on the liquidation conditions.
  *
  */
-contract ActivePool is Ownable, CheckContract, IActivePool {
+contract ActivePool is OwnableUpgradeable, CheckContract, IActivePool {
     using SafeMath for uint256;
 
     string public constant NAME = "ActivePool";
@@ -29,12 +29,27 @@ contract ActivePool is Ownable, CheckContract, IActivePool {
 
     // --- Contract setters ---
 
-    function setAddresses(
+    function initialize(
         address _borrowerOperationsAddress,
         address _troveManagerAddress,
         address _stabilityPoolAddress,
         address _defaultPoolAddress
-    ) external onlyOwner {
+    ) external initializer {
+        __Ownable_init();
+        _setAddresses(
+            _borrowerOperationsAddress,
+            _troveManagerAddress,
+            _stabilityPoolAddress,
+            _defaultPoolAddress
+        );
+    }
+
+    function _setAddresses(
+        address _borrowerOperationsAddress,
+        address _troveManagerAddress,
+        address _stabilityPoolAddress,
+        address _defaultPoolAddress
+    ) private {
         checkContract(_borrowerOperationsAddress);
         checkContract(_troveManagerAddress);
         checkContract(_stabilityPoolAddress);
@@ -49,8 +64,6 @@ contract ActivePool is Ownable, CheckContract, IActivePool {
         emit TroveManagerAddressChanged(_troveManagerAddress);
         emit StabilityPoolAddressChanged(_stabilityPoolAddress);
         emit DefaultPoolAddressChanged(_defaultPoolAddress);
-
-        renounceOwnership();
     }
 
     // --- Getters for public variables. Required by IPool interface ---

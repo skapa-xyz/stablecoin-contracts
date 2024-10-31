@@ -5,24 +5,6 @@ pragma solidity 0.7.6;
 import "../ProtocolToken/ProtocolToken.sol";
 
 contract ProtocolTokenTester is ProtocolToken {
-    constructor(
-        address _communityIssuanceAddress,
-        address _protocolTokenStakingAddress,
-        address _lockupFactoryAddress,
-        address _bountyAddress,
-        address _lpRewardsAddress,
-        address _multisigAddress
-    )
-        ProtocolToken(
-            _communityIssuanceAddress,
-            _protocolTokenStakingAddress,
-            _lockupFactoryAddress,
-            _bountyAddress,
-            _lpRewardsAddress,
-            _multisigAddress
-        )
-    {}
-
     function unprotectedMint(address account, uint256 amount) external {
         // No check for the caller here
 

@@ -3,7 +3,7 @@
 pragma solidity 0.7.6;
 
 import "./Interfaces/IDefaultPool.sol";
-import "./Dependencies/OpenZeppelin/access/Ownable.sol";
+import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
@@ -15,7 +15,7 @@ import "./Dependencies/console.sol";
  * When a trove makes an operation that applies its pending FIL and debt, its pending FIL and debt is moved
  * from the Default Pool to the Active Pool.
  */
-contract DefaultPool is Ownable, CheckContract, IDefaultPool {
+contract DefaultPool is OwnableUpgradeable, CheckContract, IDefaultPool {
     using SafeMath for uint256;
 
     string public constant NAME = "DefaultPool";
@@ -27,10 +27,15 @@ contract DefaultPool is Ownable, CheckContract, IDefaultPool {
 
     // --- Dependency setters ---
 
-    function setAddresses(
+    function initialize(
         address _troveManagerAddress,
         address _activePoolAddress
-    ) external onlyOwner {
+    ) external initializer {
+        __Ownable_init();
+        _setAddresses(_troveManagerAddress, _activePoolAddress);
+    }
+
+    function _setAddresses(address _troveManagerAddress, address _activePoolAddress) private {
         checkContract(_troveManagerAddress);
         checkContract(_activePoolAddress);
 
@@ -39,8 +44,6 @@ contract DefaultPool is Ownable, CheckContract, IDefaultPool {
 
         emit TroveManagerAddressChanged(_troveManagerAddress);
         emit ActivePoolAddressChanged(_activePoolAddress);
-
-        renounceOwnership();
     }
 
     // --- Getters for public variables. Required by IPool interface ---

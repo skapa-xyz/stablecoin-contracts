@@ -9,12 +9,12 @@ import "./Interfaces/IDebtToken.sol";
 import "./Interfaces/ISortedTroves.sol";
 import "./Interfaces/IProtocolToken.sol";
 import "./Interfaces/IProtocolTokenStaking.sol";
-import "./Dependencies/OpenZeppelin/access/Ownable.sol";
+import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "./Dependencies/ProtocolBase.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
-contract TroveManager is ProtocolBase, Ownable, CheckContract, ITroveManager {
+contract TroveManager is ProtocolBase, OwnableUpgradeable, CheckContract, ITroveManager {
     using SafeMath for uint;
 
     string public constant NAME = "TroveManager";
@@ -201,7 +201,7 @@ contract TroveManager is ProtocolBase, Ownable, CheckContract, ITroveManager {
 
     // --- Dependency setter ---
 
-    function setAddresses(
+    function initialize(
         address _borrowerOperationsAddress,
         address _activePoolAddress,
         address _defaultPoolAddress,
@@ -213,7 +213,36 @@ contract TroveManager is ProtocolBase, Ownable, CheckContract, ITroveManager {
         address _sortedTrovesAddress,
         address _protocolTokenAddress,
         address _protocolTokenStakingAddress
-    ) external override onlyOwner {
+    ) external initializer {
+        __Ownable_init();
+        _setAddresses(
+            _borrowerOperationsAddress,
+            _activePoolAddress,
+            _defaultPoolAddress,
+            _stabilityPoolAddress,
+            _gasPoolAddress,
+            _collSurplusPoolAddress,
+            _priceFeedAddress,
+            _debtTokenAddress,
+            _sortedTrovesAddress,
+            _protocolTokenAddress,
+            _protocolTokenStakingAddress
+        );
+    }
+
+    function _setAddresses(
+        address _borrowerOperationsAddress,
+        address _activePoolAddress,
+        address _defaultPoolAddress,
+        address _stabilityPoolAddress,
+        address _gasPoolAddress,
+        address _collSurplusPoolAddress,
+        address _priceFeedAddress,
+        address _debtTokenAddress,
+        address _sortedTrovesAddress,
+        address _protocolTokenAddress,
+        address _protocolTokenStakingAddress
+    ) private {
         checkContract(_borrowerOperationsAddress);
         checkContract(_activePoolAddress);
         checkContract(_defaultPoolAddress);
@@ -225,9 +254,6 @@ contract TroveManager is ProtocolBase, Ownable, CheckContract, ITroveManager {
         checkContract(_sortedTrovesAddress);
         checkContract(_protocolTokenAddress);
         checkContract(_protocolTokenStakingAddress);
-
-        _requireSameInitialParameters(_borrowerOperationsAddress);
-        _requireSameInitialParameters(_stabilityPoolAddress);
 
         borrowerOperationsAddress = _borrowerOperationsAddress;
         activePool = IActivePool(_activePoolAddress);
@@ -252,8 +278,6 @@ contract TroveManager is ProtocolBase, Ownable, CheckContract, ITroveManager {
         emit SortedTrovesAddressChanged(_sortedTrovesAddress);
         emit ProtocolTokenAddressChanged(_protocolTokenAddress);
         emit ProtocolTokenStakingAddressChanged(_protocolTokenStakingAddress);
-
-        renounceOwnership();
     }
 
     // --- Getters ---

@@ -9,7 +9,7 @@ import "./Interfaces/ITroveManager.sol";
 import "./Interfaces/IDebtToken.sol";
 import "./Interfaces/ISortedTroves.sol";
 import "./Interfaces/ICommunityIssuance.sol";
-import "./Dependencies/OpenZeppelin/access/Ownable.sol";
+import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/ProtocolBase.sol";
 import "./Dependencies/ProtocolSafeMath128.sol";
@@ -145,7 +145,7 @@ import "./Dependencies/console.sol";
  * The product P (and snapshot P_t) is re-used, as the ratio P/P_t tracks a deposit's depletion due to liquidations.
  *
  */
-contract StabilityPool is ProtocolBase, Ownable, CheckContract, IStabilityPool {
+contract StabilityPool is ProtocolBase, OwnableUpgradeable, CheckContract, IStabilityPool {
     using ProtocolSafeMath128 for uint128;
     using SafeMath for uint;
 
@@ -200,7 +200,7 @@ contract StabilityPool is ProtocolBase, Ownable, CheckContract, IStabilityPool {
      * During its lifetime, a deposit's value evolves from d_t to d_t * P / P_t , where P_t
      * is the snapshot of P taken at the instant the deposit was made. 18-digit decimal.
      */
-    uint public P = DECIMAL_PRECISION;
+    uint public P;
 
     uint public constant SCALE_FACTOR = 1e9;
 
@@ -244,7 +244,7 @@ contract StabilityPool is ProtocolBase, Ownable, CheckContract, IStabilityPool {
 
     // --- Contract setters ---
 
-    function setAddresses(
+    function initialize(
         address _borrowerOperationsAddress,
         address _troveManagerAddress,
         address _activePoolAddress,
@@ -252,7 +252,29 @@ contract StabilityPool is ProtocolBase, Ownable, CheckContract, IStabilityPool {
         address _sortedTrovesAddress,
         address _priceFeedAddress,
         address _communityIssuanceAddress
-    ) external override onlyOwner {
+    ) external initializer {
+        __Ownable_init();
+        _setAddresses(
+            _borrowerOperationsAddress,
+            _troveManagerAddress,
+            _activePoolAddress,
+            _debtTokenAddress,
+            _sortedTrovesAddress,
+            _priceFeedAddress,
+            _communityIssuanceAddress
+        );
+        P = DECIMAL_PRECISION;
+    }
+
+    function _setAddresses(
+        address _borrowerOperationsAddress,
+        address _troveManagerAddress,
+        address _activePoolAddress,
+        address _debtTokenAddress,
+        address _sortedTrovesAddress,
+        address _priceFeedAddress,
+        address _communityIssuanceAddress
+    ) private {
         checkContract(_borrowerOperationsAddress);
         checkContract(_troveManagerAddress);
         checkContract(_activePoolAddress);
@@ -261,7 +283,6 @@ contract StabilityPool is ProtocolBase, Ownable, CheckContract, IStabilityPool {
         checkContract(_priceFeedAddress);
         checkContract(_communityIssuanceAddress);
 
-        _requireSameInitialParameters(_borrowerOperationsAddress);
         _requireSameInitialParameters(_troveManagerAddress);
 
         borrowerOperations = IBorrowerOperations(_borrowerOperationsAddress);
@@ -279,8 +300,6 @@ contract StabilityPool is ProtocolBase, Ownable, CheckContract, IStabilityPool {
         emit SortedTrovesAddressChanged(_sortedTrovesAddress);
         emit PriceFeedAddressChanged(_priceFeedAddress);
         emit CommunityIssuanceAddressChanged(_communityIssuanceAddress);
-
-        renounceOwnership();
     }
 
     // --- Getters for public variables. Required by IPool interface ---

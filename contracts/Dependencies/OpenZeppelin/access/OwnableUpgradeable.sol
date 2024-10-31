@@ -2,10 +2,11 @@
 
 pragma solidity >=0.6.0 <0.8.0;
 
-import "../utils/Context.sol";
+import "../utils/ContextUpgradeable.sol";
+import "../proxy/Initializable.sol";
 /**
- * Based on OpenZeppelin's Ownable contract:
- * https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v3.4.2/contracts/access/Ownable.sol
+ * Based on OpenZeppelin's OwnableUpgradeable contract:
+ * https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/v3.4.2/contracts/access/OwnableUpgradeable.sol
  *
  * @dev Contract module which provides a basic access control mechanism, where
  * there is an account (an owner) that can be granted exclusive access to
@@ -18,7 +19,7 @@ import "../utils/Context.sol";
  * `onlyOwner`, which can be applied to your functions to restrict their use to
  * the owner.
  */
-abstract contract Ownable is Context {
+abstract contract OwnableUpgradeable is Initializable, ContextUpgradeable {
     address private _owner;
 
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
@@ -26,7 +27,12 @@ abstract contract Ownable is Context {
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
      */
-    constructor() {
+    function __Ownable_init() internal initializer {
+        __Context_init_unchained();
+        __Ownable_init_unchained();
+    }
+
+    function __Ownable_init_unchained() internal initializer {
         address msgSender = _msgSender();
         _owner = msgSender;
         emit OwnershipTransferred(address(0), msgSender);
@@ -68,4 +74,5 @@ abstract contract Ownable is Context {
         emit OwnershipTransferred(_owner, newOwner);
         _owner = newOwner;
     }
+    uint256[49] private __gap;
 }

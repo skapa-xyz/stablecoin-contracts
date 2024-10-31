@@ -91,11 +91,7 @@ contract("HintHelpers", async (accounts) => {
   before(async () => {
     contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     contracts.troveManager = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    contracts.debtToken = await DebtToken.new(
-      contracts.troveManager.address,
-      contracts.stabilityPool.address,
-      contracts.borrowerOperations.address,
-    );
+    contracts.debtToken = await DebtToken.new();
     const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
       bountyAddress,
       lpRewardsAddress,

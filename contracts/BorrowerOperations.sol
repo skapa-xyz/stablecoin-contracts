@@ -8,12 +8,17 @@ import "./Interfaces/IDebtToken.sol";
 import "./Interfaces/ICollSurplusPool.sol";
 import "./Interfaces/ISortedTroves.sol";
 import "./Interfaces/IProtocolTokenStaking.sol";
-import "./Dependencies/OpenZeppelin/access/Ownable.sol";
+import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "./Dependencies/ProtocolBase.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
 
-contract BorrowerOperations is ProtocolBase, Ownable, CheckContract, IBorrowerOperations {
+contract BorrowerOperations is
+    ProtocolBase,
+    OwnableUpgradeable,
+    CheckContract,
+    IBorrowerOperations
+{
     using SafeMath for uint;
 
     string public constant NAME = "BorrowerOperations";
@@ -83,7 +88,7 @@ contract BorrowerOperations is ProtocolBase, Ownable, CheckContract, IBorrowerOp
 
     // --- Dependency setters ---
 
-    function setAddresses(
+    function initialize(
         address _troveManagerAddress,
         address _activePoolAddress,
         address _defaultPoolAddress,
@@ -94,7 +99,34 @@ contract BorrowerOperations is ProtocolBase, Ownable, CheckContract, IBorrowerOp
         address _sortedTrovesAddress,
         address _debtTokenAddress,
         address _protocolTokenStakingAddress
-    ) external override onlyOwner {
+    ) external initializer {
+        __Ownable_init();
+        _setAddresses(
+            _troveManagerAddress,
+            _activePoolAddress,
+            _defaultPoolAddress,
+            _stabilityPoolAddress,
+            _gasPoolAddress,
+            _collSurplusPoolAddress,
+            _priceFeedAddress,
+            _sortedTrovesAddress,
+            _debtTokenAddress,
+            _protocolTokenStakingAddress
+        );
+    }
+
+    function _setAddresses(
+        address _troveManagerAddress,
+        address _activePoolAddress,
+        address _defaultPoolAddress,
+        address _stabilityPoolAddress,
+        address _gasPoolAddress,
+        address _collSurplusPoolAddress,
+        address _priceFeedAddress,
+        address _sortedTrovesAddress,
+        address _debtTokenAddress,
+        address _protocolTokenStakingAddress
+    ) private {
         // This makes impossible to open a trove with zero withdrawn debt token amount
         assert(MIN_NET_DEBT > 0);
 
@@ -110,7 +142,6 @@ contract BorrowerOperations is ProtocolBase, Ownable, CheckContract, IBorrowerOp
         checkContract(_protocolTokenStakingAddress);
 
         _requireSameInitialParameters(_troveManagerAddress);
-        _requireSameInitialParameters(_stabilityPoolAddress);
 
         troveManager = ITroveManager(_troveManagerAddress);
         activePool = IActivePool(_activePoolAddress);
@@ -134,8 +165,6 @@ contract BorrowerOperations is ProtocolBase, Ownable, CheckContract, IBorrowerOp
         emit SortedTrovesAddressChanged(_sortedTrovesAddress);
         emit DebtTokenAddressChanged(_debtTokenAddress);
         emit ProtocolTokenStakingAddressChanged(_protocolTokenStakingAddress);
-
-        renounceOwnership();
     }
 
     // --- Borrower Trove Operations ---

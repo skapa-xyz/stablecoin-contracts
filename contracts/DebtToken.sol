@@ -3,10 +3,12 @@
 pragma solidity 0.7.6;
 
 import "./Interfaces/IDebtToken.sol";
+import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/console.sol";
-/*
+
+/**
  *
  * Based upon OpenZeppelin's ERC20 contract:
  * https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol
@@ -24,7 +26,7 @@ import "./Dependencies/console.sol";
  * 2) sendToPool() and returnFromPool(): functions callable only core contracts, which move Debt tokens between pool <-> user.
  */
 
-contract DebtToken is CheckContract, IDebtToken {
+contract DebtToken is OwnableUpgradeable, CheckContract, IDebtToken {
     using SafeMath for uint256;
 
     uint256 private _totalSupply;
@@ -57,15 +59,34 @@ contract DebtToken is CheckContract, IDebtToken {
     mapping(address => mapping(address => uint256)) private _allowances;
 
     // --- Addresses ---
-    address public immutable troveManagerAddress;
-    address public immutable stabilityPoolAddress;
-    address public immutable borrowerOperationsAddress;
+    address public troveManagerAddress;
+    address public stabilityPoolAddress;
+    address public borrowerOperationsAddress;
 
-    constructor(
+    constructor() {
+        bytes32 hashedName = keccak256(bytes(_NAME));
+        bytes32 hashedVersion = keccak256(bytes(_VERSION));
+
+        _HASHED_NAME = hashedName;
+        _HASHED_VERSION = hashedVersion;
+        _CACHED_CHAIN_ID = _chainID();
+        _CACHED_DOMAIN_SEPARATOR = _buildDomainSeparator(_TYPE_HASH, hashedName, hashedVersion);
+    }
+
+    function initialize(
         address _troveManagerAddress,
         address _stabilityPoolAddress,
         address _borrowerOperationsAddress
-    ) {
+    ) external initializer {
+        __Ownable_init();
+        _setAddresses(_troveManagerAddress, _stabilityPoolAddress, _borrowerOperationsAddress);
+    }
+
+    function _setAddresses(
+        address _troveManagerAddress,
+        address _stabilityPoolAddress,
+        address _borrowerOperationsAddress
+    ) private {
         checkContract(_troveManagerAddress);
         checkContract(_stabilityPoolAddress);
         checkContract(_borrowerOperationsAddress);
@@ -78,14 +99,6 @@ contract DebtToken is CheckContract, IDebtToken {
 
         borrowerOperationsAddress = _borrowerOperationsAddress;
         emit BorrowerOperationsAddressChanged(_borrowerOperationsAddress);
-
-        bytes32 hashedName = keccak256(bytes(_NAME));
-        bytes32 hashedVersion = keccak256(bytes(_VERSION));
-
-        _HASHED_NAME = hashedName;
-        _HASHED_VERSION = hashedVersion;
-        _CACHED_CHAIN_ID = _chainID();
-        _CACHED_DOMAIN_SEPARATOR = _buildDomainSeparator(_TYPE_HASH, hashedName, hashedVersion);
     }
 
     // --- Functions for intra-protocol calls ---
