@@ -15,41 +15,56 @@ const timeValues = testHelpers.TimeValues;
 const _100pct = th._100pct;
 
 const ZERO_ADDRESS = th.ZERO_ADDRESS;
+const toBN = th.toBN;
 
-contract("Gas cost tests", async (accounts) => {
-  const [owner] = accounts;
-  const bountyAddress = accounts[998];
-  const lpRewardsAddress = accounts[999];
-  const multisig = accounts[1000];
+contract("Gas cost tests", async () => {
+  let signers;
+  let owner;
+  let bountyAddress;
+  let lpRewardsAddress;
+  let multisig;
 
   let priceFeed;
-  let debtToken;
 
   let sortedTroves;
   let troveManager;
-  let activePool;
   let stabilityPool;
-  let defaultPool;
   let borrowerOperations;
 
   let contracts;
   let data = [];
 
+  before(async () => {
+    signers = await ethers.getSigners();
+
+    [owner] = signers;
+    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+  });
+
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+    await hre.network.provider.send("hardhat_reset");
+
+    const transactionCount = await owner.getTransactionCount();
+    const cpContracts = await deploymentHelper.computeCoreProtocolContracts(
+      owner.address,
+      transactionCount + 1,
+    );
+    contracts = await deploymentHelper.deployProtocolCore(
+      th.GAS_COMPENSATION,
+      th.MIN_NET_DEBT,
+      cpContracts,
+    );
     const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress,
-      lpRewardsAddress,
-      multisig,
+      bountyAddress.address,
+      lpRewardsAddress.address,
+      multisig.address,
+      cpContracts,
     );
 
     priceFeed = contracts.priceFeedTestnet;
-    debtToken = contracts.debtToken;
     sortedTroves = contracts.sortedTroves;
     troveManager = contracts.troveManager;
-    activePool = contracts.activePool;
     stabilityPool = contracts.stabilityPool;
-    defaultPool = contracts.defaultPool;
     borrowerOperations = contracts.borrowerOperations;
     hintHelpers = contracts.hintHelpers;
 
@@ -57,10 +72,6 @@ contract("Gas cost tests", async (accounts) => {
     protocolToken = protocolTokenContracts.protocolToken;
     communityIssuance = protocolTokenContracts.communityIssuance;
     lockupContractFactory = protocolTokenContracts.lockupContractFactory;
-
-    await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
-    await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
-    await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
   });
 
   // --- liquidateTroves RECOVERY MODE - pure redistribution ---
@@ -70,59 +81,61 @@ contract("Gas cost tests", async (accounts) => {
     const message = "liquidateTroves(). n = 1. Pure redistribution, Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //1 accts open Trove with 1 ether and withdraw 100 token
-    const _1_Defaulter = accounts.slice(1, 2);
+    const _1_Defaulter = signers.slice(1, 2);
     await th.openTrove_allAccounts(_1_Defaulter, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _1_Defaulter) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _1_Defaulter) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens with 1 ether and withdraws 100 token
-    await borrowerOperations.openTrove(_100pct, dec(60, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(1, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(60, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(1, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
     await priceFeed.setPrice(dec(100, 18));
     const price = await priceFeed.getPrice();
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
 
     // Check Recovery Mode is true
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
-    const tx = await troveManager.liquidateTroves(1, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(1);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulters' troves have been closed
-    for (account of _1_Defaulter) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _1_Defaulter) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -133,58 +146,60 @@ contract("Gas cost tests", async (accounts) => {
     const message = "liquidateTroves(). n = 2. Pure redistribution. Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //2 accts open Trove with 1 ether and withdraw 100 token
-    const _2_Defaulters = accounts.slice(1, 3);
+    const _2_Defaulters = signers.slice(1, 3);
     await th.openTrove_allAccounts(_2_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _2_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _2_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens with 1 ether and withdraws 100 token
-    await borrowerOperations.openTrove(_100pct, dec(60, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(1, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(60, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(1, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
     await priceFeed.setPrice(dec(100, 18));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
 
     // Check Recovery Mode is true
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
-    const tx = await troveManager.liquidateTroves(2, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(2);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulters' troves have been closed
-    for (account of _2_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _2_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -195,58 +210,60 @@ contract("Gas cost tests", async (accounts) => {
     const message = "liquidateTroves(). n = 3. Pure redistribution. Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //3 accts open Trove with 1 ether and withdraw 100 token
-    const _3_Defaulters = accounts.slice(1, 4);
+    const _3_Defaulters = signers.slice(1, 4);
     await th.openTrove_allAccounts(_3_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _3_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _3_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens with 1 ether and withdraws 100 token
-    await borrowerOperations.openTrove(_100pct, dec(60, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(1, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(60, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(1, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
     await priceFeed.setPrice(dec(100, 18));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
 
     // Check Recovery Mode is true
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
-    const tx = await troveManager.liquidateTroves(3, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(3);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulters' troves have been closed
-    for (account of _3_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _3_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -257,58 +274,60 @@ contract("Gas cost tests", async (accounts) => {
     const message = "liquidateTroves(). n = 5. Pure redistribution. Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //5 accts open Trove with 1 ether and withdraw 100 token
-    const _5_Defaulters = accounts.slice(1, 6);
+    const _5_Defaulters = signers.slice(1, 6);
     await th.openTrove_allAccounts(_5_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _5_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _5_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens with 1 ether and withdraws 100 token
-    await borrowerOperations.openTrove(_100pct, dec(60, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(1, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(60, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(1, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
     await priceFeed.setPrice(dec(100, 18));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
 
     // Check Recovery Mode is true
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
-    const tx = await troveManager.liquidateTroves(5, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(5);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulters' troves have been closed
-    for (account of _5_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _5_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -319,58 +338,60 @@ contract("Gas cost tests", async (accounts) => {
     const message = "liquidateTroves(). n = 10. Pure redistribution. Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //10 accts open Trove with 1 ether and withdraw 100 token
-    const _10_Defaulters = accounts.slice(1, 11);
+    const _10_Defaulters = signers.slice(1, 11);
     await th.openTrove_allAccounts(_10_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _10_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _10_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens with 1 ether and withdraws 100 token
-    await borrowerOperations.openTrove(_100pct, dec(60, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(1, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(60, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(1, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
     await priceFeed.setPrice(dec(100, 18));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
 
     // Check Recovery Mode is true
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
-    const tx = await troveManager.liquidateTroves(10, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(10);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulters' troves have been closed
-    for (account of _10_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _10_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -381,58 +402,60 @@ contract("Gas cost tests", async (accounts) => {
     const message = "liquidateTroves(). n = 20. Pure redistribution. Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 90 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //20 accts open Trove with 1 ether and withdraw 100 token
-    const _20_Defaulters = accounts.slice(1, 21);
+    const _20_Defaulters = signers.slice(1, 21);
     await th.openTrove_allAccounts(_20_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _20_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _20_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens with 1 ether and withdraws 100 token
-    await borrowerOperations.openTrove(_100pct, dec(60, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(1, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(60, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(1, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
     await priceFeed.setPrice(dec(100, 18));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
 
     // Check Recovery Mode is true
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
-    const tx = await troveManager.liquidateTroves(20, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(20);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulters' troves have been closed
-    for (account of _20_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _20_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -443,58 +466,60 @@ contract("Gas cost tests", async (accounts) => {
     const message = "liquidateTroves(). n = 30. Pure redistribution. Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 90 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //30 accts open Trove with 1 ether and withdraw 100 token
-    const _30_Defaulters = accounts.slice(1, 31);
+    const _30_Defaulters = signers.slice(1, 31);
     await th.openTrove_allAccounts(_30_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _30_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _30_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens with 1 ether and withdraws 100 token
-    await borrowerOperations.openTrove(_100pct, dec(60, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(1, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(60, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(1, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
     await priceFeed.setPrice(dec(100, 18));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
 
     // Check Recovery Mode is true
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
-    const tx = await troveManager.liquidateTroves(30, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(30);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulters' troves have been closed
-    for (account of _30_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _30_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -505,58 +530,60 @@ contract("Gas cost tests", async (accounts) => {
     const message = "liquidateTroves(). n = 40. Pure redistribution. Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 90 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //40 accts open Trove with 1 ether and withdraw 100 token
-    const _40_Defaulters = accounts.slice(1, 41);
+    const _40_Defaulters = signers.slice(1, 41);
     await th.openTrove_allAccounts(_40_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _40_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _40_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens with 1 ether and withdraws 100 token
-    await borrowerOperations.openTrove(_100pct, dec(60, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(1, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(60, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(1, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
     await priceFeed.setPrice(dec(100, 18));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
 
     // Check Recovery Mode is true
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
-    const tx = await troveManager.liquidateTroves(40, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(40);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulters' troves have been closed
-    for (account of _40_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _40_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -567,37 +594,38 @@ contract("Gas cost tests", async (accounts) => {
     const message = "liquidateTroves(). n = 45. Pure redistribution. Recovery Mode";
     // 10 accts each open Trove
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(1000, "ether"),
       dec(90000, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //45 accts open Trove
-    const _45_Defaulters = accounts.slice(1, 46);
+    const _45_Defaulters = signers.slice(1, 46);
     await th.openTrove_allAccounts(_45_Defaulters, contracts, dec(100, "ether"), dec(9500, 18));
 
     // Check all defaulters are active
-    for (account of _45_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _45_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens Trove
-    await borrowerOperations.openTrove(_100pct, dec(9500, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(100, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(9500, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(100, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
     await priceFeed.setPrice(dec(100, 18));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
 
     // Check Recovery Mode is true
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
@@ -605,20 +633,21 @@ contract("Gas cost tests", async (accounts) => {
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
-    const tx = await troveManager.liquidateTroves(45, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(45);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check defaulters' troves have been closed
-    for (account of _45_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _45_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -632,34 +661,35 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 1. All fully offset with Stability Pool. No pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
     assert.equal(debtTokenInSP, dec(9, 28));
 
     //1 acct opens Trove with 1 ether and withdraw 100 token
-    const _1_Defaulter = accounts.slice(1, 2);
+    const _1_Defaulter = signers.slice(1, 2);
     await th.openTrove_allAccounts(_1_Defaulter, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _1_Defaulter) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _1_Defaulter) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Price drops, defaulters falls below MCR
@@ -670,37 +700,38 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _1_Defaulter) {
-      console.log(`ICR: ${await troveManager.getCurrentICR(account, price)}`);
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _1_Defaulter) {
+      console.log(`ICR: ${await troveManager.getCurrentICR(signer, price)}`);
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(1, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(1);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // // Check Troves are closed
-    for (account of _1_Defaulter) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _1_Defaulter) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -712,34 +743,35 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 2. All fully offset with Stability Pool. No pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
     assert.equal(debtTokenInSP, dec(9, 28));
 
     //2 acct opens Trove with 1 ether and withdraw 100 token
-    const _2_Defaulters = accounts.slice(1, 3);
+    const _2_Defaulters = signers.slice(1, 3);
     await th.openTrove_allAccounts(_2_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _2_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _2_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Price drops, defaulters falls below MCR
@@ -750,36 +782,37 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _2_Defaulters) {
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _2_Defaulters) {
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(2, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(2);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // // Check Troves are closed
-    for (account of _2_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _2_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -791,34 +824,35 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 3. All fully offset with Stability Pool. No pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
     assert.equal(debtTokenInSP, dec(9, 28));
 
     //3 accts open Trove with 1 ether and withdraw 100 token
-    const _3_Defaulters = accounts.slice(1, 4);
+    const _3_Defaulters = signers.slice(1, 4);
     await th.openTrove_allAccounts(_3_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _3_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _3_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Price drops, defaulters falls below MCR
@@ -829,36 +863,37 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _3_Defaulters) {
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _3_Defaulters) {
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(3, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(3);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // // Check Troves are closed
-    for (account of _3_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _3_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -870,34 +905,35 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 5. All fully offset with Stability Pool. No pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
     assert.equal(debtTokenInSP, dec(9, 28));
 
     //5 accts open Trove with 1 ether and withdraw 100 token
-    const _5_Defaulters = accounts.slice(1, 6);
+    const _5_Defaulters = signers.slice(1, 6);
     await th.openTrove_allAccounts(_5_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _5_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _5_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Price drops, defaulters falls below MCR
@@ -908,36 +944,37 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _5_Defaulters) {
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _5_Defaulters) {
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(5, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(5);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // // Check Troves are closed
-    for (account of _5_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _5_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -949,34 +986,35 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 10. All fully offset with Stability Pool. No pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
     assert.equal(debtTokenInSP, dec(9, 28));
 
     //10 accts open Trove with 1 ether and withdraw 100 token
-    const _10_Defaulters = accounts.slice(1, 11);
+    const _10_Defaulters = signers.slice(1, 11);
     await th.openTrove_allAccounts(_10_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _10_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _10_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Price drops, defaulters falls below MCR
@@ -987,36 +1025,37 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _10_Defaulters) {
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _10_Defaulters) {
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(10, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(10);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // // Check Troves are closed
-    for (account of _10_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _10_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -1028,34 +1067,35 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 20. All fully offset with Stability Pool. No pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
     assert.equal(debtTokenInSP, dec(9, 28));
 
     //30 accts open Trove with 1 ether and withdraw 100 token
-    const _20_Defaulters = accounts.slice(1, 21);
+    const _20_Defaulters = signers.slice(1, 21);
     await th.openTrove_allAccounts(_20_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _20_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _20_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Price drops, defaulters falls below MCR
@@ -1066,36 +1106,37 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _20_Defaulters) {
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _20_Defaulters) {
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(20, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(20);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // // Check Troves are closed
-    for (account of _20_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _20_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -1107,34 +1148,35 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 30. All fully offset with Stability Pool. No pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
     assert.equal(debtTokenInSP, dec(9, 28));
 
     //30 accts open Trove with 1 ether and withdraw 100 token
-    const _30_Defaulters = accounts.slice(1, 31);
+    const _30_Defaulters = signers.slice(1, 31);
     await th.openTrove_allAccounts(_30_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _30_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _30_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Price drops, defaulters falls below MCR
@@ -1145,36 +1187,37 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _30_Defaulters) {
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _30_Defaulters) {
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(30, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(30);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // // Check Troves are closed
-    for (account of _30_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _30_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -1186,34 +1229,35 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 40. All fully offset with Stability Pool. No pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
     assert.equal(debtTokenInSP, dec(9, 28));
 
     //40 accts open Trove with 1 ether and withdraw 100 token
-    const _40_Defaulters = accounts.slice(1, 41);
+    const _40_Defaulters = signers.slice(1, 41);
     await th.openTrove_allAccounts(_40_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _40_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _40_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Price drops, defaulters falls below MCR
@@ -1224,36 +1268,37 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _40_Defaulters) {
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _40_Defaulters) {
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(40, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(40);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // // Check Troves are closed
-    for (account of _40_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _40_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -1265,34 +1310,35 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 45. All fully offset with Stability Pool. No pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(1000, "ether"),
       dec(90000, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
     assert.equal(debtTokenInSP, dec(9, 28));
 
     //45 accts open Trove with 1 ether and withdraw 100 token
-    const _45_Defaulters = accounts.slice(1, 46);
+    const _45_Defaulters = signers.slice(1, 46);
     await th.openTrove_allAccounts(_45_Defaulters, contracts, dec(100, "ether"), dec(9500, 18));
 
     // Check all defaulters are active
-    for (account of _45_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _45_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Price drops, defaulters falls below MCR
@@ -1303,36 +1349,37 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _45_Defaulters) {
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _45_Defaulters) {
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(45, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(45);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // // Check Troves are closed
-    for (account of _45_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _45_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -1346,49 +1393,51 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 1. All fully offset with Stability Pool. Has pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //1 acct opens Trove with 1 ether and withdraw 100 token
-    const _1_Defaulter = accounts.slice(1, 2);
+    const _1_Defaulter = signers.slice(1, 2);
     await th.openTrove_allAccounts(_1_Defaulter, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _1_Defaulter) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _1_Defaulter) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens with 1 ether and withdraws 110 token
-    await borrowerOperations.openTrove(_100pct, dec(110, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(1, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(110, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(1, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await priceFeed.setPrice(dec(100, 18));
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
 
     // Check all defaulters have pending rewards
-    for (account of _1_Defaulter) {
-      assert.isTrue(await troveManager.hasPendingRewards(account));
+    for (const signer of _1_Defaulter) {
+      assert.isTrue(await troveManager.hasPendingRewards(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
@@ -1402,36 +1451,37 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _1_Defaulter) {
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _1_Defaulter) {
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(1, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(1);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // // Check Troves are closed
-    for (account of _1_Defaulter) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _1_Defaulter) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -1443,49 +1493,51 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 2. All fully offset with Stability Pool. Has pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //2 accts open Trove with 1 ether and withdraw 100 token
-    const _2_Defaulters = accounts.slice(1, 3);
+    const _2_Defaulters = signers.slice(1, 3);
     await th.openTrove_allAccounts(_2_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _2_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _2_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens with 1 ether and withdraws 110 token
-    await borrowerOperations.openTrove(_100pct, dec(110, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(1, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(110, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(1, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await priceFeed.setPrice(dec(100, 18));
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
 
     // Check all defaulters have pending rewards
-    for (account of _2_Defaulters) {
-      assert.isTrue(await troveManager.hasPendingRewards(account));
+    for (const signer of _2_Defaulters) {
+      assert.isTrue(await troveManager.hasPendingRewards(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
@@ -1499,36 +1551,37 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _2_Defaulters) {
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _2_Defaulters) {
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(2, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(2);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check Troves are closed
-    for (account of _2_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _2_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -1540,49 +1593,51 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 3. All fully offset with Stability Pool. Has pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //3 accts open Trove with 1 ether and withdraw 100 token
-    const _3_Defaulters = accounts.slice(1, 4);
+    const _3_Defaulters = signers.slice(1, 4);
     await th.openTrove_allAccounts(_3_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _3_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _3_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens with 1 ether and withdraws 110 token
-    await borrowerOperations.openTrove(_100pct, dec(110, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(1, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(110, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(1, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await priceFeed.setPrice(dec(100, 18));
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
 
     // Check all defaulters have pending rewards
-    for (account of _3_Defaulters) {
-      assert.isTrue(await troveManager.hasPendingRewards(account));
+    for (const signer of _3_Defaulters) {
+      assert.isTrue(await troveManager.hasPendingRewards(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
@@ -1596,36 +1651,37 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _3_Defaulters) {
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _3_Defaulters) {
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(3, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(3);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check Troves are closed
-    for (account of _3_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _3_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -1637,49 +1693,51 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 5. All fully offset with Stability Pool. Has pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //5 accts open Trove with 1 ether and withdraw 100 token
-    const _5_Defaulters = accounts.slice(1, 6);
+    const _5_Defaulters = signers.slice(1, 6);
     await th.openTrove_allAccounts(_5_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _5_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _5_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens with 1 ether and withdraws 110 token
-    await borrowerOperations.openTrove(_100pct, dec(110, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(1, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(110, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(1, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await priceFeed.setPrice(dec(100, 18));
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
 
     // Check all defaulters have pending rewards
-    for (account of _5_Defaulters) {
-      assert.isTrue(await troveManager.hasPendingRewards(account));
+    for (const signer of _5_Defaulters) {
+      assert.isTrue(await troveManager.hasPendingRewards(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
@@ -1693,36 +1751,37 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _5_Defaulters) {
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _5_Defaulters) {
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(5, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(5);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check Troves are closed
-    for (account of _5_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _5_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -1734,49 +1793,51 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 10. All fully offset with Stability Pool. Has pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //10 accts open Trove with 1 ether and withdraw 100 token
-    const _10_Defaulters = accounts.slice(1, 11);
+    const _10_Defaulters = signers.slice(1, 11);
     await th.openTrove_allAccounts(_10_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _10_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _10_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens with 1 ether and withdraws 110 token
-    await borrowerOperations.openTrove(_100pct, dec(110, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(1, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(110, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(1, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await priceFeed.setPrice(dec(100, 18));
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
 
     // Check all defaulters have pending rewards
-    for (account of _10_Defaulters) {
-      assert.isTrue(await troveManager.hasPendingRewards(account));
+    for (const signer of _10_Defaulters) {
+      assert.isTrue(await troveManager.hasPendingRewards(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
@@ -1790,36 +1851,37 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _10_Defaulters) {
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _10_Defaulters) {
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(10, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(10);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check Troves are closed
-    for (account of _10_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _10_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -1831,49 +1893,51 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 20. All fully offset with Stability Pool. Has pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //20 accts open Trove with 1 ether and withdraw 100 token
-    const _20_Defaulters = accounts.slice(1, 21);
+    const _20_Defaulters = signers.slice(1, 21);
     await th.openTrove_allAccounts(_20_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _20_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _20_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens with 1 ether and withdraws 110 token
-    await borrowerOperations.openTrove(_100pct, dec(110, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(1, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(110, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(1, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await priceFeed.setPrice(dec(100, 18));
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
 
     // Check all defaulters have pending rewards
-    for (account of _20_Defaulters) {
-      assert.isTrue(await troveManager.hasPendingRewards(account));
+    for (const signer of _20_Defaulters) {
+      assert.isTrue(await troveManager.hasPendingRewards(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
@@ -1887,36 +1951,37 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _20_Defaulters) {
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _20_Defaulters) {
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(20, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(20);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check Troves are closed
-    for (account of _20_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _20_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -1928,49 +1993,51 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 30. All fully offset with Stability Pool. Has pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //30 accts open Trove with 1 ether and withdraw 100 token
-    const _30_Defaulters = accounts.slice(1, 31);
+    const _30_Defaulters = signers.slice(1, 31);
     await th.openTrove_allAccounts(_30_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _30_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _30_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens with 1 ether and withdraws 110 token
-    await borrowerOperations.openTrove(_100pct, dec(110, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(1, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(110, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(1, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await priceFeed.setPrice(dec(100, 18));
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
 
     // Check all defaulters have pending rewards
-    for (account of _30_Defaulters) {
-      assert.isTrue(await troveManager.hasPendingRewards(account));
+    for (const signer of _30_Defaulters) {
+      assert.isTrue(await troveManager.hasPendingRewards(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
@@ -1984,36 +2051,37 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _30_Defaulters) {
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _30_Defaulters) {
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(30, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(30);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check Troves are closed
-    for (account of _30_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _30_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -2025,49 +2093,51 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 40. All fully offset with Stability Pool. Has pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove with 10 ether, withdraw 900 token
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(10, "ether"),
       dec(900, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //40 accts open Trove with 1 ether and withdraw 100 token
-    const _40_Defaulters = accounts.slice(1, 41);
+    const _40_Defaulters = signers.slice(1, 41);
     await th.openTrove_allAccounts(_40_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
 
     // Check all defaulters are active
-    for (account of _40_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _40_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens with 1 ether and withdraws 110 token
-    await borrowerOperations.openTrove(_100pct, dec(110, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(1, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(110, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(1, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await priceFeed.setPrice(dec(100, 18));
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
 
     // Check all defaulters have pending rewards
-    for (account of _40_Defaulters) {
-      assert.isTrue(await troveManager.hasPendingRewards(account));
+    for (const signer of _40_Defaulters) {
+      assert.isTrue(await troveManager.hasPendingRewards(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
@@ -2081,36 +2151,37 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _40_Defaulters) {
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _40_Defaulters) {
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(40, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(40);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check Troves are closed
-    for (account of _40_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _40_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -2122,49 +2193,51 @@ contract("Gas cost tests", async (accounts) => {
       "liquidateTroves(). n = 45. All fully offset with Stability Pool. Has pending distribution rewards. In Recovery Mode";
     // 10 accts each open Trove
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(1000, "ether"),
       dec(90000, 18),
     );
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     //45 accts opens
-    const _45_Defaulters = accounts.slice(1, 46);
+    const _45_Defaulters = signers.slice(1, 46);
     await th.openTrove_allAccounts(_45_Defaulters, contracts, dec(100, "ether"), dec(9500, 18));
 
     // Check all defaulters are active
-    for (account of _45_Defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _45_Defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 opens
-    await borrowerOperations.openTrove(_100pct, dec(11000, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(100, "ether"),
-    });
-    assert.isTrue(await sortedTroves.contains(accounts[500]));
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(11000, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(100, "ether"),
+      });
+    assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await priceFeed.setPrice(dec(100, 18));
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
-    assert.isFalse(await sortedTroves.contains(accounts[500]));
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
+    assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
 
     // Check all defaulters have pending rewards
-    for (account of _45_Defaulters) {
-      assert.isTrue(await troveManager.hasPendingRewards(account));
+    for (const signer of _45_Defaulters) {
+      assert.isTrue(await troveManager.hasPendingRewards(signer.address));
     }
 
     // Whale opens trove and fills SP with 1 billion token
-    const whale = accounts[999];
-    await borrowerOperations.openTrove(_100pct, dec(9, 28), whale, ZERO_ADDRESS, {
-      from: whale,
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(9, 28), ZERO_ADDRESS, { from: whale });
+    const whale = signers[999];
+    await borrowerOperations
+      .connect(whale)
+      .openTrove(_100pct, dec(9, 28), whale.address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(whale).provideToSP(dec(9, 28), ZERO_ADDRESS);
 
     // Check SP has 9e28 token
     const debtTokenInSP = (await stabilityPool.getTotalDebtTokenDeposits()).toString();
@@ -2178,36 +2251,37 @@ contract("Gas cost tests", async (accounts) => {
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check defaulter ICRs are all between 100% and 110%
-    for (account of _45_Defaulters) {
-      assert.isTrue(await th.ICRbetween100and110(account, troveManager, price));
+    for (const signer of _45_Defaulters) {
+      assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
     // Liquidate troves
-    const tx = await troveManager.liquidateTroves(45, { from: accounts[0] });
-    assert.isTrue(tx.receipt.status);
+    const tx = await troveManager.connect(signers[0]).liquidateTroves(45);
+    const receipt = await tx.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Recovery Mode is true after liquidations
     assert.isTrue(await troveManager.checkRecoveryMode(await priceFeed.getPrice()));
 
     // Check Troves are closed
-    for (account of _45_Defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _45_Defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
     // Check initial troves with starting 10E/90token, and whale's trove, are still open
-    for (account of accounts.slice(101, 111)) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of signers.slice(101, 111)) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     //Check token in SP has decreased but is still > 0
     const debtTokenInSP_After = await stabilityPool.getTotalDebtTokenDeposits();
-    assert.isTrue(debtTokenInSP_After.lt(web3.utils.toBN(dec(9, 28))));
-    assert.isTrue(debtTokenInSP_After.gt(web3.utils.toBN("0")));
+    assert.isTrue(debtTokenInSP_After.lt(toBN(dec(9, 28))));
+    assert.isTrue(debtTokenInSP_After.gt(toBN("0")));
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -2224,43 +2298,46 @@ contract("Gas cost tests", async (accounts) => {
     // 10 accts each open Trove with 10 ether, withdraws token
 
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(1000, "ether"),
       dec(13000, 18),
     );
 
     // Account 500 opens with 1 ether and withdraws token
-    await borrowerOperations.openTrove(_100pct, dec(13000, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(100, "ether"),
-    });
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(13000, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(100, "ether"),
+      });
 
-    const _10_defaulters = accounts.slice(1, 11);
+    const _10_defaulters = signers.slice(1, 11);
     // --- Accounts to be liquidated in the test tx ---
     await th.openTrove_allAccounts(_10_defaulters, contracts, dec(100, "ether"), dec(13000, 18));
 
     // Check all defaulters active
-    for (account of _10_defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _10_defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await priceFeed.setPrice(dec(100, 18));
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
     await priceFeed.setPrice(dec(200, 18));
 
-    // Price drops, account[1]'s ICR falls below MCR
+    // Price drops, signer[1]'s ICR falls below MCR
     await priceFeed.setPrice(dec(100, 18));
 
-    const tx = await troveManager.batchLiquidateTroves(_10_defaulters, { from: accounts[0] });
+    const tx = await troveManager
+      .connect(signers[0])
+      .batchLiquidateTroves(_10_defaulters.map(({ address }) => address));
 
     // Check all defaulters liquidated
-    for (account of _10_defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _10_defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -2273,43 +2350,46 @@ contract("Gas cost tests", async (accounts) => {
     // 10 accts each open Trove with 10 ether, withdraw 180 token
 
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(100, "ether"),
       dec(13000, 18),
     );
 
     // Account 500 opens with 1 ether and withdraws 180 token
-    await borrowerOperations.openTrove(_100pct, dec(13000, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(100, "ether"),
-    });
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(13000, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(100, "ether"),
+      });
 
     // --- Accounts to be liquidated in the test tx ---
-    const _40_defaulters = accounts.slice(1, 41);
+    const _40_defaulters = signers.slice(1, 41);
     await th.openTrove_allAccounts(_40_defaulters, contracts, dec(100, "ether"), dec(13000, 18));
 
     // Check all defaulters active
-    for (account of _40_defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _40_defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await priceFeed.setPrice(dec(100, 18));
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
     await priceFeed.setPrice(dec(200, 18));
 
-    // Price drops, account[1]'s ICR falls below MCR
+    // Price drops, signer[1]'s ICR falls below MCR
     await priceFeed.setPrice(dec(100, 18));
 
-    const tx = await troveManager.batchLiquidateTroves(_40_defaulters, { from: accounts[0] });
+    const tx = await troveManager
+      .connect(signers[0])
+      .batchLiquidateTroves(_40_defaulters.map(({ address }) => address));
 
     // check all defaulters liquidated
-    for (account of _40_defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _40_defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -2322,43 +2402,46 @@ contract("Gas cost tests", async (accounts) => {
     // 10 accts each open Trove with 10 ether, withdraw 180 token
 
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(1000, "ether"),
       dec(13000, 18),
     );
 
     // Account 500 opens with 1 ether and withdraws 180 token
-    await borrowerOperations.openTrove(_100pct, dec(13000, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(100, "ether"),
-    });
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(13000, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(100, "ether"),
+      });
 
     // --- Accounts to be liquidated in the test tx ---
-    const _45_defaulters = accounts.slice(1, 46);
+    const _45_defaulters = signers.slice(1, 46);
     await th.openTrove_allAccounts(_45_defaulters, contracts, dec(100, "ether"), dec(13000, 18));
 
     // check all defaulters active
-    for (account of _45_defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _45_defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await priceFeed.setPrice(dec(100, 18));
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
     await priceFeed.setPrice(dec(200, 18));
 
-    // Price drops, account[1]'s ICR falls below MCR
+    // Price drops, signer[1]'s ICR falls below MCR
     await priceFeed.setPrice(dec(100, 18));
 
-    const tx = await troveManager.batchLiquidateTroves(_45_defaulters, { from: accounts[0] });
+    const tx = await troveManager
+      .connect(signers[0])
+      .batchLiquidateTroves(_45_defaulters.map(({ address }) => address));
 
     // check all defaulters liquidated
-    for (account of _45_defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _45_defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -2371,43 +2454,46 @@ contract("Gas cost tests", async (accounts) => {
     // 10 accts each open Trove with 10 ether, withdraw 180 token
 
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(100, "ether"),
       dec(13000, 18),
     );
 
     // Account 500 opens with 1 ether and withdraws 180 token
-    await borrowerOperations.openTrove(_100pct, dec(13000, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(100, "ether"),
-    });
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(13000, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(100, "ether"),
+      });
 
     // --- Accounts to be liquidated in the test tx ---
-    const _50_defaulters = accounts.slice(1, 51);
+    const _50_defaulters = signers.slice(1, 51);
     await th.openTrove_allAccounts(_50_defaulters, contracts, dec(100, "ether"), dec(13000, 18));
 
     // check all defaulters active
-    for (account of _50_defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _50_defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await priceFeed.setPrice(dec(100, 18));
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
     await priceFeed.setPrice(dec(200, 18));
 
-    // Price drops, account[1]'s ICR falls below MCR
+    // Price drops, signer[1]'s ICR falls below MCR
     await priceFeed.setPrice(dec(100, 18));
 
-    const tx = await troveManager.batchLiquidateTroves(_50_defaulters, { from: accounts[0] });
+    const tx = await troveManager
+      .connect(signers[0])
+      .batchLiquidateTroves(_50_defaulters.map(({ address }) => address));
 
     // check all defaulters liquidated
-    for (account of _50_defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _50_defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -2422,52 +2508,56 @@ contract("Gas cost tests", async (accounts) => {
     // 10 accts each open Trove with 10 ether, withdraw 180 token
 
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(1000, "ether"),
       dec(13000, 18),
     );
 
     // Account 500 opens with 1 ether and withdraws 180 token
-    await borrowerOperations.openTrove(_100pct, dec(13000, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(100, "ether"),
-    });
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(13000, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(100, "ether"),
+      });
 
-    const _10_defaulters = accounts.slice(1, 11);
+    const _10_defaulters = signers.slice(1, 11);
     // --- Accounts to be liquidated in the test tx ---
     await th.openTrove_allAccounts(_10_defaulters, contracts, dec(100, "ether"), dec(13000, 18));
 
     // Check all defaulters active
-    for (account of _10_defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _10_defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await priceFeed.setPrice(dec(100, 18));
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
     await priceFeed.setPrice(dec(200, 18));
 
     // Whale opens trove and fills SP with 1 billion token
-    await borrowerOperations.openTrove(_100pct, dec(1, 27), accounts[999], ZERO_ADDRESS, {
-      from: accounts[999],
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(1, 27), ZERO_ADDRESS, { from: accounts[999] });
+    await borrowerOperations
+      .connect(signers[999])
+      .openTrove(_100pct, dec(1, 27), signers[999].address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(signers[999]).provideToSP(dec(1, 27), ZERO_ADDRESS);
 
-    // Price drops, account[1]'s ICR falls below MCR
+    // Price drops, signer[1]'s ICR falls below MCR
     await priceFeed.setPrice(dec(100, 18));
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
-    const tx = await troveManager.batchLiquidateTroves(_10_defaulters, { from: accounts[0] });
+    const tx = await troveManager
+      .connect(signers[0])
+      .batchLiquidateTroves(_10_defaulters.map(({ address }) => address));
 
     // Check all defaulters liquidated
-    for (account of _10_defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _10_defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -2480,52 +2570,56 @@ contract("Gas cost tests", async (accounts) => {
     // 10 accts each open Trove with 10 ether, withdraw 180 token
 
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(100, "ether"),
       dec(10000, 18),
     );
 
     // Account 500 opens with 1 ether and withdraws 180 token
-    await borrowerOperations.openTrove(_100pct, dec(13000, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(100, "ether"),
-    });
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(13000, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(100, "ether"),
+      });
 
     // --- Accounts to be liquidated in the test tx ---
-    const _40_defaulters = accounts.slice(1, 41);
+    const _40_defaulters = signers.slice(1, 41);
     await th.openTrove_allAccounts(_40_defaulters, contracts, dec(100, "ether"), dec(13000, 18));
 
     // Check all defaulters active
-    for (account of _40_defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _40_defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await priceFeed.setPrice(dec(100, 18));
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
     await priceFeed.setPrice(dec(200, 18));
 
     // Whale opens trove and fills SP with 1 billion token
-    await borrowerOperations.openTrove(_100pct, dec(1, 27), accounts[999], ZERO_ADDRESS, {
-      from: accounts[999],
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(1, 27), ZERO_ADDRESS, { from: accounts[999] });
+    await borrowerOperations
+      .connect(signers[999])
+      .openTrove(_100pct, dec(1, 27), signers[999].address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(signers[999]).provideToSP(dec(1, 27), ZERO_ADDRESS);
 
-    // Price drops, account[1]'s ICR falls below MCR
+    // Price drops, signer[1]'s ICR falls below MCR
     await priceFeed.setPrice(dec(100, 18));
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
-    const tx = await troveManager.batchLiquidateTroves(_40_defaulters, { from: accounts[0] });
+    const tx = await troveManager
+      .connect(signers[0])
+      .batchLiquidateTroves(_40_defaulters.map(({ address }) => address));
 
     // check all defaulters liquidated
-    for (account of _40_defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _40_defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -2538,52 +2632,56 @@ contract("Gas cost tests", async (accounts) => {
     // 10 accts each open Trove with 10 ether, withdraw 180 token
 
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(100, "ether"),
       dec(13000, 18),
     );
 
     // Account 500 opens with 1 ether and withdraws 180 token
-    await borrowerOperations.openTrove(_100pct, dec(13000, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(100, "ether"),
-    });
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(13000, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(100, "ether"),
+      });
 
     // --- Accounts to be liquidated in the test tx ---
-    const _45_defaulters = accounts.slice(1, 46);
+    const _45_defaulters = signers.slice(1, 46);
     await th.openTrove_allAccounts(_45_defaulters, contracts, dec(100, "ether"), dec(13000, 18));
 
     // check all defaulters active
-    for (account of _45_defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _45_defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await priceFeed.setPrice(dec(100, 18));
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
     await priceFeed.setPrice(dec(200, 18));
 
     // Whale opens trove and fills SP with 1 billion token
-    await borrowerOperations.openTrove(_100pct, dec(1, 27), accounts[999], ZERO_ADDRESS, {
-      from: accounts[999],
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(1, 27), ZERO_ADDRESS, { from: accounts[999] });
+    await borrowerOperations
+      .connect(signers[999])
+      .openTrove(_100pct, dec(1, 27), signers[999].address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(signers[999]).provideToSP(dec(1, 27), ZERO_ADDRESS);
 
-    // Price drops, account[1]'s ICR falls below MCR
+    // Price drops, signer[1]'s ICR falls below MCR
     await priceFeed.setPrice(dec(100, 18));
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
-    const tx = await troveManager.batchLiquidateTroves(_45_defaulters, { from: accounts[0] });
+    const tx = await troveManager
+      .connect(signers[0])
+      .batchLiquidateTroves(_45_defaulters.map(({ address }) => address));
 
     // check all defaulters liquidated
-    for (account of _45_defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _45_defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);
@@ -2596,52 +2694,56 @@ contract("Gas cost tests", async (accounts) => {
     // 10 accts each open Trove with 10 ether, withdraw 180 token
 
     await th.openTrove_allAccounts(
-      accounts.slice(101, 111),
+      signers.slice(101, 111),
       contracts,
       dec(100, "ether"),
       dec(13000, 18),
     );
 
     // Account 500 opens with 1 ether and withdraws 180 token
-    await borrowerOperations.openTrove(_100pct, dec(13000, 18), accounts[500], ZERO_ADDRESS, {
-      from: accounts[500],
-      value: dec(100, "ether"),
-    });
+    await borrowerOperations
+      .connect(signers[500])
+      .openTrove(_100pct, dec(13000, 18), signers[500].address, ZERO_ADDRESS, {
+        value: dec(100, "ether"),
+      });
 
     // --- Accounts to be liquidated in the test tx ---
-    const _50_defaulters = accounts.slice(1, 51);
+    const _50_defaulters = signers.slice(1, 51);
     await th.openTrove_allAccounts(_50_defaulters, contracts, dec(100, "ether"), dec(13000, 18));
 
     // check all defaulters active
-    for (account of _50_defaulters) {
-      assert.isTrue(await sortedTroves.contains(account));
+    for (const signer of _50_defaulters) {
+      assert.isTrue(await sortedTroves.contains(signer.address));
     }
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await priceFeed.setPrice(dec(100, 18));
-    await troveManager.liquidate(accounts[500], { from: accounts[0] });
+    await troveManager.connect(signers[0]).liquidate(signers[500].address);
     await priceFeed.setPrice(dec(200, 18));
 
     // Whale opens trove and fills SP with 1 billion token
-    await borrowerOperations.openTrove(_100pct, dec(1, 27), accounts[999], ZERO_ADDRESS, {
-      from: accounts[999],
-      value: dec(1, 27),
-    });
-    await stabilityPool.provideToSP(dec(1, 27), ZERO_ADDRESS, { from: accounts[999] });
+    await borrowerOperations
+      .connect(signers[999])
+      .openTrove(_100pct, dec(1, 27), signers[999].address, ZERO_ADDRESS, {
+        value: dec(1, 27),
+      });
+    await stabilityPool.connect(signers[999]).provideToSP(dec(1, 27), ZERO_ADDRESS);
 
-    // Price drops, account[1]'s ICR falls below MCR
+    // Price drops, signer[1]'s ICR falls below MCR
     await priceFeed.setPrice(dec(100, 18));
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
-    const tx = await troveManager.batchLiquidateTroves(_50_defaulters, { from: accounts[0] });
+    const tx = await troveManager
+      .connect(signers[0])
+      .batchLiquidateTroves(_50_defaulters.map(({ address }) => address));
 
     // check all defaulters liquidated
-    for (account of _50_defaulters) {
-      assert.isFalse(await sortedTroves.contains(account));
+    for (const signer of _50_defaulters) {
+      assert.isFalse(await sortedTroves.contains(signer.address));
     }
 
-    const gas = th.gasUsed(tx);
+    const gas = await th.gasUsed(tx);
     th.logGas(gas, message);
 
     th.appendData({ gas: gas }, message, data);

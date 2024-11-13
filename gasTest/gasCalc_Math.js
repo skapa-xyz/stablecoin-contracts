@@ -1,56 +1,17 @@
 const fs = require("fs");
-const deploymentHelper = require("../utils/deploymentHelpers.js");
 const testHelpers = require("../utils/testHelpers.js");
-const TroveManagerTester = artifacts.require("./TroveManagerTester.sol");
-const ProtocolMathTester = artifacts.require("./ProtocolMathTester.sol");
 
 const th = testHelpers.TestHelper;
 
 const timeValues = testHelpers.TimeValues;
 
 /* Script that logs gas costs for protocol math functions. */
-contract("Gas costs for math functions", async (accounts) => {
-  const bountyAddress = accounts[998];
-  const lpRewardsAddress = accounts[999];
-
-  let contracts;
-  let debtToken;
-  let troveManagerTester;
+contract("Gas costs for math functions", async () => {
   let mathTester;
 
   before(async () => {
-    troveManagerTester = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    TroveManagerTester.setAsDeployed(troveManagerTester);
-
-    mathTester = await ProtocolMathTester.new();
-    ProtocolMathTester.setAsDeployed(mathTester);
-  });
-
-  beforeEach(async () => {
-    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress,
-      lpRewardsAddress,
-    );
-
-    priceFeed = contracts.priceFeedTestnet;
-    debtToken = contracts.debtToken;
-    sortedTroves = contracts.sortedTroves;
-    troveManager = contracts.troveManager;
-    activePool = contracts.activePool;
-    stabilityPool = contracts.stabilityPool;
-    defaultPool = contracts.defaultPool;
-    borrowerOperations = contracts.borrowerOperations;
-    hintHelpers = contracts.hintHelpers;
-
-    gtStaking = protocolTokenContracts.gtStaking;
-    protocolToken = protocolTokenContracts.protocolToken;
-    communityIssuance = protocolTokenContracts.communityIssuance;
-    lockupContractFactory = protocolTokenContracts.lockupContractFactory;
-
-    await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
-    await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
-    await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
+    const protocolMathTesterFactory = await ethers.getContractFactory("ProtocolMathTester");
+    mathTester = await protocolMathTesterFactory.deploy();
   });
 
   // performs n runs of exponentiation on a random base
@@ -69,7 +30,7 @@ contract("Gas costs for math functions", async (accounts) => {
         continue;
       }
 
-      const gasUsed = th.gasUsed(tx) - 21000;
+      const gasUsed = (await th.gasUsed(tx)) - 21000;
       console.log(`run: ${i}. base: ${base}, exp: ${exponent}, res: ${res}, gasUsed: ${gasUsed}`);
 
       gasCostList.push(gasUsed);
