@@ -1,13 +1,12 @@
 const testHelpers = require("../utils/testHelpers.js");
 const th = testHelpers.TestHelper;
 
-const ProtocolSafeMath128Tester = artifacts.require("ProtocolSafeMath128Tester");
-
-contract("ProtocolSafeMath128Tester", async (accounts) => {
+contract("ProtocolSafeMath128Tester", async () => {
   let mathTester;
 
   beforeEach(async () => {
-    mathTester = await ProtocolSafeMath128Tester.new();
+    const mathTesterFactory = await ethers.getContractFactory("ProtocolSafeMath128Tester");
+    mathTester = await mathTesterFactory.deploy();
   });
 
   it("add(): reverts if overflows", async () => {

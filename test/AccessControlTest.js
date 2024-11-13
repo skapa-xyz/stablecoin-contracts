@@ -1,6 +1,5 @@
 const deploymentHelper = require("../utils/deploymentHelpers.js");
 const testHelpers = require("../utils/testHelpers.js");
-const TroveManagerTester = artifacts.require("TroveManagerTester");
 
 const th = testHelpers.TestHelper;
 const timeValues = testHelpers.TimeValues;
@@ -16,9 +15,9 @@ test/launchSequenceTest/DuringLockupPeriodTest.js */
 
 contract(
   "Access Control: Protocol functions with the caller restricted to protocol contract(s)",
-  async (accounts) => {
-    const [owner, alice, bob, carol] = accounts;
-    const [bountyAddress, lpRewardsAddress, multisig] = accounts.slice(997, 1000);
+  async () => {
+    let owner, alice, bob, carol;
+    let bountyAddress, lpRewardsAddress, multisig;
 
     let coreContracts;
 
@@ -39,21 +38,48 @@ contract(
     let lockupContractFactory;
 
     before(async () => {
+      const signers = await ethers.getSigners();
+
+      [owner, alice, bob, carol] = signers;
+      [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+
+      const transactionCount = await owner.getTransactionCount();
+      const cpTesterContracts = await deploymentHelper.computeContractAddresses(
+        owner.address,
+        transactionCount,
+        5,
+      );
+      const cpContracts = await deploymentHelper.computeCoreProtocolContracts(
+        owner.address,
+        transactionCount + 5,
+      );
+
+      // Overwrite contracts with computed tester addresses
+      cpContracts.troveManager = cpTesterContracts[2];
+      cpContracts.debtToken = cpTesterContracts[4];
+
+      const troveManagerTester = await deploymentHelper.deployTroveManagerTester(
+        th.GAS_COMPENSATION,
+        th.MIN_NET_DEBT,
+        cpContracts,
+      );
+      const debtTokenTester = await deploymentHelper.deployDebtTokenTester(cpContracts);
+
       coreContracts = await deploymentHelper.deployProtocolCore(
         th.GAS_COMPENSATION,
         th.MIN_NET_DEBT,
-      );
-      coreContracts.troveManager = await TroveManagerTester.new(
-        th.GAS_COMPENSATION,
-        th.MIN_NET_DEBT,
+        cpContracts,
       );
 
-      coreContracts = await deploymentHelper.deployDebtTokenTester(coreContracts);
       const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
-        bountyAddress,
-        lpRewardsAddress,
-        multisig,
+        bountyAddress.address,
+        lpRewardsAddress.address,
+        multisig.address,
+        cpContracts,
       );
+
+      coreContracts.troveManager = troveManagerTester;
+      coreContracts.debtToken = debtTokenTester;
 
       priceFeed = coreContracts.priceFeed;
       debtToken = coreContracts.debtToken;
@@ -71,18 +97,11 @@ contract(
       communityIssuance = protocolTokenContracts.communityIssuance;
       lockupContractFactory = protocolTokenContracts.lockupContractFactory;
 
-      await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
-      await deploymentHelper.connectCoreContracts(coreContracts, protocolTokenContracts);
-      await deploymentHelper.connectProtocolTokenContractsToCore(
-        protocolTokenContracts,
-        coreContracts,
-      );
-
-      for (account of accounts.slice(0, 10)) {
+      for (signer of signers.slice(0, 10)) {
         await th.openTrove(coreContracts, {
           extraDebtTokenAmount: toBN(dec(20000, 18)),
           ICR: toBN(dec(2, 18)),
-          extraParams: { from: account },
+          extraParams: { from: signer },
         });
       }
 
@@ -93,11 +112,13 @@ contract(
       assert.equal(bal, expectedCISupplyCap);
     });
 
-    describe("BorrowerOperations", async (accounts) => {
+    describe("BorrowerOperations", async () => {
       it("moveFILGainToTrove(): reverts when called by an account that is not StabilityPool", async () => {
         // Attempt call from alice
         try {
-          const tx1 = await borrowerOperations.moveFILGainToTrove(bob, bob, bob, { from: bob });
+          await borrowerOperations
+            .connect(bob)
+            .moveFILGainToTrove(bob.address, bob.address, bob.address);
         } catch (err) {
           assert.include(err.message, "revert");
           // assert.include(err.message, "BorrowerOps: Caller is not Stability Pool")
@@ -105,12 +126,12 @@ contract(
       });
     });
 
-    describe("TroveManager", async (accounts) => {
+    describe("TroveManager", async () => {
       // applyPendingRewards
       it("applyPendingRewards(): reverts when called by an account that is not BorrowerOperations", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await troveManager.applyPendingRewards(bob, { from: alice });
+          await troveManager.connect(alice).applyPendingRewards(bob.address);
         } catch (err) {
           assert.include(err.message, "revert");
           // assert.include(err.message, "Caller is not the BorrowerOperations contract")
@@ -121,7 +142,7 @@ contract(
       it("updateRewardSnapshots(): reverts when called by an account that is not BorrowerOperations", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await troveManager.updateTroveRewardSnapshots(bob, { from: alice });
+          await troveManager.connect(alice).updateTroveRewardSnapshots(bob.address);
         } catch (err) {
           assert.include(err.message, "revert");
           // assert.include(err.message, "Caller is not the BorrowerOperations contract")
@@ -132,7 +153,7 @@ contract(
       it("removeStake(): reverts when called by an account that is not BorrowerOperations", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await troveManager.removeStake(bob, { from: alice });
+          await troveManager.connect(alice).removeStake(bob.address);
         } catch (err) {
           assert.include(err.message, "revert");
           // assert.include(err.message, "Caller is not the BorrowerOperations contract")
@@ -143,7 +164,7 @@ contract(
       it("updateStakeAndTotalStakes(): reverts when called by an account that is not BorrowerOperations", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await troveManager.updateStakeAndTotalStakes(bob, { from: alice });
+          await troveManager.connect(alice).updateStakeAndTotalStakes(bob.address);
         } catch (err) {
           assert.include(err.message, "revert");
           // assert.include(err.message, "Caller is not the BorrowerOperations contract")
@@ -154,7 +175,7 @@ contract(
       it("closeTrove(): reverts when called by an account that is not BorrowerOperations", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await troveManager.closeTrove(bob, { from: alice });
+          await troveManager.connect(alice).closeTrove(bob.address);
         } catch (err) {
           assert.include(err.message, "revert");
           // assert.include(err.message, "Caller is not the BorrowerOperations contract")
@@ -165,7 +186,7 @@ contract(
       it("addTroveOwnerToArray(): reverts when called by an account that is not BorrowerOperations", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await troveManager.addTroveOwnerToArray(bob, { from: alice });
+          await troveManager.connect(alice).addTroveOwnerToArray(bob.address);
         } catch (err) {
           assert.include(err.message, "revert");
           // assert.include(err.message, "Caller is not the BorrowerOperations contract")
@@ -176,7 +197,7 @@ contract(
       it("setTroveStatus(): reverts when called by an account that is not BorrowerOperations", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await troveManager.setTroveStatus(bob, 1, { from: alice });
+          await troveManager.connect(alice).setTroveStatus(bob.address, 1);
         } catch (err) {
           assert.include(err.message, "revert");
           // assert.include(err.message, "Caller is not the BorrowerOperations contract")
@@ -187,7 +208,7 @@ contract(
       it("increaseTroveColl(): reverts when called by an account that is not BorrowerOperations", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await troveManager.increaseTroveColl(bob, 100, { from: alice });
+          await troveManager.connect(alice).increaseTroveColl(bob.address, 100);
         } catch (err) {
           assert.include(err.message, "revert");
           // assert.include(err.message, "Caller is not the BorrowerOperations contract")
@@ -198,7 +219,7 @@ contract(
       it("decreaseTroveColl(): reverts when called by an account that is not BorrowerOperations", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await troveManager.decreaseTroveColl(bob, 100, { from: alice });
+          await troveManager.connect(alice).decreaseTroveColl(bob.address, 100);
         } catch (err) {
           assert.include(err.message, "revert");
           // assert.include(err.message, "Caller is not the BorrowerOperations contract")
@@ -209,7 +230,7 @@ contract(
       it("increaseTroveDebt(): reverts when called by an account that is not BorrowerOperations", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await troveManager.increaseTroveDebt(bob, 100, { from: alice });
+          await troveManager.connect(alice).increaseTroveDebt(bob.address, 100);
         } catch (err) {
           assert.include(err.message, "revert");
           // assert.include(err.message, "Caller is not the BorrowerOperations contract")
@@ -220,7 +241,7 @@ contract(
       it("decreaseTroveDebt(): reverts when called by an account that is not BorrowerOperations", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await troveManager.decreaseTroveDebt(bob, 100, { from: alice });
+          await troveManager.connect(alice).decreaseTroveDebt(bob.address, 100);
         } catch (err) {
           assert.include(err.message, "revert");
           // assert.include(err.message, "Caller is not the BorrowerOperations contract")
@@ -228,12 +249,12 @@ contract(
       });
     });
 
-    describe("ActivePool", async (accounts) => {
+    describe("ActivePool", async () => {
       // sendFIL
       it("sendFIL(): reverts when called by an account that is not BO nor TroveM nor SP", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await activePool.sendFIL(alice, 100, { from: alice });
+          await activePool.connect(alice).sendFIL(alice.address, 100);
         } catch (err) {
           assert.include(err.message, "revert");
           assert.include(
@@ -247,7 +268,7 @@ contract(
       it("increaseDebt(): reverts when called by an account that is not BO nor TroveM", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await activePool.increaseDebt(100, { from: alice });
+          await activePool.connect(alice).increaseDebt(100);
         } catch (err) {
           assert.include(err.message, "revert");
           assert.include(err.message, "Caller is neither BorrowerOperations nor TroveManager");
@@ -258,7 +279,7 @@ contract(
       it("decreaseDebt(): reverts when called by an account that is not BO nor TroveM nor SP", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await activePool.decreaseDebt(100, { from: alice });
+          await activePool.connect(alice).decreaseDebt(100);
         } catch (err) {
           assert.include(err.message, "revert");
           assert.include(
@@ -272,8 +293,8 @@ contract(
       it("fallback(): reverts when called by an account that is not Borrower Operations nor Default Pool", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await web3.eth.sendTransaction({
-            from: alice,
+          await web3.eth.sendTransaction({
+            from: alice.address,
             to: activePool.address,
             value: 100,
           });
@@ -284,12 +305,12 @@ contract(
       });
     });
 
-    describe("DefaultPool", async (accounts) => {
+    describe("DefaultPool", async () => {
       // sendFILToActivePool
       it("sendFILToActivePool(): reverts when called by an account that is not TroveManager", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await defaultPool.sendFILToActivePool(100, { from: alice });
+          await defaultPool.connect(alice).sendFILToActivePool(100);
         } catch (err) {
           assert.include(err.message, "revert");
           assert.include(err.message, "Caller is not the TroveManager");
@@ -300,7 +321,7 @@ contract(
       it("increaseDebt(): reverts when called by an account that is not TroveManager", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await defaultPool.increaseDebt(100, { from: alice });
+          await defaultPool.connect(alice).increaseDebt(100);
         } catch (err) {
           assert.include(err.message, "revert");
           assert.include(err.message, "Caller is not the TroveManager");
@@ -311,7 +332,7 @@ contract(
       it("decreaseDebt(): reverts when called by an account that is not TroveManager", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await defaultPool.decreaseDebt(100, { from: alice });
+          await defaultPool.connect(alice).decreaseDebt(100);
         } catch (err) {
           assert.include(err.message, "revert");
           assert.include(err.message, "Caller is not the TroveManager");
@@ -322,8 +343,8 @@ contract(
       it("fallback(): reverts when called by an account that is not the Active Pool", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await web3.eth.sendTransaction({
-            from: alice,
+          await web3.eth.sendTransaction({
+            from: alice.address,
             to: defaultPool.address,
             value: 100,
           });
@@ -334,14 +355,14 @@ contract(
       });
     });
 
-    describe("StabilityPool", async (accounts) => {
+    describe("StabilityPool", async () => {
       // --- onlyTroveManager ---
 
       // offset
       it("offset(): reverts when called by an account that is not TroveManager", async () => {
         // Attempt call from alice
         try {
-          txAlice = await stabilityPool.offset(100, 10, { from: alice });
+          const txAlice = await stabilityPool.connect(alice).offset(100, 10);
           assert.fail(txAlice);
         } catch (err) {
           assert.include(err.message, "revert");
@@ -355,8 +376,8 @@ contract(
       it("fallback(): reverts when called by an account that is not the Active Pool", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await web3.eth.sendTransaction({
-            from: alice,
+          await web3.eth.sendTransaction({
+            from: alice.address,
             to: stabilityPool.address,
             value: 100,
           });
@@ -367,11 +388,11 @@ contract(
       });
     });
 
-    describe("DebtToken", async (accounts) => {
+    describe("DebtToken", async () => {
       //    mint
       it("mint(): reverts when called by an account that is not BorrowerOperations", async () => {
         // Attempt call from alice
-        const txAlice = debtToken.mint(bob, 100, { from: alice });
+        const txAlice = debtToken.connect(alice).mint(bob.address, 100);
         await th.assertRevert(txAlice, "Caller is not BorrowerOperations");
       });
 
@@ -379,7 +400,7 @@ contract(
       it("burn(): reverts when called by an account that is not BO nor TroveM nor SP", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await debtToken.burn(bob, 100, { from: alice });
+          await debtToken.connect(alice).burn(bob.address, 100);
         } catch (err) {
           assert.include(err.message, "revert");
           // assert.include(err.message, "Caller is neither BorrowerOperations nor TroveManager nor StabilityPool")
@@ -390,7 +411,7 @@ contract(
       it("sendToPool(): reverts when called by an account that is not StabilityPool", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await debtToken.sendToPool(bob, activePool.address, 100, { from: alice });
+          await debtToken.connect(alice).sendToPool(bob.address, activePool.address, 100);
         } catch (err) {
           assert.include(err.message, "revert");
           assert.include(err.message, "Caller is not the StabilityPool");
@@ -401,9 +422,7 @@ contract(
       it("returnFromPool(): reverts when called by an account that is not TroveManager nor StabilityPool", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await debtToken.returnFromPool(activePool.address, bob, 100, {
-            from: alice,
-          });
+          await debtToken.connect(alice).returnFromPool(activePool.address, bob.address, 100);
         } catch (err) {
           assert.include(err.message, "revert");
           // assert.include(err.message, "Caller is neither TroveManager nor StabilityPool")
@@ -411,15 +430,15 @@ contract(
       });
     });
 
-    describe("SortedTroves", async (accounts) => {
+    describe("SortedTroves", async () => {
       // --- onlyBorrowerOperations ---
       //     insert
       it("insert(): reverts when called by an account that is not BorrowerOps or TroveM", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await sortedTroves.insert(bob, "150000000000000000000", bob, bob, {
-            from: alice,
-          });
+          await sortedTroves
+            .connect(alice)
+            .insert(bob.address, "150000000000000000000", bob.address, bob.address);
         } catch (err) {
           assert.include(err.message, "revert");
           assert.include(err.message, " Caller is neither BO nor TroveM");
@@ -431,7 +450,7 @@ contract(
       it("remove(): reverts when called by an account that is not TroveManager", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await sortedTroves.remove(bob, { from: alice });
+          await sortedTroves.connect(alice).remove(bob.address);
         } catch (err) {
           assert.include(err.message, "revert");
           assert.include(err.message, " Caller is not the TroveManager");
@@ -443,9 +462,9 @@ contract(
       it("reinsert(): reverts when called by an account that is neither BorrowerOps nor TroveManager", async () => {
         // Attempt call from alice
         try {
-          const txAlice = await sortedTroves.reInsert(bob, "150000000000000000000", bob, bob, {
-            from: alice,
-          });
+          await sortedTroves
+            .connect(alice)
+            .reInsert(bob.address, "150000000000000000000", bob.address, bob.address);
         } catch (err) {
           assert.include(err.message, "revert");
           assert.include(err.message, "Caller is neither BO nor TroveM");
@@ -453,59 +472,56 @@ contract(
       });
     });
 
-    describe("LockupContract", async (accounts) => {
+    describe("LockupContract", async () => {
       it("withdrawProtocolToken(): reverts when caller is not beneficiary", async () => {
         // deploy new LC with Carol as beneficiary
         const unlockTime = (await protocolToken.getDeploymentStartTime()).add(
           toBN(timeValues.SECONDS_IN_ONE_YEAR),
         );
-        const deployedLCtx = await lockupContractFactory.deployLockupContract(carol, unlockTime, {
-          from: owner,
-        });
+        const deployedLCtx = await lockupContractFactory
+          .connect(owner)
+          .deployLockupContract(carol.address, unlockTime);
 
         const LC = await th.getLCFromDeploymentTx(deployedLCtx);
 
         // ProtocolToken Multisig funds the LC
-        await protocolToken.transfer(LC.address, dec(100, 18), { from: multisig });
+        await protocolToken.connect(multisig).transfer(LC.address, dec(100, 18));
 
         // Fast-forward one year, so that beneficiary can withdraw
         await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
 
         // Bob attempts to withdraw ProtocolToken
         try {
-          const txBob = await LC.withdrawProtocolToken({ from: bob });
+          await LC.connect(bob).withdrawProtocolToken();
         } catch (err) {
           assert.include(err.message, "revert");
         }
 
         // Confirm beneficiary, Carol, can withdraw
-        const txCarol = await LC.withdrawProtocolToken({ from: carol });
-        assert.isTrue(txCarol.receipt.status);
+        const txCarol = await LC.connect(carol).withdrawProtocolToken();
+        const receipt = await txCarol.wait();
+        assert.equal(receipt.status, 1);
       });
     });
 
-    describe("ProtocolTokenStaking", async (accounts) => {
+    describe("ProtocolTokenStaking", async () => {
       it("increaseF_DebtToken(): reverts when caller is not TroveManager", async () => {
         try {
-          const txAlice = await protocolTokenStaking.increaseF_DebtToken(dec(1, 18), {
-            from: alice,
-          });
+          await protocolTokenStaking.connect(alice).increaseF_DebtToken(dec(1, 18));
         } catch (err) {
           assert.include(err.message, "revert");
         }
       });
     });
 
-    describe("ProtocolToken", async (accounts) => {
+    describe("ProtocolToken", async () => {
       it("sendToProtocolTokenStaking(): reverts when caller is not the ProtocolTokenStaking", async () => {
         // Check multisig has some ProtocolToken
-        assert.isTrue((await protocolToken.balanceOf(multisig)).gt(toBN("0")));
+        assert.isTrue((await protocolToken.balanceOf(multisig.address)).gt(toBN("0")));
 
         // multisig tries to call it
         try {
-          const tx = await protocolToken.sendToProtocolTokenStaking(multisig, 1, {
-            from: multisig,
-          });
+          await protocolToken.connect(multisig).sendToProtocolTokenStaking(multisig.address, 1);
         } catch (err) {
           assert.include(err.message, "revert");
         }
@@ -514,25 +530,25 @@ contract(
         await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
 
         // Owner transfers 1 ProtocolToken to bob
-        await protocolToken.transfer(bob, dec(1, 18), { from: multisig });
-        assert.equal(await protocolToken.balanceOf(bob), dec(1, 18));
+        await protocolToken.connect(multisig).transfer(bob.address, dec(1, 18));
+        assert.equal(await protocolToken.balanceOf(bob.address), dec(1, 18));
 
         // Bob tries to call it
         try {
-          const tx = await protocolToken.sendToProtocolTokenStaking(bob, dec(1, 18), { from: bob });
+          await protocolToken.connect(bob).sendToProtocolTokenStaking(bob.address, dec(1, 18));
         } catch (err) {
           assert.include(err.message, "revert");
         }
       });
     });
 
-    describe("CommunityIssuance", async (accounts) => {
+    describe("CommunityIssuance", async () => {
       it("sendProtocolToken(): reverts when caller is not the StabilityPool", async () => {
-        const tx1 = communityIssuance.sendProtocolToken(alice, dec(100, 18), { from: alice });
-        const tx2 = communityIssuance.sendProtocolToken(bob, dec(100, 18), { from: alice });
-        const tx3 = communityIssuance.sendProtocolToken(stabilityPool.address, dec(100, 18), {
-          from: alice,
-        });
+        const tx1 = communityIssuance.connect(alice).sendProtocolToken(alice.address, dec(100, 18));
+        const tx2 = communityIssuance.connect(alice).sendProtocolToken(bob.address, dec(100, 18));
+        const tx3 = communityIssuance
+          .connect(alice)
+          .sendProtocolToken(stabilityPool.address, dec(100, 18));
 
         assertRevert(tx1);
         assertRevert(tx2);
@@ -540,7 +556,7 @@ contract(
       });
 
       it("issueProtocolToken(): reverts when caller is not the StabilityPool", async () => {
-        const tx1 = communityIssuance.issueProtocolToken({ from: alice });
+        const tx1 = communityIssuance.connect(alice).issueProtocolToken();
 
         assertRevert(tx1);
       });

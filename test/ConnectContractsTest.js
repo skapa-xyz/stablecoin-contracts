@@ -5,10 +5,9 @@ const th = testHelpers.TestHelper;
 
 contract(
   "Deployment script - Sets correct contract addresses dependencies after deployment",
-  async (accounts) => {
-    const [owner] = accounts;
-
-    const [bountyAddress, lpRewardsAddress, multisig] = accounts.slice(997, 1000);
+  async () => {
+    let owner;
+    let bountyAddress, lpRewardsAddress, multisig;
 
     let priceFeed;
     let debtToken;
@@ -25,14 +24,29 @@ contract(
     let lockupContractFactory;
 
     before(async () => {
+      await hre.network.provider.send("hardhat_reset");
+
+      const signers = await ethers.getSigners();
+
+      [owner] = signers;
+      [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+
+      const transactionCount = await owner.getTransactionCount();
+      const cpContracts = await deploymentHelper.computeCoreProtocolContracts(
+        owner.address,
+        transactionCount + 1,
+      );
+
       const coreContracts = await deploymentHelper.deployProtocolCore(
         th.GAS_COMPENSATION,
         th.MIN_NET_DEBT,
+        cpContracts,
       );
       const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
-        bountyAddress,
-        lpRewardsAddress,
-        multisig,
+        bountyAddress.address,
+        lpRewardsAddress.address,
+        multisig.address,
+        cpContracts,
       );
 
       priceFeed = coreContracts.priceFeedTestnet;
@@ -49,13 +63,6 @@ contract(
       protocolToken = protocolTokenContracts.protocolToken;
       communityIssuance = protocolTokenContracts.communityIssuance;
       lockupContractFactory = protocolTokenContracts.lockupContractFactory;
-
-      await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
-      await deploymentHelper.connectCoreContracts(coreContracts, protocolTokenContracts);
-      await deploymentHelper.connectProtocolTokenContractsToCore(
-        protocolTokenContracts,
-        coreContracts,
-      );
     });
 
     it("Sets the correct PriceFeed address in TroveManager", async () => {

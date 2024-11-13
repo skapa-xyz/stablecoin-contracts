@@ -1,7 +1,3 @@
-const BN = require("bn.js");
-const LockupContract = artifacts.require("./LockupContract.sol");
-const Destructible = artifacts.require("./TestContracts/Destructible.sol");
-
 const MoneyValues = {
   negative_5e17: "-" + web3.utils.toWei("500", "finney"),
   negative_1e18: "-" + web3.utils.toWei("1", "ether"),
@@ -11,17 +7,17 @@ const MoneyValues = {
   negative_101e18: "-" + web3.utils.toWei("101", "ether"),
   negative_eth: (amount) => "-" + web3.utils.toWei(amount, "ether"),
 
-  _zeroBN: web3.utils.toBN("0"),
-  _1e18BN: web3.utils.toBN("1000000000000000000"),
-  _10e18BN: web3.utils.toBN("10000000000000000000"),
-  _100e18BN: web3.utils.toBN("100000000000000000000"),
-  _100BN: web3.utils.toBN("100"),
-  _110BN: web3.utils.toBN("110"),
-  _150BN: web3.utils.toBN("150"),
+  _zeroBN: ethers.BigNumber.from("0"),
+  _1e18BN: ethers.BigNumber.from("1000000000000000000"),
+  _10e18BN: ethers.BigNumber.from("10000000000000000000"),
+  _100e18BN: ethers.BigNumber.from("100000000000000000000"),
+  _100BN: ethers.BigNumber.from("100"),
+  _110BN: ethers.BigNumber.from("110"),
+  _150BN: ethers.BigNumber.from("150"),
 
-  _MCR: web3.utils.toBN("1100000000000000000"),
-  _ICR100: web3.utils.toBN("1000000000000000000"),
-  _CCR: web3.utils.toBN("1500000000000000000"),
+  _MCR: ethers.BigNumber.from("1100000000000000000"),
+  _ICR100: ethers.BigNumber.from("1000000000000000000"),
+  _CCR: ethers.BigNumber.from("1500000000000000000"),
 };
 
 const TimeValues = {
@@ -63,8 +59,8 @@ class TestHelper {
   }
 
   static getDifference(x, y) {
-    const x_BN = web3.utils.toBN(x);
-    const y_BN = web3.utils.toBN(y);
+    const x_BN = ethers.BigNumber.from(x);
+    const y_BN = ethers.BigNumber.from(y);
 
     return Number(x_BN.sub(y_BN).abs());
   }
@@ -159,9 +155,9 @@ class TestHelper {
   }
 
   static computeICR(coll, debt, price) {
-    const collBN = web3.utils.toBN(coll);
-    const debtBN = web3.utils.toBN(debt);
-    const priceBN = web3.utils.toBN(price);
+    const collBN = ethers.BigNumber.from(coll);
+    const debtBN = ethers.BigNumber.from(debt);
+    const priceBN = ethers.BigNumber.from(price);
 
     const ICR = debtBN.eq(this.toBN("0"))
       ? this.toBN("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
@@ -181,11 +177,12 @@ class TestHelper {
   }
 
   static toBN(num) {
-    return web3.utils.toBN(num);
+    return ethers.BigNumber.from(num);
   }
 
-  static gasUsed(tx) {
-    const gas = tx.receipt.gasUsed;
+  static async gasUsed(tx) {
+    const receipt = await tx.wait();
+    const gas = receipt.gasUsed;
     return gas;
   }
 
@@ -359,7 +356,7 @@ class TestHelper {
 
   // Get's total collateral minus total gas comp, for a series of troves.
   static async getExpectedTotalCollMinusTotalGasComp(troveList, contracts) {
-    let totalCollRemainder = web3.utils.toBN("0");
+    let totalCollRemainder = ethers.BigNumber.from("0");
 
     for (const trove of troveList) {
       const remainingColl = this.getCollMinusGasComp(trove, contracts);
@@ -368,13 +365,14 @@ class TestHelper {
     return totalCollRemainder;
   }
 
-  static getEmittedRedemptionValues(redemptionTx) {
-    for (let i = 0; i < redemptionTx.logs.length; i++) {
-      if (redemptionTx.logs[i].event === "Redemption") {
-        const debtTokenAmount = redemptionTx.logs[i].args[0];
-        const totalDebtTokenRedeemed = redemptionTx.logs[i].args[1];
-        const totalFILDrawn = redemptionTx.logs[i].args[2];
-        const FILFee = redemptionTx.logs[i].args[3];
+  static async getEmittedRedemptionValues(redemptionTx) {
+    const receipt = await redemptionTx.wait();
+    for (let i = 0; i < receipt.events.length; i++) {
+      if (receipt.events[i].event === "Redemption") {
+        const debtTokenAmount = receipt.events[i].args[0];
+        const totalDebtTokenRedeemed = receipt.events[i].args[1];
+        const totalFILDrawn = receipt.events[i].args[2];
+        const FILFee = receipt.events[i].args[3];
 
         return [debtTokenAmount, totalDebtTokenRedeemed, totalFILDrawn, FILFee];
       }
@@ -382,13 +380,14 @@ class TestHelper {
     throw "The transaction logs do not contain a redemption event";
   }
 
-  static getEmittedLiquidationValues(liquidationTx) {
-    for (let i = 0; i < liquidationTx.logs.length; i++) {
-      if (liquidationTx.logs[i].event === "Liquidation") {
-        const liquidatedDebt = liquidationTx.logs[i].args[0];
-        const liquidatedColl = liquidationTx.logs[i].args[1];
-        const collGasComp = liquidationTx.logs[i].args[2];
-        const debtTokenGasComp = liquidationTx.logs[i].args[3];
+  static async getEmittedLiquidationValues(liquidationTx) {
+    const receipt = await liquidationTx.wait();
+    for (let i = 0; i < receipt.events.length; i++) {
+      if (receipt.events[i].event === "Liquidation") {
+        const liquidatedDebt = receipt.events[i].args[0];
+        const liquidatedColl = receipt.events[i].args[1];
+        const collGasComp = receipt.events[i].args[2];
+        const debtTokenGasComp = receipt.events[i].args[3];
 
         return [liquidatedDebt, liquidatedColl, collGasComp, debtTokenGasComp];
       }
@@ -418,31 +417,37 @@ class TestHelper {
     throw "The transaction logs do not contain a liquidation event";
   }
 
-  static getFeeFromDebtTokenBorrowingEvent(tx) {
-    for (let i = 0; i < tx.logs.length; i++) {
-      if (tx.logs[i].event === "DebtTokenBorrowingFeePaid") {
-        return tx.logs[i].args[1].toString();
+  static async getFeeFromDebtTokenBorrowingEvent(tx) {
+    const receipt = await tx.wait();
+
+    for (let i = 0; i < receipt.events.length; i++) {
+      if (receipt.events[i].event === "DebtTokenBorrowingFeePaid") {
+        return receipt.events[i].args[1].toString();
       }
     }
     throw "The transaction logs do not contain an DebtTokenBorrowingFeePaid event";
   }
 
-  static getEventArgByIndex(tx, eventName, argIndex) {
-    for (let i = 0; i < tx.logs.length; i++) {
-      if (tx.logs[i].event === eventName) {
-        return tx.logs[i].args[argIndex];
+  static async getEventArgByIndex(tx, eventName, argIndex) {
+    const receipt = await tx.wait();
+
+    for (let i = 0; i < receipt.events.length; i++) {
+      if (receipt.events[i].event === eventName) {
+        return receipt.events[i].args[argIndex];
       }
     }
     throw `The transaction logs do not contain event ${eventName}`;
   }
 
-  static getEventArgByName(tx, eventName, argName) {
-    for (let i = 0; i < tx.logs.length; i++) {
-      if (tx.logs[i].event === eventName) {
-        const keys = Object.keys(tx.logs[i].args);
+  static async getEventArgByName(tx, eventName, argName) {
+    const receipt = await tx.wait();
+
+    for (let i = 0; i < receipt.events.length; i++) {
+      if (receipt.events[i].event === eventName) {
+        const keys = Object.keys(receipt.events[i].args);
         for (let j = 0; j < keys.length; j++) {
           if (keys[j] === argName) {
-            return tx.logs[i].args[keys[j]];
+            return receipt.events[i].args[keys[j]];
           }
         }
       }
@@ -451,11 +456,12 @@ class TestHelper {
     throw `The transaction logs do not contain event ${eventName} and arg ${argName}`;
   }
 
-  static getAllEventsByName(tx, eventName) {
+  static async getAllEventsByName(tx, eventName) {
+    const receipt = await tx.wait();
     const events = [];
-    for (let i = 0; i < tx.logs.length; i++) {
-      if (tx.logs[i].event === eventName) {
-        events.push(tx.logs[i]);
+    for (let i = 0; i < receipt.events.length; i++) {
+      if (receipt.events[i].event === eventName) {
+        events.push(receipt.events[i]);
       }
     }
     return events;
@@ -482,10 +488,12 @@ class TestHelper {
 
   static async getEntireCollAndDebt(contracts, account) {
     // console.log(`account: ${account}`)
-    const rawColl = (await contracts.troveManager.Troves(account))[1];
-    const rawDebt = (await contracts.troveManager.Troves(account))[0];
-    const pendingFILReward = await contracts.troveManager.getPendingFILReward(account);
-    const pendingDebtTokenDebtReward = await contracts.troveManager.getPendingDebtReward(account);
+    const rawColl = (await contracts.troveManager.Troves(account.address))[1];
+    const rawDebt = (await contracts.troveManager.Troves(account.address))[0];
+    const pendingFILReward = await contracts.troveManager.getPendingFILReward(account.address);
+    const pendingDebtTokenDebtReward = await contracts.troveManager.getPendingDebtReward(
+      account.address,
+    );
     const entireColl = rawColl.add(pendingFILReward);
     const entireDebt = rawDebt.add(pendingDebtTokenDebtReward);
 
@@ -620,7 +628,7 @@ class TestHelper {
       const randCollAmount = this.randAmountInWei(minFIL, maxFIL);
       const proportionalDebtToken = web3.utils
         .toBN(proportion)
-        .mul(web3.utils.toBN(randCollAmount));
+        .mul(ethers.BigNumber.from(randCollAmount));
       const totalDebt = await this.getOpenTroveTotalDebt(contracts, proportionalDebtToken);
 
       const { upperHint, lowerHint } = await this.getBorrowerOpsListHint(
@@ -653,7 +661,7 @@ class TestHelper {
   ) {
     const gasCostList = [];
     const price = await contracts.priceFeedTestnet.getPrice();
-    const _1e18 = web3.utils.toBN("1000000000000000000");
+    const _1e18 = ethers.BigNumber.from("1000000000000000000");
 
     let i = 0;
     for (const account of accounts) {
@@ -665,7 +673,7 @@ class TestHelper {
       );
       const proportionalDebtToken = web3.utils
         .toBN(randDebtTokenProportion)
-        .mul(web3.utils.toBN(randCollAmount).div(_1e18));
+        .mul(ethers.BigNumber.from(randCollAmount).div(_1e18));
       const totalDebt = await this.getOpenTroveTotalDebt(contracts, proportionalDebtToken);
       const { upperHint, lowerHint } = await this.getBorrowerOpsListHint(
         contracts,
@@ -802,12 +810,17 @@ class TestHelper {
       extraParams.value = ICR.mul(totalDebt).div(price);
     }
 
-    const tx = await contracts.borrowerOperations.openTrove(
+    const contract = extraParams.from
+      ? contracts.borrowerOperations.connect(extraParams.from)
+      : contracts.borrowerOperations;
+    const tx = await contract.openTrove(
       maxFeePercentage,
-      debtTokenAmount,
+      debtTokenAmount.toString(),
       upperHint,
       lowerHint,
-      extraParams,
+      {
+        value: extraParams.value,
+      },
     );
 
     return {
@@ -836,7 +849,9 @@ class TestHelper {
     let increasedTotalDebt;
     if (ICR) {
       assert(extraParams.from, "A from account is needed");
-      const { debt, coll } = await contracts.troveManager.getEntireDebtAndColl(extraParams.from);
+      const { debt, coll } = await contracts.troveManager.getEntireDebtAndColl(
+        extraParams.from.address,
+      );
       const price = await contracts.priceFeedTestnet.getPrice();
       const targetDebt = coll.mul(price).div(ICR);
       assert(targetDebt > debt, "ICR is already greater than or equal to target");
@@ -846,13 +861,12 @@ class TestHelper {
       increasedTotalDebt = await this.getAmountWithBorrowingFee(contracts, debtTokenAmount);
     }
 
-    await contracts.borrowerOperations.withdrawDebtToken(
-      maxFeePercentage,
-      debtTokenAmount,
-      upperHint,
-      lowerHint,
-      extraParams,
-    );
+    const contract = extraParams.from
+      ? contracts.borrowerOperations.connect(extraParams.from)
+      : contracts.borrowerOperations;
+    await contract.withdrawDebtToken(maxFeePercentage, debtTokenAmount, upperHint, lowerHint, {
+      value: extraParams.value,
+    });
 
     return {
       debtTokenAmount,
@@ -1299,16 +1313,18 @@ class TestHelper {
       approxPartialRedemptionHint,
     );
 
-    const tx = await contracts.troveManager.redeemCollateral(
-      debtTokenAmount,
-      firstRedemptionHint,
-      exactPartialRedemptionHint[0],
-      exactPartialRedemptionHint[1],
-      partialRedemptionNewICR,
-      0,
-      maxFee,
-      { from: redeemer, gasPrice: gasPrice_toUse },
-    );
+    const tx = await contracts.troveManager
+      .connect(redeemer)
+      .redeemCollateral(
+        debtTokenAmount,
+        firstRedemptionHint,
+        exactPartialRedemptionHint[0],
+        exactPartialRedemptionHint[1],
+        partialRedemptionNewICR,
+        0,
+        maxFee,
+        { gasPrice: gasPrice_toUse },
+      );
 
     return tx;
   }
@@ -1407,8 +1423,9 @@ class TestHelper {
 
   // --- ProtocolToken & Lockup Contract functions ---
 
-  static getLCAddressFromDeploymentTx(deployedLCTx) {
-    return deployedLCTx.logs[0].args[0];
+  static async getLCAddressFromDeploymentTx(deployedLCTx) {
+    const receipt = await deployedLCTx.wait();
+    return receipt.events[1].args[0];
   }
 
   static async getLCFromDeploymentTx(deployedLCTx) {
@@ -1418,41 +1435,20 @@ class TestHelper {
   }
 
   static async getLCFromAddress(LCAddress) {
-    const LC = await LockupContract.at(LCAddress);
-    return LC;
+    return ethers.getContractAt("LockupContract", LCAddress);
   }
 
   static async registerFrontEnds(frontEnds, stabilityPool) {
     for (const frontEnd of frontEnds) {
-      await stabilityPool.registerFrontEnd(this.dec(5, 17), { from: frontEnd }); // default kickback rate of 50%
+      await stabilityPool.connect(frontEnd).registerFrontEnd(this.dec(5, 17)); // default kickback rate of 50%
     }
   }
 
   // --- Time functions ---
 
   static async fastForwardTime(seconds, currentWeb3Provider) {
-    await currentWeb3Provider.send(
-      {
-        id: 0,
-        jsonrpc: "2.0",
-        method: "evm_increaseTime",
-        params: [seconds],
-      },
-      (err) => {
-        if (err) console.log(err);
-      },
-    );
-
-    await currentWeb3Provider.send(
-      {
-        id: 0,
-        jsonrpc: "2.0",
-        method: "evm_mine",
-      },
-      (err) => {
-        if (err) console.log(err);
-      },
-    );
+    await ethers.provider.send("evm_increaseTime", [seconds]);
+    await ethers.provider.send("evm_mine", []);
   }
 
   static async getLatestBlockTimestamp(web3Instance) {
@@ -1463,7 +1459,8 @@ class TestHelper {
   }
 
   static async getTimestampFromTx(tx, web3Instance) {
-    return this.getTimestampFromTxReceipt(tx.receipt, web3Instance);
+    const receipt = await tx.wait();
+    return this.getTimestampFromTxReceipt(receipt, web3Instance);
   }
 
   static async getTimestampFromTxReceipt(txReceipt, web3Instance) {
@@ -1514,7 +1511,8 @@ class TestHelper {
   // --- Misc. functions  ---
 
   static async forceSendEth(from, receiver, value) {
-    const destructible = await Destructible.new();
+    const destructibleFactory = await ethers.getContractFactory("Destructible");
+    const destructible = await destructibleFactory.deploy();
     await web3.eth.sendTransaction({ to: destructible.address, from, value });
     await destructible.destruct(receiver);
   }

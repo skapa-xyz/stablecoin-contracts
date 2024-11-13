@@ -1,42 +1,45 @@
 const { TestHelper: th } = require("../utils/testHelpers.js");
 
-const DSProxyFactory = artifacts.require("DSProxyFactory");
-const DSProxy = artifacts.require("DSProxy");
-
 const buildUserProxies = async (users) => {
   const proxies = {};
-  const proxyFactory = await DSProxyFactory.new();
+  const dsProxyFactoryFactory = await ethers.getContractFactory("DSProxyFactory");
+  const proxyFactory = await dsProxyFactoryFactory.deploy();
+
   for (let user of users) {
-    const proxyTx = await proxyFactory.build({ from: user });
-    proxies[user] = await DSProxy.at(proxyTx.logs[0].args.proxy);
+    const proxyTx = await proxyFactory.connect(user)["build()"]();
+    const receipt = await proxyTx.wait();
+    proxies[user.address] = await ethers.getContractAt("DSProxy", receipt.events[2].args.proxy);
   }
 
   return proxies;
 };
 
 class Proxy {
-  constructor(owner, proxies, scriptAddress, contract) {
+  constructor(owner, proxies, scriptAddress, contract, from = undefined) {
     this.owner = owner;
     this.proxies = proxies;
     this.scriptAddress = scriptAddress;
     this.contract = contract;
     if (contract) this.address = contract.address;
+    this.from = from;
   }
 
-  getFrom(params) {
-    if (params.length === 0) return this.owner;
-    let lastParam = params[params.length - 1];
-    if (lastParam.from) {
-      return lastParam.from;
-    }
+  connect(user) {
+    this.from = user;
+    return this;
+  }
 
-    return this.owner;
+  getFrom() {
+    return this.from || this.owner;
   }
 
   getOptionalParams(params) {
-    if (params.length === 0) return {};
+    if (params.length === 0) return undefined;
 
-    return params[params.length - 1];
+    const lastParam = params[params.length - 1];
+    if (typeof lastParam !== "object") return undefined;
+
+    return lastParam;
   }
 
   getProxyAddressFromUser(user) {
@@ -47,9 +50,9 @@ class Proxy {
     return this.proxies[user];
   }
 
-  getProxyFromParams(params) {
-    const user = this.getFrom(params);
-    return this.proxies[user];
+  getProxyFromParams() {
+    const user = this.getFrom();
+    return this.proxies[user.address];
   }
 
   getSlicedParams(params) {
@@ -63,7 +66,7 @@ class Proxy {
   }
 
   async forwardFunction(params, signature) {
-    const proxy = this.getProxyFromParams(params);
+    const proxy = this.getProxyFromParams();
     if (!proxy) {
       return this.proxyFunction(signature.slice(0, signature.indexOf("(")), params);
     }
@@ -71,7 +74,12 @@ class Proxy {
     const calldata = th.getTransactionData(signature, this.getSlicedParams(params));
     // console.log('proxy: ', proxy.address)
     // console.log(this.scriptAddress, calldata, optionalParams)
-    return proxy.methods["execute(address,bytes)"](this.scriptAddress, calldata, optionalParams);
+    const executionParams = [this.scriptAddress, calldata];
+    if (optionalParams) {
+      executionParams.push(optionalParams);
+    }
+
+    return proxy.connect(this.getFrom())["execute(address,bytes)"](...executionParams);
   }
 
   async proxyFunctionWithUser(functionName, user) {

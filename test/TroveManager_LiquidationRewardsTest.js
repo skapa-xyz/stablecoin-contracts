@@ -5,80 +5,80 @@ const th = testHelpers.TestHelper;
 const dec = th.dec;
 const toBN = th.toBN;
 const getDifference = th.getDifference;
-const mv = testHelpers.MoneyValues;
 
-const TroveManagerTester = artifacts.require("TroveManagerTester");
-const DebtToken = artifacts.require("DebtToken");
-
-contract("TroveManager - Redistribution reward calculations", async (accounts) => {
-  const [
-    owner,
-    alice,
-    bob,
-    carol,
-    dennis,
-    erin,
-    freddy,
-    greta,
-    harry,
-    ida,
-    A,
-    B,
-    C,
-    D,
-    E,
-    whale,
-    defaulter_1,
-    defaulter_2,
-    defaulter_3,
-    defaulter_4,
-  ] = accounts;
-
-  const [bountyAddress, lpRewardsAddress, multisig] = accounts.slice(997, 1000);
+contract("TroveManager - Redistribution reward calculations", async () => {
+  let owner, alice, bob, carol, dennis, erin, freddy, A, B, C, D, E;
+  let bountyAddress, lpRewardsAddress, multisig;
 
   let priceFeed;
   let debtToken;
   let sortedTroves;
   let troveManager;
-  let nameRegistry;
   let activePool;
-  let stabilityPool;
   let defaultPool;
-  let functionCaller;
   let borrowerOperations;
 
   let contracts;
 
-  const getOpenTroveDebtTokenAmount = async (totalDebt) =>
-    th.getOpenTroveDebtTokenAmount(contracts, totalDebt);
   const getNetBorrowingAmount = async (debtWithFee) =>
     th.getNetBorrowingAmount(contracts, debtWithFee);
   const openTrove = async (params) => th.openTrove(contracts, params);
 
+  before(async () => {
+    const signers = await ethers.getSigners();
+
+    [owner, alice, bob, carol, dennis, erin, freddy, A, B, C, D, E] = signers;
+    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+  });
+
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    contracts.troveManager = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    contracts.debtToken = await DebtToken.new();
-    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress,
-      lpRewardsAddress,
-      multisig,
+    await hre.network.provider.send("hardhat_reset");
+
+    const transactionCount = await owner.getTransactionCount();
+    const cpTesterContracts = await deploymentHelper.computeContractAddresses(
+      owner.address,
+      transactionCount,
+      5,
+    );
+    const cpContracts = await deploymentHelper.computeCoreProtocolContracts(
+      owner.address,
+      transactionCount + 5,
+    );
+
+    // Overwrite contracts with computed tester addresses
+    cpContracts.troveManager = cpTesterContracts[2];
+    cpContracts.debtToken = cpTesterContracts[4];
+
+    const troveManagerTester = await deploymentHelper.deployTroveManagerTester(
+      th.GAS_COMPENSATION,
+      th.MIN_NET_DEBT,
+      cpContracts,
+    );
+    const debtTokenTester = await deploymentHelper.deployDebtTokenTester(cpContracts);
+
+    contracts = await deploymentHelper.deployProtocolCore(
+      th.GAS_COMPENSATION,
+      th.MIN_NET_DEBT,
+      cpContracts,
+    );
+
+    contracts.troveManager = troveManagerTester;
+    contracts.debtToken = debtTokenTester;
+
+    await deploymentHelper.deployProtocolTokenContracts(
+      bountyAddress.address,
+      lpRewardsAddress.address,
+      multisig.address,
+      cpContracts,
     );
 
     priceFeed = contracts.priceFeedTestnet;
     debtToken = contracts.debtToken;
     sortedTroves = contracts.sortedTroves;
     troveManager = contracts.troveManager;
-    nameRegistry = contracts.nameRegistry;
     activePool = contracts.activePool;
-    stabilityPool = contracts.stabilityPool;
     defaultPool = contracts.defaultPool;
-    functionCaller = contracts.functionCaller;
     borrowerOperations = contracts.borrowerOperations;
-
-    await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
-    await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
-    await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
   });
 
   it("redistribution: A, B Open. B Liquidated. C, D Open. D Liquidated. Distributes correct rewards", async () => {
@@ -99,9 +99,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     assert.isFalse(await th.checkRecoveryMode(contracts));
 
     // L1: B liquidated
-    const txB = await troveManager.liquidate(bob);
-    assert.isTrue(txB.receipt.status);
-    assert.isFalse(await sortedTroves.contains(bob));
+    const txB = await troveManager.liquidate(bob.address);
+    const receiptB = await txB.wait();
+    assert.equal(receiptB.status, 1);
+    assert.isFalse(await sortedTroves.contains(bob.address));
 
     // Price bounces back to 200 $/E
     await priceFeed.setPrice(dec(200, 18));
@@ -123,16 +124,17 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     assert.isFalse(await th.checkRecoveryMode(contracts));
 
     // L2: D Liquidated
-    const txD = await troveManager.liquidate(dennis);
-    assert.isTrue(txB.receipt.status);
-    assert.isFalse(await sortedTroves.contains(dennis));
+    const txD = await troveManager.liquidate(dennis.address);
+    const receiptD = await txD.wait();
+    assert.equal(receiptD.status, 1);
+    assert.isFalse(await sortedTroves.contains(dennis.address));
 
     // Get entire coll of A and C
-    const alice_Coll = (await troveManager.Troves(alice))[1]
-      .add(await troveManager.getPendingFILReward(alice))
+    const alice_Coll = (await troveManager.Troves(alice.address))[1]
+      .add(await troveManager.getPendingFILReward(alice.address))
       .toString();
-    const carol_Coll = (await troveManager.Troves(carol))[1]
-      .add(await troveManager.getPendingFILReward(carol))
+    const carol_Coll = (await troveManager.Troves(carol.address))[1]
+      .add(await troveManager.getPendingFILReward(carol.address))
       .toString();
 
     /* Expected collateral:
@@ -169,7 +171,7 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     );
 
     // check DebtToken gas compensation
-    assert.equal((await debtToken.balanceOf(owner)).toString(), dec(400, 18));
+    assert.equal((await debtToken.balanceOf(owner.address)).toString(), dec(400, 18));
   });
 
   it("redistribution: A, B, C Open. C Liquidated. D, E, F Open. F Liquidated. Distributes correct rewards", async () => {
@@ -194,9 +196,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     assert.isFalse(await th.checkRecoveryMode(contracts));
 
     // L1: C liquidated
-    const txC = await troveManager.liquidate(carol);
-    assert.isTrue(txC.receipt.status);
-    assert.isFalse(await sortedTroves.contains(carol));
+    const txC = await troveManager.liquidate(carol.address);
+    const receiptC = await txC.wait();
+    assert.equal(receiptC.status, 1);
+    assert.isFalse(await sortedTroves.contains(carol.address));
 
     // Price bounces back to 200 $/E
     await priceFeed.setPrice(dec(200, 18));
@@ -222,22 +225,23 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     assert.isFalse(await th.checkRecoveryMode(contracts));
 
     // L2: F Liquidated
-    const txF = await troveManager.liquidate(freddy);
-    assert.isTrue(txF.receipt.status);
-    assert.isFalse(await sortedTroves.contains(freddy));
+    const txF = await troveManager.liquidate(freddy.address);
+    const receiptF = await txF.wait();
+    assert.equal(receiptF.status, 1);
+    assert.isFalse(await sortedTroves.contains(freddy.address));
 
     // Get entire coll of A, B, D and E
-    const alice_Coll = (await troveManager.Troves(alice))[1]
-      .add(await troveManager.getPendingFILReward(alice))
+    const alice_Coll = (await troveManager.Troves(alice.address))[1]
+      .add(await troveManager.getPendingFILReward(alice.address))
       .toString();
-    const bob_Coll = (await troveManager.Troves(bob))[1]
-      .add(await troveManager.getPendingFILReward(bob))
+    const bob_Coll = (await troveManager.Troves(bob.address))[1]
+      .add(await troveManager.getPendingFILReward(bob.address))
       .toString();
-    const dennis_Coll = (await troveManager.Troves(dennis))[1]
-      .add(await troveManager.getPendingFILReward(dennis))
+    const dennis_Coll = (await troveManager.Troves(dennis.address))[1]
+      .add(await troveManager.getPendingFILReward(dennis.address))
       .toString();
-    const erin_Coll = (await troveManager.Troves(erin))[1]
-      .add(await troveManager.getPendingFILReward(erin))
+    const erin_Coll = (await troveManager.Troves(erin.address))[1]
+      .add(await troveManager.getPendingFILReward(erin.address))
       .toString();
 
     /* Expected collateral:
@@ -283,7 +287,7 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     );
 
     // check DebtToken gas compensation
-    assert.equal((await debtToken.balanceOf(owner)).toString(), dec(400, 18));
+    assert.equal((await debtToken.balanceOf(owner.address)).toString(), dec(400, 18));
   });
   ////
 
@@ -302,9 +306,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(1, 18));
 
     // L1: A liquidated
-    const txA = await troveManager.liquidate(alice);
-    assert.isTrue(txA.receipt.status);
-    assert.isFalse(await sortedTroves.contains(alice));
+    const txA = await troveManager.liquidate(alice.address);
+    const receiptA = await txA.wait();
+    assert.equal(receiptA.status, 1);
+    assert.isFalse(await sortedTroves.contains(alice.address));
 
     // Price bounces back to 200 $/E
     await priceFeed.setPrice(dec(200, 18));
@@ -318,9 +323,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(1, 18));
 
     // L2: B Liquidated
-    const txB = await troveManager.liquidate(bob);
-    assert.isTrue(txB.receipt.status);
-    assert.isFalse(await sortedTroves.contains(bob));
+    const txB = await troveManager.liquidate(bob.address);
+    const receiptB = await txB.wait();
+    assert.equal(receiptB.status, 1);
+    assert.isFalse(await sortedTroves.contains(bob.address));
 
     // Price bounces back to 200 $/E
     await priceFeed.setPrice(dec(200, 18));
@@ -334,9 +340,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(1, 18));
 
     // L3: C Liquidated
-    const txC = await troveManager.liquidate(carol);
-    assert.isTrue(txC.receipt.status);
-    assert.isFalse(await sortedTroves.contains(carol));
+    const txC = await troveManager.liquidate(carol.address);
+    const receiptC = await txC.wait();
+    assert.equal(receiptC.status, 1);
+    assert.isFalse(await sortedTroves.contains(carol.address));
 
     // Price bounces back to 200 $/E
     await priceFeed.setPrice(dec(200, 18));
@@ -350,9 +357,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(1, 18));
 
     // L4: D Liquidated
-    const txD = await troveManager.liquidate(dennis);
-    assert.isTrue(txD.receipt.status);
-    assert.isFalse(await sortedTroves.contains(dennis));
+    const txD = await troveManager.liquidate(dennis.address);
+    const receiptD = await txD.wait();
+    assert.equal(receiptD.status, 1);
+    assert.isFalse(await sortedTroves.contains(dennis.address));
 
     // Price bounces back to 200 $/E
     await priceFeed.setPrice(dec(200, 18));
@@ -366,29 +374,30 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(1, 18));
 
     // L5: E Liquidated
-    const txE = await troveManager.liquidate(erin);
-    assert.isTrue(txE.receipt.status);
-    assert.isFalse(await sortedTroves.contains(erin));
+    const txE = await troveManager.liquidate(erin.address);
+    const receiptE = await txE.wait();
+    assert.equal(receiptE.status, 1);
+    assert.isFalse(await sortedTroves.contains(erin.address));
 
     // Get entire coll of A, B, D, E and F
-    const alice_Coll = (await troveManager.Troves(alice))[1]
-      .add(await troveManager.getPendingFILReward(alice))
+    const alice_Coll = (await troveManager.Troves(alice.address))[1]
+      .add(await troveManager.getPendingFILReward(alice.address))
       .toString();
-    const bob_Coll = (await troveManager.Troves(bob))[1]
-      .add(await troveManager.getPendingFILReward(bob))
+    const bob_Coll = (await troveManager.Troves(bob.address))[1]
+      .add(await troveManager.getPendingFILReward(bob.address))
       .toString();
-    const carol_Coll = (await troveManager.Troves(carol))[1]
-      .add(await troveManager.getPendingFILReward(carol))
+    const carol_Coll = (await troveManager.Troves(carol.address))[1]
+      .add(await troveManager.getPendingFILReward(carol.address))
       .toString();
-    const dennis_Coll = (await troveManager.Troves(dennis))[1]
-      .add(await troveManager.getPendingFILReward(dennis))
+    const dennis_Coll = (await troveManager.Troves(dennis.address))[1]
+      .add(await troveManager.getPendingFILReward(dennis.address))
       .toString();
-    const erin_Coll = (await troveManager.Troves(erin))[1]
-      .add(await troveManager.getPendingFILReward(erin))
+    const erin_Coll = (await troveManager.Troves(erin.address))[1]
+      .add(await troveManager.getPendingFILReward(erin.address))
       .toString();
 
-    const freddy_rawColl = (await troveManager.Troves(freddy))[1].toString();
-    const freddy_FILReward = (await troveManager.getPendingFILReward(freddy)).toString();
+    const freddy_rawColl = (await troveManager.Troves(freddy.address))[1].toString();
+    const freddy_FILReward = (await troveManager.getPendingFILReward(freddy.address)).toString();
 
     /* Expected collateral:
      A-E should have been liquidated
@@ -418,7 +427,7 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     assert.isAtMost(th.getDifference(entireSystemColl, F_coll.add(gainedFIL)), 1000);
 
     // check DebtToken gas compensation
-    assert.equal((await debtToken.balanceOf(owner)).toString(), dec(1000, 18));
+    assert.equal((await debtToken.balanceOf(owner.address)).toString(), dec(1000, 18));
   });
 
   // ---Trove adds collateral ---
@@ -457,9 +466,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
 
     // Liquidate A
     // console.log(`ICR A: ${await troveManager.getCurrentICR(A, price)}`)
-    const txA = await troveManager.liquidate(A);
-    assert.isTrue(txA.receipt.status);
-    assert.isFalse(await sortedTroves.contains(A));
+    const txA = await troveManager.liquidate(A.address);
+    const receiptA = await txA.wait();
+    assert.equal(receiptA.status, 1);
+    assert.isFalse(await sortedTroves.contains(A.address));
 
     // Check entireColl for each trove:
     const B_entireColl_1 = (await th.getEntireCollAndDebt(contracts, B)).entireColl;
@@ -487,12 +497,13 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
 
     // Bob adds 1 FIL to his trove
     const addedColl1 = toBN(dec(1, "ether"));
-    await borrowerOperations.addColl(B, B, { from: B, value: addedColl1 });
+    await borrowerOperations.connect(B).addColl(B.address, B.address, { value: addedColl1 });
 
     // Liquidate C
-    const txC = await troveManager.liquidate(C);
-    assert.isTrue(txC.receipt.status);
-    assert.isFalse(await sortedTroves.contains(C));
+    const txC = await troveManager.liquidate(C.address);
+    const receiptC = await txC.wait();
+    assert.equal(receiptC.status, 1);
+    assert.isFalse(await sortedTroves.contains(C.address));
 
     const B_entireColl_2 = (await th.getEntireCollAndDebt(contracts, B)).entireColl;
     const D_entireColl_2 = (await th.getEntireCollAndDebt(contracts, D)).entireColl;
@@ -519,12 +530,13 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
 
     // Bob adds 1 FIL to his trove
     const addedColl2 = toBN(dec(1, "ether"));
-    await borrowerOperations.addColl(B, B, { from: B, value: addedColl2 });
+    await borrowerOperations.connect(B).addColl(B.address, B.address, { value: addedColl2 });
 
     // Liquidate E
-    const txE = await troveManager.liquidate(E);
-    assert.isTrue(txE.receipt.status);
-    assert.isFalse(await sortedTroves.contains(E));
+    const txE = await troveManager.liquidate(E.address);
+    const receiptE = await txE.wait();
+    assert.equal(receiptE.status, 1);
+    assert.isFalse(await sortedTroves.contains(E.address));
 
     const totalCollAfterL3 = B_collAfterL2.add(addedColl2).add(D_collAfterL2);
     const B_collAfterL3 = B_collAfterL2.add(addedColl2).add(
@@ -591,18 +603,19 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
 
     // Liquidate A
     // console.log(`ICR A: ${await troveManager.getCurrentICR(A, price)}`)
-    const txA = await troveManager.liquidate(A);
-    assert.isTrue(txA.receipt.status);
-    assert.isFalse(await sortedTroves.contains(A));
+    const txA = await troveManager.liquidate(A.address);
+    const receiptA = await txA.wait();
+    assert.equal(receiptA.status, 1);
+    assert.isFalse(await sortedTroves.contains(A.address));
 
     const A_collRedistribution = A_entireColl_0.mul(toBN(995)).div(toBN(1000)); // remove the gas comp
 
     // console.log(`A_collRedistribution: ${A_collRedistribution}`)
     // Check accumulated FIL gain for each trove
-    const B_FILGain_1 = await troveManager.getPendingFILReward(B);
-    const C_FILGain_1 = await troveManager.getPendingFILReward(C);
-    const D_FILGain_1 = await troveManager.getPendingFILReward(D);
-    const E_FILGain_1 = await troveManager.getPendingFILReward(E);
+    const B_FILGain_1 = await troveManager.getPendingFILReward(B.address);
+    const C_FILGain_1 = await troveManager.getPendingFILReward(C.address);
+    const D_FILGain_1 = await troveManager.getPendingFILReward(D.address);
+    const E_FILGain_1 = await troveManager.getPendingFILReward(E.address);
 
     // Check gains are what we'd expect from a distribution proportional to each trove's entire coll
     const B_expectedPendingFIL_1 = A_collRedistribution.mul(B_entireColl_0).div(denominatorColl_1);
@@ -616,7 +629,7 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     assert.isAtMost(getDifference(E_expectedPendingFIL_1, E_FILGain_1), 1e8);
 
     // // Bob adds 1 FIL to his trove
-    await borrowerOperations.addColl(B, B, { from: B, value: dec(1, "ether") });
+    await borrowerOperations.connect(B).addColl(B.address, B.address, { value: dec(1, "ether") });
 
     // Check entireColl for each trove
     const B_entireColl_1 = (await th.getEntireCollAndDebt(contracts, B)).entireColl;
@@ -628,16 +641,17 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     const denominatorColl_2 = (await troveManager.getEntireSystemColl()).sub(C_entireColl_1);
 
     // Liquidate C
-    const txC = await troveManager.liquidate(C);
-    assert.isTrue(txC.receipt.status);
-    assert.isFalse(await sortedTroves.contains(C));
+    const txC = await troveManager.liquidate(C.address);
+    const receiptC = await txC.wait();
+    assert.equal(receiptC.status, 1);
+    assert.isFalse(await sortedTroves.contains(C.address));
 
     const C_collRedistribution = C_entireColl_1.mul(toBN(995)).div(toBN(1000)); // remove the gas comp
     // console.log(`C_collRedistribution: ${C_collRedistribution}`)
 
-    const B_FILGain_2 = await troveManager.getPendingFILReward(B);
-    const D_FILGain_2 = await troveManager.getPendingFILReward(D);
-    const E_FILGain_2 = await troveManager.getPendingFILReward(E);
+    const B_FILGain_2 = await troveManager.getPendingFILReward(B.address);
+    const D_FILGain_2 = await troveManager.getPendingFILReward(D.address);
+    const E_FILGain_2 = await troveManager.getPendingFILReward(E.address);
 
     // Since B topped up, he has no previous pending FIL gain
     const B_expectedPendingFIL_2 = C_collRedistribution.mul(B_entireColl_1).div(denominatorColl_2);
@@ -656,7 +670,7 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     assert.isAtMost(getDifference(E_expectedPendingFIL_2, E_FILGain_2), 1e8);
 
     // // Bob adds 1 FIL to his trove
-    await borrowerOperations.addColl(B, B, { from: B, value: dec(1, "ether") });
+    await borrowerOperations.connect(B).addColl(B.address, B.address, { value: dec(1, "ether") });
 
     // Check entireColl for each trove
     const B_entireColl_2 = (await th.getEntireCollAndDebt(contracts, B)).entireColl;
@@ -667,15 +681,16 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     const denominatorColl_3 = (await troveManager.getEntireSystemColl()).sub(E_entireColl_2);
 
     // Liquidate E
-    const txE = await troveManager.liquidate(E);
-    assert.isTrue(txE.receipt.status);
-    assert.isFalse(await sortedTroves.contains(E));
+    const txE = await troveManager.liquidate(E.address);
+    const receiptE = await txE.wait();
+    assert.equal(receiptE.status, 1);
+    assert.isFalse(await sortedTroves.contains(E.address));
 
     const E_collRedistribution = E_entireColl_2.mul(toBN(995)).div(toBN(1000)); // remove the gas comp
     // console.log(`E_collRedistribution: ${E_collRedistribution}`)
 
-    const B_FILGain_3 = await troveManager.getPendingFILReward(B);
-    const D_FILGain_3 = await troveManager.getPendingFILReward(D);
+    const B_FILGain_3 = await troveManager.getPendingFILReward(B.address);
+    const D_FILGain_3 = await troveManager.getPendingFILReward(D.address);
 
     // Since B topped up, he has no previous pending FIL gain
     const B_expectedPendingFIL_3 = E_collRedistribution.mul(B_entireColl_2).div(denominatorColl_3);
@@ -710,43 +725,44 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(100, 18));
 
     // Liquidate Carol
-    const txC = await troveManager.liquidate(carol);
-    assert.isTrue(txC.receipt.status);
-    assert.isFalse(await sortedTroves.contains(carol));
+    const txC = await troveManager.liquidate(carol.address);
+    const receiptC = await txC.wait();
+    assert.equal(receiptC.status, 1);
+    assert.isFalse(await sortedTroves.contains(carol.address));
 
     // Price bounces back to 200 $/E
     await priceFeed.setPrice(dec(200, 18));
 
     //Bob adds FIL to his trove
     const addedColl = toBN(dec(1, "ether"));
-    await borrowerOperations.addColl(bob, bob, { from: bob, value: addedColl });
+    await borrowerOperations.connect(bob).addColl(bob.address, bob.address, { value: addedColl });
 
     // Alice withdraws DebtToken
-    await borrowerOperations.withdrawDebtToken(
-      th._100pct,
-      await getNetBorrowingAmount(A_totalDebt),
-      alice,
-      alice,
-      {
-        from: alice,
-      },
-    );
+    await borrowerOperations
+      .connect(alice)
+      .withdrawDebtToken(
+        th._100pct,
+        await getNetBorrowingAmount(A_totalDebt),
+        alice.address,
+        alice.address,
+      );
 
     // Price drops to 100 $/E
     await priceFeed.setPrice(dec(100, 18));
 
     // Liquidate Alice
-    const txA = await troveManager.liquidate(alice);
-    assert.isTrue(txA.receipt.status);
-    assert.isFalse(await sortedTroves.contains(alice));
+    const txA = await troveManager.liquidate(alice.address);
+    const receiptA = await txA.wait();
+    assert.equal(receiptA.status, 1);
+    assert.isFalse(await sortedTroves.contains(alice.address));
 
     // Expect Bob now holds all Ether and debt in the system: 2 + 0.4975+0.4975*0.995+0.995 Ether and 110*3 DebtToken (10 each for gas compensation)
-    const bob_Coll = (await troveManager.Troves(bob))[1]
-      .add(await troveManager.getPendingFILReward(bob))
+    const bob_Coll = (await troveManager.Troves(bob.address))[1]
+      .add(await troveManager.getPendingFILReward(bob.address))
       .toString();
 
-    const bob_debt = (await troveManager.Troves(bob))[0]
-      .add(await troveManager.getPendingDebtReward(bob))
+    const bob_debt = (await troveManager.Troves(bob.address))[0]
+      .add(await troveManager.getPendingDebtReward(bob.address))
       .toString();
 
     const expected_B_coll = B_coll.add(addedColl)
@@ -783,16 +799,17 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(100, 18));
 
     // Liquidate Carol
-    const txC = await troveManager.liquidate(carol);
-    assert.isTrue(txC.receipt.status);
-    assert.isFalse(await sortedTroves.contains(carol));
+    const txC = await troveManager.liquidate(carol.address);
+    const receiptC = await txC.wait();
+    assert.equal(receiptC.status, 1);
+    assert.isFalse(await sortedTroves.contains(carol.address));
 
     // Price bounces back to 200 $/E
     await priceFeed.setPrice(dec(200, 18));
 
     //Bob adds FIL to his trove
     const addedColl = toBN(dec(1, "ether"));
-    await borrowerOperations.addColl(bob, bob, { from: bob, value: addedColl });
+    await borrowerOperations.connect(bob).addColl(bob.address, bob.address, { value: addedColl });
 
     // D opens trove
     const { collateral: D_coll, totalDebt: D_totalDebt } = await openTrove({
@@ -805,9 +822,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(100, 18));
 
     // Liquidate D
-    const txA = await troveManager.liquidate(dennis);
-    assert.isTrue(txA.receipt.status);
-    assert.isFalse(await sortedTroves.contains(dennis));
+    const txA = await troveManager.liquidate(dennis.address);
+    const receiptA = await txA.wait();
+    assert.equal(receiptA.status, 1);
+    assert.isFalse(await sortedTroves.contains(dennis.address));
 
     /* Bob rewards:
      L1: 1/2*0.995 FIL, 55 DebtToken
@@ -826,20 +844,20 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     totalColl: 4.99 FIL
     totalDebt 380 DebtToken (includes 50 each for gas compensation)
     */
-    const bob_Coll = (await troveManager.Troves(bob))[1]
-      .add(await troveManager.getPendingFILReward(bob))
+    const bob_Coll = (await troveManager.Troves(bob.address))[1]
+      .add(await troveManager.getPendingFILReward(bob.address))
       .toString();
 
-    const bob_debt = (await troveManager.Troves(bob))[0]
-      .add(await troveManager.getPendingDebtReward(bob))
+    const bob_debt = (await troveManager.Troves(bob.address))[0]
+      .add(await troveManager.getPendingDebtReward(bob.address))
       .toString();
 
-    const alice_Coll = (await troveManager.Troves(alice))[1]
-      .add(await troveManager.getPendingFILReward(alice))
+    const alice_Coll = (await troveManager.Troves(alice.address))[1]
+      .add(await troveManager.getPendingFILReward(alice.address))
       .toString();
 
-    const alice_debt = (await troveManager.Troves(alice))[0]
-      .add(await troveManager.getPendingDebtReward(alice))
+    const alice_debt = (await troveManager.Troves(alice.address))[0]
+      .add(await troveManager.getPendingDebtReward(alice.address))
       .toString();
 
     const totalCollAfterL1 = A_coll.add(B_coll).add(addedColl).add(th.applyLiquidationFee(C_coll));
@@ -868,7 +886,7 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     assert.isAtMost(th.getDifference(alice_debt, expected_A_debt), 10000);
 
     // check DebtToken gas compensation
-    assert.equal((await debtToken.balanceOf(owner)).toString(), dec(400, 18));
+    assert.equal((await debtToken.balanceOf(owner.address)).toString(), dec(400, 18));
   });
 
   it("redistribution: Trove with the majority stake tops up. A,B,C, D open. Liq(D). C tops up. E Enters, Liq(E). Distributes correct rewards", async () => {
@@ -897,17 +915,18 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(100, 18));
 
     // Liquidate Dennis
-    const txD = await troveManager.liquidate(dennis);
-    assert.isTrue(txD.receipt.status);
-    assert.isFalse(await sortedTroves.contains(dennis));
+    const txD = await troveManager.liquidate(dennis.address);
+    const receiptD = await txD.wait();
+    assert.equal(receiptD.status, 1);
+    assert.isFalse(await sortedTroves.contains(dennis.address));
 
     // Price bounces back to 200 $/E
     await priceFeed.setPrice(dec(200, 18));
 
     // Expected rewards:  alice: 1 FIL, bob: 1 FIL, carol: 998 FIL
-    const alice_FILReward_1 = await troveManager.getPendingFILReward(alice);
-    const bob_FILReward_1 = await troveManager.getPendingFILReward(bob);
-    const carol_FILReward_1 = await troveManager.getPendingFILReward(carol);
+    const alice_FILReward_1 = await troveManager.getPendingFILReward(alice.address);
+    const bob_FILReward_1 = await troveManager.getPendingFILReward(bob.address);
+    const carol_FILReward_1 = await troveManager.getPendingFILReward(carol.address);
 
     //Expect 1000 + 1000*0.995 FIL in system now
     const entireSystemColl_1 = (await activePool.getFIL())
@@ -934,7 +953,9 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
 
     //Carol adds 1 FIL to her trove, brings it to 1992.01 total coll
     const C_addedColl = toBN(dec(1, "ether"));
-    await borrowerOperations.addColl(carol, carol, { from: carol, value: dec(1, "ether") });
+    await borrowerOperations
+      .connect(carol)
+      .addColl(carol.address, carol.address, { value: dec(1, "ether") });
 
     //Expect 1996 FIL in system now
     const entireSystemColl_2 = (await activePool.getFIL()).add(await defaultPool.getFIL());
@@ -953,9 +974,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(100, 18));
 
     // Liquidate Erin
-    const txE = await troveManager.liquidate(erin);
-    assert.isTrue(txE.receipt.status);
-    assert.isFalse(await sortedTroves.contains(erin));
+    const txE = await troveManager.liquidate(erin.address);
+    const receiptE = await txE.wait();
+    assert.equal(receiptE.status, 1);
+    assert.isFalse(await sortedTroves.contains(erin.address));
 
     /* Expected FIL rewards: 
      Carol = 1992.01/1996 * 1996*0.995 = 1982.05 FIL
@@ -971,16 +993,16 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     total = 3982.02 FIL
     */
 
-    const alice_Coll = (await troveManager.Troves(alice))[1]
-      .add(await troveManager.getPendingFILReward(alice))
+    const alice_Coll = (await troveManager.Troves(alice.address))[1]
+      .add(await troveManager.getPendingFILReward(alice.address))
       .toString();
 
-    const bob_Coll = (await troveManager.Troves(bob))[1]
-      .add(await troveManager.getPendingFILReward(bob))
+    const bob_Coll = (await troveManager.Troves(bob.address))[1]
+      .add(await troveManager.getPendingFILReward(bob.address))
       .toString();
 
-    const carol_Coll = (await troveManager.Troves(carol))[1]
-      .add(await troveManager.getPendingFILReward(carol))
+    const carol_Coll = (await troveManager.Troves(carol.address))[1]
+      .add(await troveManager.getPendingFILReward(carol.address))
       .toString();
 
     const totalCollAfterL1 = A_coll.add(B_coll)
@@ -1020,7 +1042,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     );
 
     // check DebtToken gas compensation
-    th.assertIsApproximatelyEqual((await debtToken.balanceOf(owner)).toString(), dec(400, 18));
+    th.assertIsApproximatelyEqual(
+      (await debtToken.balanceOf(owner.address)).toString(),
+      dec(400, 18),
+    );
   });
 
   it("redistribution: Trove with the majority stake tops up. A,B,C, D open. Liq(D). A, B, C top up. E Enters, Liq(E). Distributes correct rewards", async () => {
@@ -1049,17 +1074,18 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(100, 18));
 
     // Liquidate Dennis
-    const txD = await troveManager.liquidate(dennis);
-    assert.isTrue(txD.receipt.status);
-    assert.isFalse(await sortedTroves.contains(dennis));
+    const txD = await troveManager.liquidate(dennis.address);
+    const receiptD = await txD.wait();
+    assert.equal(receiptD.status, 1);
+    assert.isFalse(await sortedTroves.contains(dennis.address));
 
     // Price bounces back to 200 $/E
     await priceFeed.setPrice(dec(200, 18));
 
     // Expected rewards:  alice: 1 FIL, bob: 1 FIL, carol: 998 FIL (*0.995)
-    const alice_FILReward_1 = await troveManager.getPendingFILReward(alice);
-    const bob_FILReward_1 = await troveManager.getPendingFILReward(bob);
-    const carol_FILReward_1 = await troveManager.getPendingFILReward(carol);
+    const alice_FILReward_1 = await troveManager.getPendingFILReward(alice.address);
+    const bob_FILReward_1 = await troveManager.getPendingFILReward(bob.address);
+    const carol_FILReward_1 = await troveManager.getPendingFILReward(carol.address);
 
     //Expect 1995 FIL in system now
     const entireSystemColl_1 = (await activePool.getFIL())
@@ -1088,9 +1114,13 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     bringing them to 2.995, 2.995, 1992.01 total coll each. */
 
     const addedColl = toBN(dec(1, "ether"));
-    await borrowerOperations.addColl(alice, alice, { from: alice, value: addedColl });
-    await borrowerOperations.addColl(bob, bob, { from: bob, value: addedColl });
-    await borrowerOperations.addColl(carol, carol, { from: carol, value: addedColl });
+    await borrowerOperations
+      .connect(alice)
+      .addColl(alice.address, alice.address, { value: addedColl });
+    await borrowerOperations.connect(bob).addColl(bob.address, bob.address, { value: addedColl });
+    await borrowerOperations
+      .connect(carol)
+      .addColl(carol.address, carol.address, { value: addedColl });
 
     //Expect 1998 FIL in system now
     const entireSystemColl_2 = (await activePool.getFIL())
@@ -1111,9 +1141,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(100, 18));
 
     // Liquidate Erin
-    const txE = await troveManager.liquidate(erin);
-    assert.isTrue(txE.receipt.status);
-    assert.isFalse(await sortedTroves.contains(erin));
+    const txE = await troveManager.liquidate(erin.address);
+    const receiptE = await txE.wait();
+    assert.equal(receiptE.status, 1);
+    assert.isFalse(await sortedTroves.contains(erin.address));
 
     /* Expected FIL rewards: 
      Carol = 1992.01/1998 * 1998*0.995 = 1982.04995 FIL
@@ -1129,16 +1160,16 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     total = 3986.01 FIL
     */
 
-    const alice_Coll = (await troveManager.Troves(alice))[1]
-      .add(await troveManager.getPendingFILReward(alice))
+    const alice_Coll = (await troveManager.Troves(alice.address))[1]
+      .add(await troveManager.getPendingFILReward(alice.address))
       .toString();
 
-    const bob_Coll = (await troveManager.Troves(bob))[1]
-      .add(await troveManager.getPendingFILReward(bob))
+    const bob_Coll = (await troveManager.Troves(bob.address))[1]
+      .add(await troveManager.getPendingFILReward(bob.address))
       .toString();
 
-    const carol_Coll = (await troveManager.Troves(carol))[1]
-      .add(await troveManager.getPendingFILReward(carol))
+    const carol_Coll = (await troveManager.Troves(carol.address))[1]
+      .add(await troveManager.getPendingFILReward(carol.address))
       .toString();
 
     const totalCollAfterL1 = A_coll.add(B_coll)
@@ -1176,7 +1207,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     );
 
     // check DebtToken gas compensation
-    th.assertIsApproximatelyEqual((await debtToken.balanceOf(owner)).toString(), dec(400, 18));
+    th.assertIsApproximatelyEqual(
+      (await debtToken.balanceOf(owner.address)).toString(),
+      dec(400, 18),
+    );
   });
 
   // --- Trove withdraws collateral ---
@@ -1202,44 +1236,45 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(100, 18));
 
     // Liquidate Carol
-    const txC = await troveManager.liquidate(carol);
-    assert.isTrue(txC.receipt.status);
-    assert.isFalse(await sortedTroves.contains(carol));
+    const txC = await troveManager.liquidate(carol.address);
+    const receiptC = await txC.wait();
+    assert.equal(receiptC.status, 1);
+    assert.isFalse(await sortedTroves.contains(carol.address));
 
     // Price bounces back to 200 $/E
     await priceFeed.setPrice(dec(200, 18));
 
     //Bob withdraws 0.5 FIL from his trove
     const withdrawnColl = toBN(dec(500, "finney"));
-    await borrowerOperations.withdrawColl(withdrawnColl, bob, bob, { from: bob });
+    await borrowerOperations.connect(bob).withdrawColl(withdrawnColl, bob.address, bob.address);
 
     // Alice withdraws DebtToken
-    await borrowerOperations.withdrawDebtToken(
-      th._100pct,
-      await getNetBorrowingAmount(A_totalDebt),
-      alice,
-      alice,
-      {
-        from: alice,
-      },
-    );
+    await borrowerOperations
+      .connect(alice)
+      .withdrawDebtToken(
+        th._100pct,
+        await getNetBorrowingAmount(A_totalDebt),
+        alice.address,
+        alice.address,
+      );
 
     // Price drops to 100 $/E
     await priceFeed.setPrice(dec(100, 18));
 
     // Liquidate Alice
-    const txA = await troveManager.liquidate(alice);
-    assert.isTrue(txA.receipt.status);
-    assert.isFalse(await sortedTroves.contains(alice));
+    const txA = await troveManager.liquidate(alice.address);
+    const receiptA = await txA.wait();
+    assert.equal(receiptA.status, 1);
+    assert.isFalse(await sortedTroves.contains(alice.address));
 
     // Expect Bob now holds all Ether and debt in the system: 2.5 Ether and 300 DebtToken
     // 1 + 0.995/2 - 0.5 + 1.4975*0.995
-    const bob_Coll = (await troveManager.Troves(bob))[1]
-      .add(await troveManager.getPendingFILReward(bob))
+    const bob_Coll = (await troveManager.Troves(bob.address))[1]
+      .add(await troveManager.getPendingFILReward(bob.address))
       .toString();
 
-    const bob_debt = (await troveManager.Troves(bob))[0]
-      .add(await troveManager.getPendingDebtReward(bob))
+    const bob_debt = (await troveManager.Troves(bob.address))[0]
+      .add(await troveManager.getPendingDebtReward(bob.address))
       .toString();
 
     const expected_B_coll = B_coll.sub(withdrawnColl)
@@ -1255,7 +1290,7 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     );
 
     // check DebtToken gas compensation
-    assert.equal((await debtToken.balanceOf(owner)).toString(), dec(400, 18));
+    assert.equal((await debtToken.balanceOf(owner.address)).toString(), dec(400, 18));
   });
 
   it("redistribution: A,B,C Open. Liq(C). B withdraws coll. D Opens. Liq(D). Distributes correct rewards.", async () => {
@@ -1279,16 +1314,17 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(100, 18));
 
     // Liquidate Carol
-    const txC = await troveManager.liquidate(carol);
-    assert.isTrue(txC.receipt.status);
-    assert.isFalse(await sortedTroves.contains(carol));
+    const txC = await troveManager.liquidate(carol.address);
+    const receiptC = await txC.wait();
+    assert.equal(receiptC.status, 1);
+    assert.isFalse(await sortedTroves.contains(carol.address));
 
     // Price bounces back to 200 $/E
     await priceFeed.setPrice(dec(200, 18));
 
     //Bob  withdraws 0.5 FIL from his trove
     const withdrawnColl = toBN(dec(500, "finney"));
-    await borrowerOperations.withdrawColl(withdrawnColl, bob, bob, { from: bob });
+    await borrowerOperations.connect(bob).withdrawColl(withdrawnColl, bob.address, bob.address);
 
     // D opens trove
     const { collateral: D_coll, totalDebt: D_totalDebt } = await openTrove({
@@ -1301,9 +1337,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(100, 18));
 
     // Liquidate D
-    const txA = await troveManager.liquidate(dennis);
-    assert.isTrue(txA.receipt.status);
-    assert.isFalse(await sortedTroves.contains(dennis));
+    const txA = await troveManager.liquidate(dennis.address);
+    const receiptA = await txA.wait();
+    assert.equal(receiptA.status, 1);
+    assert.isFalse(await sortedTroves.contains(dennis.address));
 
     /* Bob rewards:
      L1: 0.4975 FIL, 55 DebtToken
@@ -1322,20 +1359,20 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     totalColl: 3.49 FIL
     totalDebt 380 DebtToken (Includes 50 in each trove for gas compensation)
     */
-    const bob_Coll = (await troveManager.Troves(bob))[1]
-      .add(await troveManager.getPendingFILReward(bob))
+    const bob_Coll = (await troveManager.Troves(bob.address))[1]
+      .add(await troveManager.getPendingFILReward(bob.address))
       .toString();
 
-    const bob_debt = (await troveManager.Troves(bob))[0]
-      .add(await troveManager.getPendingDebtReward(bob))
+    const bob_debt = (await troveManager.Troves(bob.address))[0]
+      .add(await troveManager.getPendingDebtReward(bob.address))
       .toString();
 
-    const alice_Coll = (await troveManager.Troves(alice))[1]
-      .add(await troveManager.getPendingFILReward(alice))
+    const alice_Coll = (await troveManager.Troves(alice.address))[1]
+      .add(await troveManager.getPendingFILReward(alice.address))
       .toString();
 
-    const alice_debt = (await troveManager.Troves(alice))[0]
-      .add(await troveManager.getPendingDebtReward(alice))
+    const alice_debt = (await troveManager.Troves(alice.address))[0]
+      .add(await troveManager.getPendingDebtReward(alice.address))
       .toString();
 
     const totalCollAfterL1 = A_coll.add(B_coll)
@@ -1380,7 +1417,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     );
 
     // check DebtToken gas compensation
-    th.assertIsApproximatelyEqual((await debtToken.balanceOf(owner)).toString(), dec(400, 18));
+    th.assertIsApproximatelyEqual(
+      (await debtToken.balanceOf(owner.address)).toString(),
+      dec(400, 18),
+    );
   });
 
   it("redistribution: Trove with the majority stake withdraws. A,B,C,D open. Liq(D). C withdraws some coll. E Enters, Liq(E). Distributes correct rewards", async () => {
@@ -1409,17 +1449,18 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(100, 18));
 
     // Liquidate Dennis
-    const txD = await troveManager.liquidate(dennis);
-    assert.isTrue(txD.receipt.status);
-    assert.isFalse(await sortedTroves.contains(dennis));
+    const txD = await troveManager.liquidate(dennis.address);
+    const receiptD = await txD.wait();
+    assert.equal(receiptD.status, 1);
+    assert.isFalse(await sortedTroves.contains(dennis.address));
 
     // Price bounces back to 200 $/E
     await priceFeed.setPrice(dec(200, 18));
 
     // Expected rewards:  alice: 1 FIL, bob: 1 FIL, carol: 998 FIL (*0.995)
-    const alice_FILReward_1 = await troveManager.getPendingFILReward(alice);
-    const bob_FILReward_1 = await troveManager.getPendingFILReward(bob);
-    const carol_FILReward_1 = await troveManager.getPendingFILReward(carol);
+    const alice_FILReward_1 = await troveManager.getPendingFILReward(alice.address);
+    const bob_FILReward_1 = await troveManager.getPendingFILReward(bob.address);
+    const carol_FILReward_1 = await troveManager.getPendingFILReward(carol.address);
 
     //Expect 1995 FIL in system now
     const entireSystemColl_1 = (await activePool.getFIL()).add(await defaultPool.getFIL());
@@ -1444,7 +1485,9 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
 
     //Carol wthdraws 1 FIL from her trove, brings it to 1990.01 total coll
     const C_withdrawnColl = toBN(dec(1, "ether"));
-    await borrowerOperations.withdrawColl(C_withdrawnColl, carol, carol, { from: carol });
+    await borrowerOperations
+      .connect(carol)
+      .withdrawColl(C_withdrawnColl, carol.address, carol.address);
 
     //Expect 1994 FIL in system now
     const entireSystemColl_2 = (await activePool.getFIL()).add(await defaultPool.getFIL());
@@ -1463,9 +1506,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(100, 18));
 
     // Liquidate Erin
-    const txE = await troveManager.liquidate(erin);
-    assert.isTrue(txE.receipt.status);
-    assert.isFalse(await sortedTroves.contains(erin));
+    const txE = await troveManager.liquidate(erin.address);
+    const receiptE = await txE.wait();
+    assert.equal(receiptE.status, 1);
+    assert.isFalse(await sortedTroves.contains(erin.address));
 
     /* Expected FIL rewards: 
      Carol = 1990.01/1994 * 1994*0.995 = 1980.05995 FIL
@@ -1481,16 +1525,16 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     total = 3978.03 FIL
     */
 
-    const alice_Coll = (await troveManager.Troves(alice))[1]
-      .add(await troveManager.getPendingFILReward(alice))
+    const alice_Coll = (await troveManager.Troves(alice.address))[1]
+      .add(await troveManager.getPendingFILReward(alice.address))
       .toString();
 
-    const bob_Coll = (await troveManager.Troves(bob))[1]
-      .add(await troveManager.getPendingFILReward(bob))
+    const bob_Coll = (await troveManager.Troves(bob.address))[1]
+      .add(await troveManager.getPendingFILReward(bob.address))
       .toString();
 
-    const carol_Coll = (await troveManager.Troves(carol))[1]
-      .add(await troveManager.getPendingFILReward(carol))
+    const carol_Coll = (await troveManager.Troves(carol.address))[1]
+      .add(await troveManager.getPendingFILReward(carol.address))
       .toString();
 
     const totalCollAfterL1 = A_coll.add(B_coll)
@@ -1528,7 +1572,7 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     );
 
     // check DebtToken gas compensation
-    assert.equal((await debtToken.balanceOf(owner)).toString(), dec(400, 18));
+    assert.equal((await debtToken.balanceOf(owner.address)).toString(), dec(400, 18));
   });
 
   it("redistribution: Trove with the majority stake withdraws. A,B,C,D open. Liq(D). A, B, C withdraw. E Enters, Liq(E). Distributes correct rewards", async () => {
@@ -1557,17 +1601,18 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(100, 18));
 
     // Liquidate Dennis
-    const txD = await troveManager.liquidate(dennis);
-    assert.isTrue(txD.receipt.status);
-    assert.isFalse(await sortedTroves.contains(dennis));
+    const txD = await troveManager.liquidate(dennis.address);
+    const receiptD = await txD.wait();
+    assert.equal(receiptD.status, 1);
+    assert.isFalse(await sortedTroves.contains(dennis.address));
 
     // Price bounces back to 200 $/E
     await priceFeed.setPrice(dec(200, 18));
 
     // Expected rewards:  alice: 1 FIL, bob: 1 FIL, carol: 998 FIL (*0.995)
-    const alice_FILReward_1 = await troveManager.getPendingFILReward(alice);
-    const bob_FILReward_1 = await troveManager.getPendingFILReward(bob);
-    const carol_FILReward_1 = await troveManager.getPendingFILReward(carol);
+    const alice_FILReward_1 = await troveManager.getPendingFILReward(alice.address);
+    const bob_FILReward_1 = await troveManager.getPendingFILReward(bob.address);
+    const carol_FILReward_1 = await troveManager.getPendingFILReward(carol.address);
 
     //Expect 1995 FIL in system now
     const entireSystemColl_1 = (await activePool.getFIL()).add(await defaultPool.getFIL());
@@ -1593,20 +1638,24 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     /* Alice, Bob, Carol each withdraw 0.5 FIL to their troves, 
     bringing them to 1.495, 1.495, 1990.51 total coll each. */
     const withdrawnColl = toBN(dec(500, "finney"));
-    await borrowerOperations.withdrawColl(withdrawnColl, alice, alice, { from: alice });
-    await borrowerOperations.withdrawColl(withdrawnColl, bob, bob, { from: bob });
-    await borrowerOperations.withdrawColl(withdrawnColl, carol, carol, { from: carol });
+    await borrowerOperations
+      .connect(alice)
+      .withdrawColl(withdrawnColl, alice.address, alice.address);
+    await borrowerOperations.connect(bob).withdrawColl(withdrawnColl, bob.address, bob.address);
+    await borrowerOperations
+      .connect(carol)
+      .withdrawColl(withdrawnColl, carol.address, carol.address);
 
-    const alice_Coll_1 = (await troveManager.Troves(alice))[1]
-      .add(await troveManager.getPendingFILReward(alice))
+    const alice_Coll_1 = (await troveManager.Troves(alice.address))[1]
+      .add(await troveManager.getPendingFILReward(alice.address))
       .toString();
 
-    const bob_Coll_1 = (await troveManager.Troves(bob))[1]
-      .add(await troveManager.getPendingFILReward(bob))
+    const bob_Coll_1 = (await troveManager.Troves(bob.address))[1]
+      .add(await troveManager.getPendingFILReward(bob.address))
       .toString();
 
-    const carol_Coll_1 = (await troveManager.Troves(carol))[1]
-      .add(await troveManager.getPendingFILReward(carol))
+    const carol_Coll_1 = (await troveManager.Troves(carol.address))[1]
+      .add(await troveManager.getPendingFILReward(carol.address))
       .toString();
 
     const totalColl_1 = A_coll.add(B_coll).add(C_coll);
@@ -1649,9 +1698,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(100, 18));
 
     // Liquidate Erin
-    const txE = await troveManager.liquidate(erin);
-    assert.isTrue(txE.receipt.status);
-    assert.isFalse(await sortedTroves.contains(erin));
+    const txE = await troveManager.liquidate(erin.address);
+    const receiptE = await txE.wait();
+    assert.equal(receiptE.status, 1);
+    assert.isFalse(await sortedTroves.contains(erin.address));
 
     /* Expected FIL rewards: 
      Carol = 1990.51/1993.5 * 1993.5*0.995 = 1980.55745 FIL
@@ -1667,16 +1717,16 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     total = 3977.0325 FIL
     */
 
-    const alice_Coll_2 = (await troveManager.Troves(alice))[1]
-      .add(await troveManager.getPendingFILReward(alice))
+    const alice_Coll_2 = (await troveManager.Troves(alice.address))[1]
+      .add(await troveManager.getPendingFILReward(alice.address))
       .toString();
 
-    const bob_Coll_2 = (await troveManager.Troves(bob))[1]
-      .add(await troveManager.getPendingFILReward(bob))
+    const bob_Coll_2 = (await troveManager.Troves(bob.address))[1]
+      .add(await troveManager.getPendingFILReward(bob.address))
       .toString();
 
-    const carol_Coll_2 = (await troveManager.Troves(carol))[1]
-      .add(await troveManager.getPendingFILReward(carol))
+    const carol_Coll_2 = (await troveManager.Troves(carol.address))[1]
+      .add(await troveManager.getPendingFILReward(carol.address))
       .toString();
 
     const totalCollAfterL1 = A_coll.add(B_coll)
@@ -1714,7 +1764,7 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     );
 
     // check DebtToken gas compensation
-    assert.equal((await debtToken.balanceOf(owner)).toString(), dec(400, 18));
+    assert.equal((await debtToken.balanceOf(owner.address)).toString(), dec(400, 18));
   });
 
   // For calculations of correct values used in test, see scenario 1:
@@ -1741,9 +1791,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(1, 18));
 
     // Liquidate A
-    const txA = await troveManager.liquidate(alice);
-    assert.isTrue(txA.receipt.status);
-    assert.isFalse(await sortedTroves.contains(alice));
+    const txA = await troveManager.liquidate(alice.address);
+    const receiptA = await txA.wait();
+    assert.equal(receiptA.status, 1);
+    assert.isFalse(await sortedTroves.contains(alice.address));
 
     // Check rewards for B and C
     const B_pendingRewardsAfterL1 = th
@@ -1755,11 +1806,17 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
       .mul(C_coll)
       .div(B_coll.add(C_coll));
     assert.isAtMost(
-      th.getDifference(await troveManager.getPendingFILReward(bob), B_pendingRewardsAfterL1),
+      th.getDifference(
+        await troveManager.getPendingFILReward(bob.address),
+        B_pendingRewardsAfterL1,
+      ),
       1000000,
     );
     assert.isAtMost(
-      th.getDifference(await troveManager.getPendingFILReward(carol), C_pendingRewardsAfterL1),
+      th.getDifference(
+        await troveManager.getPendingFILReward(carol.address),
+        C_pendingRewardsAfterL1,
+      ),
       1000000,
     );
 
@@ -1788,11 +1845,13 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
 
     //Bob adds 1 FIL to his trove
     const B_addedColl = toBN(dec(1, "ether"));
-    await borrowerOperations.addColl(bob, bob, { from: bob, value: B_addedColl });
+    await borrowerOperations.connect(bob).addColl(bob.address, bob.address, { value: B_addedColl });
 
     //Carol  withdraws 1 FIL from her trove
     const C_withdrawnColl = toBN(dec(1, "ether"));
-    await borrowerOperations.withdrawColl(C_withdrawnColl, carol, carol, { from: carol });
+    await borrowerOperations
+      .connect(carol)
+      .withdrawColl(C_withdrawnColl, carol.address, carol.address);
 
     const B_collAfterL1 = B_coll.add(B_pendingRewardsAfterL1).add(B_addedColl);
     const C_collAfterL1 = C_coll.add(C_pendingRewardsAfterL1).sub(C_withdrawnColl);
@@ -1801,9 +1860,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice(dec(1, 18));
 
     // Liquidate B
-    const txB = await troveManager.liquidate(bob);
-    assert.isTrue(txB.receipt.status);
-    assert.isFalse(await sortedTroves.contains(bob));
+    const txB = await troveManager.liquidate(bob.address);
+    const receiptB = await txB.wait();
+    assert.equal(receiptB.status, 1);
+    assert.isFalse(await sortedTroves.contains(bob.address));
 
     // Check rewards for C and D
     const C_pendingRewardsAfterL2 = C_collAfterL1.mul(th.applyLiquidationFee(B_collAfterL1)).div(
@@ -1813,11 +1873,17 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
       C_collAfterL1.add(D_coll),
     );
     assert.isAtMost(
-      th.getDifference(await troveManager.getPendingFILReward(carol), C_pendingRewardsAfterL2),
+      th.getDifference(
+        await troveManager.getPendingFILReward(carol.address),
+        C_pendingRewardsAfterL2,
+      ),
       1000000,
     );
     assert.isAtMost(
-      th.getDifference(await troveManager.getPendingFILReward(dennis), D_pendingRewardsAfterL2),
+      th.getDifference(
+        await troveManager.getPendingFILReward(dennis.address),
+        D_pendingRewardsAfterL2,
+      ),
       1000000,
     );
 
@@ -1857,25 +1923,32 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
 
     // D tops up
     const D_addedColl = toBN(dec(1, "ether"));
-    await borrowerOperations.addColl(dennis, dennis, { from: dennis, value: D_addedColl });
+    await borrowerOperations
+      .connect(dennis)
+      .addColl(dennis.address, dennis.address, { value: D_addedColl });
 
     // Price drops to 1
     await priceFeed.setPrice(dec(1, 18));
 
     // Liquidate F
-    const txF = await troveManager.liquidate(freddy);
-    assert.isTrue(txF.receipt.status);
-    assert.isFalse(await sortedTroves.contains(freddy));
+    const txF = await troveManager.liquidate(freddy.address);
+    const receiptF = await txF.wait();
+    assert.equal(receiptF.status, 1);
+    assert.isFalse(await sortedTroves.contains(freddy.address));
 
     // Grab remaining troves' collateral
-    const carol_rawColl = (await troveManager.Troves(carol))[1].toString();
-    const carol_pendingFILReward = (await troveManager.getPendingFILReward(carol)).toString();
+    const carol_rawColl = (await troveManager.Troves(carol.address))[1].toString();
+    const carol_pendingFILReward = (
+      await troveManager.getPendingFILReward(carol.address)
+    ).toString();
 
-    const dennis_rawColl = (await troveManager.Troves(dennis))[1].toString();
-    const dennis_pendingFILReward = (await troveManager.getPendingFILReward(dennis)).toString();
+    const dennis_rawColl = (await troveManager.Troves(dennis.address))[1].toString();
+    const dennis_pendingFILReward = (
+      await troveManager.getPendingFILReward(dennis.address)
+    ).toString();
 
-    const erin_rawColl = (await troveManager.Troves(erin))[1].toString();
-    const erin_pendingFILReward = (await troveManager.getPendingFILReward(erin)).toString();
+    const erin_rawColl = (await troveManager.Troves(erin.address))[1].toString();
+    const erin_pendingFILReward = (await troveManager.getPendingFILReward(erin.address)).toString();
 
     // Check raw collateral of C, D, E
     const C_collAfterL2 = C_collAfterL1.add(C_pendingRewardsAfterL2);
@@ -1939,7 +2012,7 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     th.assertIsApproximatelyEqual(totalCollateralSnapshot, totalCollateralSnapshotAfterL3);
 
     // check DebtToken gas compensation
-    assert.equal((await debtToken.balanceOf(owner)).toString(), dec(600, 18));
+    assert.equal((await debtToken.balanceOf(owner.address)).toString(), dec(600, 18));
   });
 
   // For calculations of correct values used in test, see scenario 2:
@@ -1967,9 +2040,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice("1");
 
     // Liquidate A
-    const txA = await troveManager.liquidate(alice);
-    assert.isTrue(txA.receipt.status);
-    assert.isFalse(await sortedTroves.contains(alice));
+    const txA = await troveManager.liquidate(alice.address);
+    const receiptA = await txA.wait();
+    assert.equal(receiptA.status, 1);
+    assert.isFalse(await sortedTroves.contains(alice.address));
 
     // Check rewards for B and C
     const B_pendingRewardsAfterL1 = th
@@ -1981,11 +2055,17 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
       .mul(C_coll)
       .div(B_coll.add(C_coll));
     assert.isAtMost(
-      th.getDifference(await troveManager.getPendingFILReward(bob), B_pendingRewardsAfterL1),
+      th.getDifference(
+        await troveManager.getPendingFILReward(bob.address),
+        B_pendingRewardsAfterL1,
+      ),
       1000000,
     );
     assert.isAtMost(
-      th.getDifference(await troveManager.getPendingFILReward(carol), C_pendingRewardsAfterL1),
+      th.getDifference(
+        await troveManager.getPendingFILReward(carol.address),
+        C_pendingRewardsAfterL1,
+      ),
       1000000,
     );
 
@@ -2013,11 +2093,13 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
 
     // Bob adds 11.33909 FIL to his trove
     const B_addedColl = toBN("11339090000000000000");
-    await borrowerOperations.addColl(bob, bob, { from: bob, value: B_addedColl });
+    await borrowerOperations.connect(bob).addColl(bob.address, bob.address, { value: B_addedColl });
 
     // Carol withdraws 15 FIL from her trove
     const C_withdrawnColl = toBN(dec(15, "ether"));
-    await borrowerOperations.withdrawColl(C_withdrawnColl, carol, carol, { from: carol });
+    await borrowerOperations
+      .connect(carol)
+      .withdrawColl(C_withdrawnColl, carol.address, carol.address);
 
     const B_collAfterL1 = B_coll.add(B_pendingRewardsAfterL1).add(B_addedColl);
     const C_collAfterL1 = C_coll.add(C_pendingRewardsAfterL1).sub(C_withdrawnColl);
@@ -2026,9 +2108,10 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice("1");
 
     // Liquidate B
-    const txB = await troveManager.liquidate(bob);
-    assert.isTrue(txB.receipt.status);
-    assert.isFalse(await sortedTroves.contains(bob));
+    const txB = await troveManager.liquidate(bob.address);
+    const receiptB = await txB.wait();
+    assert.equal(receiptB.status, 1);
+    assert.isFalse(await sortedTroves.contains(bob.address));
 
     // Check rewards for C and D
     const C_pendingRewardsAfterL2 = C_collAfterL1.mul(th.applyLiquidationFee(B_collAfterL1)).div(
@@ -2039,11 +2122,17 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     );
     const C_collAfterL2 = C_collAfterL1.add(C_pendingRewardsAfterL2);
     assert.isAtMost(
-      th.getDifference(await troveManager.getPendingFILReward(carol), C_pendingRewardsAfterL2),
+      th.getDifference(
+        await troveManager.getPendingFILReward(carol.address),
+        C_pendingRewardsAfterL2,
+      ),
       10000000,
     );
     assert.isAtMost(
-      th.getDifference(await troveManager.getPendingFILReward(dennis), D_pendingRewardsAfterL2),
+      th.getDifference(
+        await troveManager.getPendingFILReward(dennis.address),
+        D_pendingRewardsAfterL2,
+      ),
       10000000,
     );
 
@@ -2084,7 +2173,9 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
 
     // D tops up
     const D_addedColl = toBN(dec(1, "ether"));
-    await borrowerOperations.addColl(dennis, dennis, { from: dennis, value: D_addedColl });
+    await borrowerOperations
+      .connect(dennis)
+      .addColl(dennis.address, dennis.address, { value: D_addedColl });
 
     const D_collAfterL2 = D_coll.add(D_pendingRewardsAfterL2).add(D_addedColl);
 
@@ -2092,22 +2183,27 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     await priceFeed.setPrice("1");
 
     // Liquidate F
-    const txF = await troveManager.liquidate(freddy);
-    assert.isTrue(txF.receipt.status);
-    assert.isFalse(await sortedTroves.contains(freddy));
+    const txF = await troveManager.liquidate(freddy.address);
+    const receiptF = await txF.wait();
+    assert.equal(receiptF.status, 1);
+    assert.isFalse(await sortedTroves.contains(freddy.address));
 
     // Grab remaining troves' collateral
-    const carol_rawColl = (await troveManager.Troves(carol))[1].toString();
-    const carol_pendingFILReward = (await troveManager.getPendingFILReward(carol)).toString();
-    const carol_Stake = (await troveManager.Troves(carol))[2].toString();
+    const carol_rawColl = (await troveManager.Troves(carol.address))[1].toString();
+    const carol_pendingFILReward = (
+      await troveManager.getPendingFILReward(carol.address)
+    ).toString();
+    const carol_Stake = (await troveManager.Troves(carol.address))[2].toString();
 
-    const dennis_rawColl = (await troveManager.Troves(dennis))[1].toString();
-    const dennis_pendingFILReward = (await troveManager.getPendingFILReward(dennis)).toString();
-    const dennis_Stake = (await troveManager.Troves(dennis))[2].toString();
+    const dennis_rawColl = (await troveManager.Troves(dennis.address))[1].toString();
+    const dennis_pendingFILReward = (
+      await troveManager.getPendingFILReward(dennis.address)
+    ).toString();
+    const dennis_Stake = (await troveManager.Troves(dennis.address))[2].toString();
 
-    const erin_rawColl = (await troveManager.Troves(erin))[1].toString();
-    const erin_pendingFILReward = (await troveManager.getPendingFILReward(erin)).toString();
-    const erin_Stake = (await troveManager.Troves(erin))[2].toString();
+    const erin_rawColl = (await troveManager.Troves(erin.address))[1].toString();
+    const erin_pendingFILReward = (await troveManager.getPendingFILReward(erin.address)).toString();
+    const erin_Stake = (await troveManager.Troves(erin.address))[2].toString();
 
     // Check raw collateral of C, D, E
     const totalCollForL3 = C_collAfterL2.add(D_collAfterL2).add(E_coll);
@@ -2169,6 +2265,6 @@ contract("TroveManager - Redistribution reward calculations", async (accounts) =
     th.assertIsApproximatelyEqual(totalCollateralSnapshot, totalCollateralSnapshotAfterL3);
 
     // check DebtToken gas compensation
-    assert.equal((await debtToken.balanceOf(owner)).toString(), dec(600, 18));
+    assert.equal((await debtToken.balanceOf(owner.address)).toString(), dec(600, 18));
   });
 });

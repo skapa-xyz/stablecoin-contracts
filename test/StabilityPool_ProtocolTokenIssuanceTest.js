@@ -7,14 +7,10 @@ const dec = th.dec;
 const toBN = th.toBN;
 const getDifference = th.getDifference;
 
-const TroveManagerTester = artifacts.require("TroveManagerTester");
-const DebtToken = artifacts.require("DebtToken");
-
 const GAS_PRICE = 10000000;
 
-contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
-  const [
-    owner,
+contract("StabilityPool - ProtocolToken Rewards", async () => {
+  let owner,
     whale,
     A,
     B,
@@ -31,11 +27,8 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
     defaulter_5,
     defaulter_6,
     frontEnd_1,
-    frontEnd_2,
-    frontEnd_3,
-  ] = accounts;
-
-  const [bountyAddress, lpRewardsAddress, multisig] = accounts.slice(997, 1000);
+    frontEnd_2;
+  let bountyAddress, lpRewardsAddress, multisig;
 
   let contracts;
 
@@ -62,16 +55,74 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
     th.getOpenTroveDebtTokenAmount(contracts, totalDebt);
 
   const openTrove = async (params) => th.openTrove(contracts, params);
+
+  before(async () => {
+    const signers = await ethers.getSigners();
+
+    [
+      owner,
+      whale,
+      A,
+      B,
+      C,
+      D,
+      E,
+      F,
+      G,
+      H,
+      defaulter_1,
+      defaulter_2,
+      defaulter_3,
+      defaulter_4,
+      defaulter_5,
+      defaulter_6,
+      frontEnd_1,
+      frontEnd_2,
+    ] = signers;
+    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+  });
+
   describe("ProtocolToken Rewards", async () => {
     beforeEach(async () => {
-      contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-      contracts.troveManager = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-      contracts.debtToken = await DebtToken.new();
-      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
-        bountyAddress,
-        lpRewardsAddress,
-        multisig,
+      await hre.network.provider.send("hardhat_reset");
+
+      const transactionCount = await owner.getTransactionCount();
+      const cpTesterContracts = await deploymentHelper.computeContractAddresses(
+        owner.address,
+        transactionCount,
+        5,
       );
+      const cpContracts = await deploymentHelper.computeCoreProtocolContracts(
+        owner.address,
+        transactionCount + 5,
+      );
+
+      // Overwrite contracts with computed tester addresses
+      cpContracts.troveManager = cpTesterContracts[2];
+      cpContracts.debtToken = cpTesterContracts[4];
+
+      const troveManagerTester = await deploymentHelper.deployTroveManagerTester(
+        th.GAS_COMPENSATION,
+        th.MIN_NET_DEBT,
+        cpContracts,
+      );
+      const debtTokenTester = await deploymentHelper.deployDebtTokenTester(cpContracts);
+
+      contracts = await deploymentHelper.deployProtocolCore(
+        th.GAS_COMPENSATION,
+        th.MIN_NET_DEBT,
+        cpContracts,
+      );
+
+      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
+        bountyAddress.address,
+        lpRewardsAddress.address,
+        multisig.address,
+        cpContracts,
+      );
+
+      contracts.troveManager = troveManagerTester;
+      contracts.debtToken = debtTokenTester;
 
       priceFeed = contracts.priceFeedTestnet;
       debtToken = contracts.debtToken;
@@ -83,10 +134,6 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
 
       protocolToken = protocolTokenContracts.protocolToken;
       communityIssuanceTester = protocolTokenContracts.communityIssuance;
-
-      await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
-      await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
-      await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
 
       // Check community issuance starts with 32 million ProtocolToken
       communityProtocolTokenSupply = toBN(
@@ -143,25 +190,25 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       });
 
       // A, B provide to SP
-      await stabilityPool.provideToSP(dec(10000, 18), ZERO_ADDRESS, { from: A });
-      await stabilityPool.provideToSP(dec(5000, 18), ZERO_ADDRESS, { from: B });
+      await stabilityPool.connect(A).provideToSP(dec(10000, 18), ZERO_ADDRESS);
+      await stabilityPool.connect(B).provideToSP(dec(5000, 18), ZERO_ADDRESS);
 
       await th.fastForwardTime(timeValues.MINUTES_IN_ONE_WEEK, web3.currentProvider);
 
       await priceFeed.setPrice(dec(105, 18));
 
       // B adjusts, triggering ProtocolToken issuance for all
-      await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: B });
+      await stabilityPool.connect(B).provideToSP(dec(1, 18), ZERO_ADDRESS);
       const blockTimestamp_1 = th.toBN(await th.getLatestBlockTimestamp(web3));
 
       // Check ProtocolToken has been issued
       const totalProtocolTokenIssued_1 = await communityIssuanceTester.totalProtocolTokenIssued();
       assert.isTrue(totalProtocolTokenIssued_1.gt(toBN("0")));
 
-      await troveManager.liquidate(B);
+      await troveManager.liquidate(B.address);
       const blockTimestamp_2 = th.toBN(await th.getLatestBlockTimestamp(web3));
 
-      assert.isFalse(await sortedTroves.contains(B));
+      assert.isFalse(await sortedTroves.contains(B.address));
 
       const totalProtocolTokenIssued_2 = await communityIssuanceTester.totalProtocolTokenIssued();
 
@@ -176,32 +223,37 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       assert.isTrue(totalProtocolTokenIssued_2.eq(totalProtocolTokenIssued_1));
 
       // Check that depositor B has no ProtocolToken gain
-      const B_pendingProtocolTokenGain = await stabilityPool.getDepositorProtocolTokenGain(B);
+      const B_pendingProtocolTokenGain = await stabilityPool.getDepositorProtocolTokenGain(
+        B.address,
+      );
       assert.equal(B_pendingProtocolTokenGain, "0");
 
       // Check depositor B has a pending FIL gain
-      const B_pendingFILGain = await stabilityPool.getDepositorFILGain(B);
+      const B_pendingFILGain = await stabilityPool.getDepositorFILGain(B.address);
       assert.isTrue(B_pendingFILGain.gt(toBN("0")));
     });
 
     it("withdrawFromSP(): reward term G does not update when no ProtocolToken is issued", async () => {
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), A, A, {
-        from: A,
-        value: dec(1000, "ether"),
-      });
-      await stabilityPool.provideToSP(dec(10000, 18), ZERO_ADDRESS, { from: A });
+      await borrowerOperations
+        .connect(A)
+        .openTrove(th._100pct, dec(10000, 18), A.address, A.address, {
+          value: dec(1000, "ether"),
+        });
+      await stabilityPool.connect(A).provideToSP(dec(10000, 18), ZERO_ADDRESS);
 
-      const A_initialDeposit = (await stabilityPool.deposits(A))[0].toString();
+      const A_initialDeposit = (await stabilityPool.deposits(A.address))[0].toString();
       assert.equal(A_initialDeposit, dec(10000, 18));
 
       // defaulter opens trove
-      await borrowerOperations.openTrove(
-        th._100pct,
-        await getOpenTroveDebtTokenAmount(dec(10000, 18)),
-        defaulter_1,
-        defaulter_1,
-        { from: defaulter_1, value: dec(100, "ether") },
-      );
+      await borrowerOperations
+        .connect(defaulter_1)
+        .openTrove(
+          th._100pct,
+          await getOpenTroveDebtTokenAmount(dec(10000, 18)),
+          defaulter_1.address,
+          defaulter_1.address,
+          { value: dec(100, "ether") },
+        );
 
       // FIL drops
       await priceFeed.setPrice(dec(100, 18));
@@ -209,16 +261,17 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       await th.fastForwardTime(timeValues.MINUTES_IN_ONE_WEEK, web3.currentProvider);
 
       // Liquidate d1. Triggers issuance.
-      await troveManager.liquidate(defaulter_1);
-      assert.isFalse(await sortedTroves.contains(defaulter_1));
+      await troveManager.liquidate(defaulter_1.address);
+      assert.isFalse(await sortedTroves.contains(defaulter_1.address));
 
       // Get G and communityIssuance before
       const G_Before = await stabilityPool.epochToScaleToG(0, 0);
       const protocolTokenIssuedBefore = await communityIssuanceTester.totalProtocolTokenIssued();
 
       //  A withdraws some deposit. Triggers issuance.
-      const tx = await stabilityPool.withdrawFromSP(1000, { from: A, gasPrice: GAS_PRICE });
-      assert.isTrue(tx.receipt.status);
+      const tx = await stabilityPool.connect(A).withdrawFromSP(1000, { gasPrice: GAS_PRICE });
+      const receipt = await tx.wait();
+      assert.equal(receipt.status, 1);
 
       // Check G and ProtocolToken Issued do not increase, since <1 minute has passed between issuance triggers
       const G_After = await stabilityPool.epochToScaleToG(0, 0);
@@ -243,37 +296,34 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       assert.equal(initialIssuance, 0);
 
       // Whale opens Trove with 10k FIL
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), whale, whale, {
-        from: whale,
-        value: dec(10000, "ether"),
-      });
+      await borrowerOperations
+        .connect(whale)
+        .openTrove(th._100pct, dec(10000, 18), whale.address, whale.address, {
+          value: dec(10000, "ether"),
+        });
 
-      await borrowerOperations.openTrove(th._100pct, dec(1, 22), A, A, {
-        from: A,
+      await borrowerOperations.connect(A).openTrove(th._100pct, dec(1, 22), A.address, A.address, {
         value: dec(100, "ether"),
       });
-      await borrowerOperations.openTrove(th._100pct, dec(1, 22), B, B, {
-        from: B,
+      await borrowerOperations.connect(B).openTrove(th._100pct, dec(1, 22), B.address, B.address, {
         value: dec(100, "ether"),
       });
-      await borrowerOperations.openTrove(th._100pct, dec(1, 22), C, C, {
-        from: C,
+      await borrowerOperations.connect(C).openTrove(th._100pct, dec(1, 22), C.address, C.address, {
         value: dec(100, "ether"),
       });
-      await borrowerOperations.openTrove(th._100pct, dec(1, 22), D, D, {
-        from: D,
+      await borrowerOperations.connect(D).openTrove(th._100pct, dec(1, 22), D.address, D.address, {
         value: dec(100, "ether"),
       });
 
       // Check all ProtocolToken balances are initially 0
-      assert.equal(await protocolToken.balanceOf(A), 0);
-      assert.equal(await protocolToken.balanceOf(B), 0);
-      assert.equal(await protocolToken.balanceOf(C), 0);
+      assert.equal(await protocolToken.balanceOf(A.address), 0);
+      assert.equal(await protocolToken.balanceOf(B.address), 0);
+      assert.equal(await protocolToken.balanceOf(C.address), 0);
 
       // A, B, C deposit
-      await stabilityPool.provideToSP(dec(1, 22), ZERO_ADDRESS, { from: A });
-      await stabilityPool.provideToSP(dec(1, 22), ZERO_ADDRESS, { from: B });
-      await stabilityPool.provideToSP(dec(1, 22), ZERO_ADDRESS, { from: C });
+      await stabilityPool.connect(A).provideToSP(dec(1, 22), ZERO_ADDRESS);
+      await stabilityPool.connect(B).provideToSP(dec(1, 22), ZERO_ADDRESS);
+      await stabilityPool.connect(C).provideToSP(dec(1, 22), ZERO_ADDRESS);
 
       // One year passes
       await th.fastForwardTime(
@@ -282,8 +332,8 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       );
 
       // D deposits, triggering ProtocolToken gains for A,B,C. Withdraws immediately after
-      await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: D });
-      await stabilityPool.withdrawFromSP(dec(1, 18), { from: D });
+      await stabilityPool.connect(D).provideToSP(dec(1, 18), ZERO_ADDRESS);
+      await stabilityPool.connect(D).withdrawFromSP(dec(1, 18));
 
       // Expected gains for each depositor after 1 year (50% total issued).  Each deposit gets 1/3 of issuance.
       const expectedProtocolTokenGain_1yr = communityProtocolTokenSupply
@@ -291,9 +341,9 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
         .div(toBN("3"));
 
       // Check ProtocolToken gain
-      const A_protocolTokenGain_1yr = await stabilityPool.getDepositorProtocolTokenGain(A);
-      const B_protocolTokenGain_1yr = await stabilityPool.getDepositorProtocolTokenGain(B);
-      const C_protocolTokenGain_1yr = await stabilityPool.getDepositorProtocolTokenGain(C);
+      const A_protocolTokenGain_1yr = await stabilityPool.getDepositorProtocolTokenGain(A.address);
+      const B_protocolTokenGain_1yr = await stabilityPool.getDepositorProtocolTokenGain(B.address);
+      const C_protocolTokenGain_1yr = await stabilityPool.getDepositorProtocolTokenGain(C.address);
 
       // Check gains are correct, error tolerance = 1e-6 of a token
 
@@ -305,8 +355,8 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
 
       // D deposits, triggering ProtocolToken gains for A,B,C. Withdraws immediately after
-      await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: D });
-      await stabilityPool.withdrawFromSP(dec(1, 18), { from: D });
+      await stabilityPool.connect(D).provideToSP(dec(1, 18), ZERO_ADDRESS);
+      await stabilityPool.connect(D).withdrawFromSP(dec(1, 18));
 
       // Expected gains for each depositor after 2 years (75% total issued).  Each deposit gets 1/3 of issuance.
       const expectedProtocolTokenGain_2yr = communityProtocolTokenSupply
@@ -315,9 +365,9 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
         .div(toBN("3"));
 
       // Check ProtocolToken gain
-      const A_protocolTokenGain_2yr = await stabilityPool.getDepositorProtocolTokenGain(A);
-      const B_protocolTokenGain_2yr = await stabilityPool.getDepositorProtocolTokenGain(B);
-      const C_protocolTokenGain_2yr = await stabilityPool.getDepositorProtocolTokenGain(C);
+      const A_protocolTokenGain_2yr = await stabilityPool.getDepositorProtocolTokenGain(A.address);
+      const B_protocolTokenGain_2yr = await stabilityPool.getDepositorProtocolTokenGain(B.address);
+      const C_protocolTokenGain_2yr = await stabilityPool.getDepositorProtocolTokenGain(C.address);
 
       // Check gains are correct, error tolerance = 1e-6 of a token
       assert.isAtMost(getDifference(A_protocolTokenGain_2yr, expectedProtocolTokenGain_2yr), 1e12);
@@ -325,21 +375,21 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       assert.isAtMost(getDifference(C_protocolTokenGain_2yr, expectedProtocolTokenGain_2yr), 1e12);
 
       // Each depositor fully withdraws
-      await stabilityPool.withdrawFromSP(dec(100, 18), { from: A });
-      await stabilityPool.withdrawFromSP(dec(100, 18), { from: B });
-      await stabilityPool.withdrawFromSP(dec(100, 18), { from: C });
+      await stabilityPool.connect(A).withdrawFromSP(dec(100, 18));
+      await stabilityPool.connect(B).withdrawFromSP(dec(100, 18));
+      await stabilityPool.connect(C).withdrawFromSP(dec(100, 18));
 
       // Check ProtocolToken balances increase by correct amount
       assert.isAtMost(
-        getDifference(await protocolToken.balanceOf(A), expectedProtocolTokenGain_2yr),
+        getDifference(await protocolToken.balanceOf(A.address), expectedProtocolTokenGain_2yr),
         1e12,
       );
       assert.isAtMost(
-        getDifference(await protocolToken.balanceOf(B), expectedProtocolTokenGain_2yr),
+        getDifference(await protocolToken.balanceOf(B.address), expectedProtocolTokenGain_2yr),
         1e12,
       );
       assert.isAtMost(
-        getDifference(await protocolToken.balanceOf(C), expectedProtocolTokenGain_2yr),
+        getDifference(await protocolToken.balanceOf(C.address), expectedProtocolTokenGain_2yr),
         1e12,
       );
     });
@@ -350,43 +400,48 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       assert.equal(initialIssuance, 0);
 
       // Whale opens Trove with 10k FIL
-      await borrowerOperations.openTrove(
-        th._100pct,
-        await getOpenTroveDebtTokenAmount(dec(10000, 18)),
-        whale,
-        whale,
-        {
-          from: whale,
-          value: dec(10000, "ether"),
-        },
-      );
+      await borrowerOperations
+        .connect(whale)
+        .openTrove(
+          th._100pct,
+          await getOpenTroveDebtTokenAmount(dec(10000, 18)),
+          whale.address,
+          whale.address,
+          {
+            value: dec(10000, "ether"),
+          },
+        );
 
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), A, A, {
-        from: A,
-        value: dec(200, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(20000, 18), B, B, {
-        from: B,
-        value: dec(300, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(30000, 18), C, C, {
-        from: C,
-        value: dec(400, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), D, D, {
-        from: D,
-        value: dec(100, "ether"),
-      });
+      await borrowerOperations
+        .connect(A)
+        .openTrove(th._100pct, dec(10000, 18), A.address, A.address, {
+          value: dec(200, "ether"),
+        });
+      await borrowerOperations
+        .connect(B)
+        .openTrove(th._100pct, dec(20000, 18), B.address, B.address, {
+          value: dec(300, "ether"),
+        });
+      await borrowerOperations
+        .connect(C)
+        .openTrove(th._100pct, dec(30000, 18), C.address, C.address, {
+          value: dec(400, "ether"),
+        });
+      await borrowerOperations
+        .connect(D)
+        .openTrove(th._100pct, dec(10000, 18), D.address, D.address, {
+          value: dec(100, "ether"),
+        });
 
       // Check all ProtocolToken balances are initially 0
-      assert.equal(await protocolToken.balanceOf(A), 0);
-      assert.equal(await protocolToken.balanceOf(B), 0);
-      assert.equal(await protocolToken.balanceOf(C), 0);
+      assert.equal(await protocolToken.balanceOf(A.address), 0);
+      assert.equal(await protocolToken.balanceOf(B.address), 0);
+      assert.equal(await protocolToken.balanceOf(C.address), 0);
 
       // A, B, C deposit
-      await stabilityPool.provideToSP(dec(10000, 18), ZERO_ADDRESS, { from: A });
-      await stabilityPool.provideToSP(dec(20000, 18), ZERO_ADDRESS, { from: B });
-      await stabilityPool.provideToSP(dec(30000, 18), ZERO_ADDRESS, { from: C });
+      await stabilityPool.connect(A).provideToSP(dec(10000, 18), ZERO_ADDRESS);
+      await stabilityPool.connect(B).provideToSP(dec(20000, 18), ZERO_ADDRESS);
+      await stabilityPool.connect(C).provideToSP(dec(30000, 18), ZERO_ADDRESS);
 
       // One year passes
       await th.fastForwardTime(
@@ -395,8 +450,8 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       );
 
       // D deposits, triggering ProtocolToken gains for A,B,C. Withdraws immediately after
-      await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: D });
-      await stabilityPool.withdrawFromSP(dec(1, 18), { from: D });
+      await stabilityPool.connect(D).provideToSP(dec(1, 18), ZERO_ADDRESS);
+      await stabilityPool.connect(D).withdrawFromSP(dec(1, 18));
 
       // Expected gains for each depositor after 1 year (50% total issued)
       const A_expectedProtocolTokenGain_1yr = communityProtocolTokenSupply
@@ -412,9 +467,9 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
         .div(toBN("2")); // C gets 3/6 = 1/2 of the issuance
 
       // Check ProtocolToken gain
-      const A_protocolTokenGain_1yr = await stabilityPool.getDepositorProtocolTokenGain(A);
-      const B_protocolTokenGain_1yr = await stabilityPool.getDepositorProtocolTokenGain(B);
-      const C_protocolTokenGain_1yr = await stabilityPool.getDepositorProtocolTokenGain(C);
+      const A_protocolTokenGain_1yr = await stabilityPool.getDepositorProtocolTokenGain(A.address);
+      const B_protocolTokenGain_1yr = await stabilityPool.getDepositorProtocolTokenGain(B.address);
+      const C_protocolTokenGain_1yr = await stabilityPool.getDepositorProtocolTokenGain(C.address);
 
       // Check gains are correct, error tolerance = 1e-6 of a toke
       assert.isAtMost(
@@ -434,8 +489,8 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
 
       // D deposits, triggering ProtocolToken gains for A,B,C. Withdraws immediately after
-      await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: D });
-      await stabilityPool.withdrawFromSP(dec(1, 18), { from: D });
+      await stabilityPool.connect(D).provideToSP(dec(1, 18), ZERO_ADDRESS);
+      await stabilityPool.connect(D).withdrawFromSP(dec(1, 18));
 
       // Expected gains for each depositor after 2 years (75% total issued).
       const A_expectedProtocolTokenGain_2yr = communityProtocolTokenSupply
@@ -454,9 +509,9 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
         .div(toBN("2")); // C gets 3/6 = 1/2 of the issuance
 
       // Check ProtocolToken gain
-      const A_protocolTokenGain_2yr = await stabilityPool.getDepositorProtocolTokenGain(A);
-      const B_protocolTokenGain_2yr = await stabilityPool.getDepositorProtocolTokenGain(B);
-      const C_protocolTokenGain_2yr = await stabilityPool.getDepositorProtocolTokenGain(C);
+      const A_protocolTokenGain_2yr = await stabilityPool.getDepositorProtocolTokenGain(A.address);
+      const B_protocolTokenGain_2yr = await stabilityPool.getDepositorProtocolTokenGain(B.address);
+      const C_protocolTokenGain_2yr = await stabilityPool.getDepositorProtocolTokenGain(C.address);
 
       // Check gains are correct, error tolerance = 1e-6 of a token
       assert.isAtMost(
@@ -473,21 +528,21 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       );
 
       // Each depositor fully withdraws
-      await stabilityPool.withdrawFromSP(dec(10000, 18), { from: A });
-      await stabilityPool.withdrawFromSP(dec(10000, 18), { from: B });
-      await stabilityPool.withdrawFromSP(dec(10000, 18), { from: C });
+      await stabilityPool.connect(A).withdrawFromSP(dec(10000, 18));
+      await stabilityPool.connect(B).withdrawFromSP(dec(10000, 18));
+      await stabilityPool.connect(C).withdrawFromSP(dec(10000, 18));
 
       // Check ProtocolToken balances increase by correct amount
       assert.isAtMost(
-        getDifference(await protocolToken.balanceOf(A), A_expectedProtocolTokenGain_2yr),
+        getDifference(await protocolToken.balanceOf(A.address), A_expectedProtocolTokenGain_2yr),
         1e12,
       );
       assert.isAtMost(
-        getDifference(await protocolToken.balanceOf(B), B_expectedProtocolTokenGain_2yr),
+        getDifference(await protocolToken.balanceOf(B.address), B_expectedProtocolTokenGain_2yr),
         1e12,
       );
       assert.isAtMost(
-        getDifference(await protocolToken.balanceOf(C), C_expectedProtocolTokenGain_2yr),
+        getDifference(await protocolToken.balanceOf(C.address), C_expectedProtocolTokenGain_2yr),
         1e12,
       );
     });
@@ -498,50 +553,58 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       assert.equal(initialIssuance, 0);
 
       // Whale opens Trove with 10k FIL
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), whale, whale, {
-        from: whale,
-        value: dec(10000, "ether"),
-      });
+      await borrowerOperations
+        .connect(whale)
+        .openTrove(th._100pct, dec(10000, 18), whale.address, whale.address, {
+          value: dec(10000, "ether"),
+        });
 
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), A, A, {
-        from: A,
-        value: dec(200, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(20000, 18), B, B, {
-        from: B,
-        value: dec(300, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(30000, 18), C, C, {
-        from: C,
-        value: dec(400, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(40000, 18), D, D, {
-        from: D,
-        value: dec(500, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(40000, 18), E, E, {
-        from: E,
-        value: dec(600, "ether"),
-      });
+      await borrowerOperations
+        .connect(A)
+        .openTrove(th._100pct, dec(10000, 18), A.address, A.address, {
+          value: dec(200, "ether"),
+        });
+      await borrowerOperations
+        .connect(B)
+        .openTrove(th._100pct, dec(20000, 18), B.address, B.address, {
+          value: dec(300, "ether"),
+        });
+      await borrowerOperations
+        .connect(C)
+        .openTrove(th._100pct, dec(30000, 18), C.address, C.address, {
+          value: dec(400, "ether"),
+        });
+      await borrowerOperations
+        .connect(D)
+        .openTrove(th._100pct, dec(40000, 18), D.address, D.address, {
+          value: dec(500, "ether"),
+        });
+      await borrowerOperations
+        .connect(E)
+        .openTrove(th._100pct, dec(40000, 18), E.address, E.address, {
+          value: dec(600, "ether"),
+        });
 
-      await borrowerOperations.openTrove(
-        th._100pct,
-        await getOpenTroveDebtTokenAmount(dec(30000, 18)),
-        defaulter_1,
-        defaulter_1,
-        { from: defaulter_1, value: dec(300, "ether") },
-      );
+      await borrowerOperations
+        .connect(defaulter_1)
+        .openTrove(
+          th._100pct,
+          await getOpenTroveDebtTokenAmount(dec(30000, 18)),
+          defaulter_1.address,
+          defaulter_1.address,
+          { value: dec(300, "ether") },
+        );
 
       // Check all ProtocolToken balances are initially 0
-      assert.equal(await protocolToken.balanceOf(A), 0);
-      assert.equal(await protocolToken.balanceOf(B), 0);
-      assert.equal(await protocolToken.balanceOf(C), 0);
-      assert.equal(await protocolToken.balanceOf(D), 0);
+      assert.equal(await protocolToken.balanceOf(A.address), 0);
+      assert.equal(await protocolToken.balanceOf(B.address), 0);
+      assert.equal(await protocolToken.balanceOf(C.address), 0);
+      assert.equal(await protocolToken.balanceOf(D.address), 0);
 
       // A, B, C deposit
-      await stabilityPool.provideToSP(dec(10000, 18), ZERO_ADDRESS, { from: A });
-      await stabilityPool.provideToSP(dec(20000, 18), ZERO_ADDRESS, { from: B });
-      await stabilityPool.provideToSP(dec(30000, 18), ZERO_ADDRESS, { from: C });
+      await stabilityPool.connect(A).provideToSP(dec(10000, 18), ZERO_ADDRESS);
+      await stabilityPool.connect(B).provideToSP(dec(20000, 18), ZERO_ADDRESS);
+      await stabilityPool.connect(C).provideToSP(dec(30000, 18), ZERO_ADDRESS);
 
       // Year 1 passes
       await th.fastForwardTime(
@@ -554,8 +617,8 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       // Price Drops, defaulter1 liquidated. Stability Pool size drops by 50%
       await priceFeed.setPrice(dec(100, 18));
       assert.isFalse(await th.checkRecoveryMode(contracts));
-      await troveManager.liquidate(defaulter_1);
-      assert.isFalse(await sortedTroves.contains(defaulter_1));
+      await troveManager.liquidate(defaulter_1.address);
+      assert.isFalse(await sortedTroves.contains(defaulter_1.address));
 
       // Confirm SP dropped from 60k to 30k
       assert.isAtMost(
@@ -577,9 +640,9 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
         .div(toBN("2")); // C gets 3/6 = 1/2 of the issuance
 
       // Check ProtocolToken gain
-      const A_protocolTokenGain_Y1 = await stabilityPool.getDepositorProtocolTokenGain(A);
-      const B_protocolTokenGain_Y1 = await stabilityPool.getDepositorProtocolTokenGain(B);
-      const C_protocolTokenGain_Y1 = await stabilityPool.getDepositorProtocolTokenGain(C);
+      const A_protocolTokenGain_Y1 = await stabilityPool.getDepositorProtocolTokenGain(A.address);
+      const B_protocolTokenGain_Y1 = await stabilityPool.getDepositorProtocolTokenGain(B.address);
+      const C_protocolTokenGain_Y1 = await stabilityPool.getDepositorProtocolTokenGain(C.address);
 
       // Check gains are correct, error tolerance = 1e-6 of a toke
       assert.isAtMost(getDifference(A_protocolTokenGain_Y1, A_expectedProtocolTokenGain_Y1), 1e12);
@@ -587,14 +650,14 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       assert.isAtMost(getDifference(C_protocolTokenGain_Y1, C_expectedProtocolTokenGain_Y1), 1e12);
 
       // D deposits 40k
-      await stabilityPool.provideToSP(dec(40000, 18), ZERO_ADDRESS, { from: D });
+      await stabilityPool.connect(D).provideToSP(dec(40000, 18), ZERO_ADDRESS);
 
       // Year 2 passes
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
 
       // E deposits and withdraws, creating ProtocolToken issuance
-      await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: E });
-      await stabilityPool.withdrawFromSP(dec(1, 18), { from: E });
+      await stabilityPool.connect(E).provideToSP(dec(1, 18), ZERO_ADDRESS);
+      await stabilityPool.connect(E).withdrawFromSP(dec(1, 18));
 
       // Expected gains for each depositor during Y2:
       const A_expectedProtocolTokenGain_Y2 = communityProtocolTokenSupply
@@ -616,10 +679,18 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
         .div(toBN("7")); // D gets 400/700 = 4/7 of the issuance
 
       // Check ProtocolToken gain
-      const A_protocolTokenGain_AfterY2 = await stabilityPool.getDepositorProtocolTokenGain(A);
-      const B_protocolTokenGain_AfterY2 = await stabilityPool.getDepositorProtocolTokenGain(B);
-      const C_protocolTokenGain_AfterY2 = await stabilityPool.getDepositorProtocolTokenGain(C);
-      const D_protocolTokenGain_AfterY2 = await stabilityPool.getDepositorProtocolTokenGain(D);
+      const A_protocolTokenGain_AfterY2 = await stabilityPool.getDepositorProtocolTokenGain(
+        A.address,
+      );
+      const B_protocolTokenGain_AfterY2 = await stabilityPool.getDepositorProtocolTokenGain(
+        B.address,
+      );
+      const C_protocolTokenGain_AfterY2 = await stabilityPool.getDepositorProtocolTokenGain(
+        C.address,
+      );
+      const D_protocolTokenGain_AfterY2 = await stabilityPool.getDepositorProtocolTokenGain(
+        D.address,
+      );
 
       const A_expectedTotalGain = A_expectedProtocolTokenGain_Y1.add(
         A_expectedProtocolTokenGain_Y2,
@@ -639,16 +710,28 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       assert.isAtMost(getDifference(D_protocolTokenGain_AfterY2, D_expectedTotalGain), 1e12);
 
       // Each depositor fully withdraws
-      await stabilityPool.withdrawFromSP(dec(10000, 18), { from: A });
-      await stabilityPool.withdrawFromSP(dec(20000, 18), { from: B });
-      await stabilityPool.withdrawFromSP(dec(30000, 18), { from: C });
-      await stabilityPool.withdrawFromSP(dec(40000, 18), { from: D });
+      await stabilityPool.connect(A).withdrawFromSP(dec(10000, 18));
+      await stabilityPool.connect(B).withdrawFromSP(dec(20000, 18));
+      await stabilityPool.connect(C).withdrawFromSP(dec(30000, 18));
+      await stabilityPool.connect(D).withdrawFromSP(dec(40000, 18));
 
       // Check ProtocolToken balances increase by correct amount
-      assert.isAtMost(getDifference(await protocolToken.balanceOf(A), A_expectedTotalGain), 1e12);
-      assert.isAtMost(getDifference(await protocolToken.balanceOf(B), B_expectedTotalGain), 1e12);
-      assert.isAtMost(getDifference(await protocolToken.balanceOf(C), C_expectedTotalGain), 1e12);
-      assert.isAtMost(getDifference(await protocolToken.balanceOf(D), D_expectedTotalGain), 1e12);
+      assert.isAtMost(
+        getDifference(await protocolToken.balanceOf(A.address), A_expectedTotalGain),
+        1e12,
+      );
+      assert.isAtMost(
+        getDifference(await protocolToken.balanceOf(B.address), B_expectedTotalGain),
+        1e12,
+      );
+      assert.isAtMost(
+        getDifference(await protocolToken.balanceOf(C.address), C_expectedTotalGain),
+        1e12,
+      );
+      assert.isAtMost(
+        getDifference(await protocolToken.balanceOf(D.address), D_expectedTotalGain),
+        1e12,
+      );
     });
 
     //--- Serial pool-emptying liquidations ---
@@ -668,64 +751,74 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       assert.equal(initialIssuance, 0);
 
       // Whale opens Trove with 10k FIL
-      await borrowerOperations.openTrove(
-        th._100pct,
-        await getOpenTroveDebtTokenAmount(dec(10000, 18)),
-        whale,
-        whale,
-        {
-          from: whale,
-          value: dec(10000, "ether"),
-        },
-      );
+      await borrowerOperations
+        .connect(whale)
+        .openTrove(
+          th._100pct,
+          await getOpenTroveDebtTokenAmount(dec(10000, 18)),
+          whale.address,
+          whale.address,
+          {
+            value: dec(10000, "ether"),
+          },
+        );
 
       const allDepositors = [A, B, C, D, E, F, G, H];
       // 4 Defaulters open trove with 200DebtToken debt, and 200% ICR
-      await borrowerOperations.openTrove(
-        th._100pct,
-        await getOpenTroveDebtTokenAmount(dec(20000, 18)),
-        defaulter_1,
-        defaulter_1,
-        { from: defaulter_1, value: dec(200, "ether") },
-      );
-      await borrowerOperations.openTrove(
-        th._100pct,
-        await getOpenTroveDebtTokenAmount(dec(20000, 18)),
-        defaulter_2,
-        defaulter_2,
-        { from: defaulter_2, value: dec(200, "ether") },
-      );
-      await borrowerOperations.openTrove(
-        th._100pct,
-        await getOpenTroveDebtTokenAmount(dec(20000, 18)),
-        defaulter_3,
-        defaulter_3,
-        { from: defaulter_3, value: dec(200, "ether") },
-      );
-      await borrowerOperations.openTrove(
-        th._100pct,
-        await getOpenTroveDebtTokenAmount(dec(20000, 18)),
-        defaulter_4,
-        defaulter_4,
-        { from: defaulter_4, value: dec(200, "ether") },
-      );
+      await borrowerOperations
+        .connect(defaulter_1)
+        .openTrove(
+          th._100pct,
+          await getOpenTroveDebtTokenAmount(dec(20000, 18)),
+          defaulter_1.address,
+          defaulter_1.address,
+          { value: dec(200, "ether") },
+        );
+      await borrowerOperations
+        .connect(defaulter_2)
+        .openTrove(
+          th._100pct,
+          await getOpenTroveDebtTokenAmount(dec(20000, 18)),
+          defaulter_2.address,
+          defaulter_2.address,
+          { value: dec(200, "ether") },
+        );
+      await borrowerOperations
+        .connect(defaulter_3)
+        .openTrove(
+          th._100pct,
+          await getOpenTroveDebtTokenAmount(dec(20000, 18)),
+          defaulter_3.address,
+          defaulter_3.address,
+          { value: dec(200, "ether") },
+        );
+      await borrowerOperations
+        .connect(defaulter_4)
+        .openTrove(
+          th._100pct,
+          await getOpenTroveDebtTokenAmount(dec(20000, 18)),
+          defaulter_4.address,
+          defaulter_4.address,
+          { value: dec(200, "ether") },
+        );
 
       // price drops by 50%: defaulter ICR falls to 100%
       await priceFeed.setPrice(dec(100, 18));
 
       // Check all would-be depositors have 0 ProtocolToken balance
       for (depositor of allDepositors) {
-        assert.equal(await protocolToken.balanceOf(depositor), "0");
+        assert.equal(await protocolToken.balanceOf(depositor.address), "0");
       }
 
       // A, B each deposit 10k DebtToken
       const depositors_1 = [A, B];
       for (account of depositors_1) {
-        await borrowerOperations.openTrove(th._100pct, dec(10000, 18), account, account, {
-          from: account,
-          value: dec(200, "ether"),
-        });
-        await stabilityPool.provideToSP(dec(10000, 18), ZERO_ADDRESS, { from: account });
+        await borrowerOperations
+          .connect(account)
+          .openTrove(th._100pct, dec(10000, 18), account.address, account.address, {
+            value: dec(200, "ether"),
+          });
+        await stabilityPool.connect(account).provideToSP(dec(10000, 18), ZERO_ADDRESS);
       }
 
       // 1 month passes
@@ -735,59 +828,62 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       );
 
       // Defaulter 1 liquidated. 20k DebtToken fully offset with pool.
-      await troveManager.liquidate(defaulter_1, { from: owner });
+      await troveManager.liquidate(defaulter_1.address);
 
       // C, D each deposit 10k DebtToken
       const depositors_2 = [C, D];
       for (account of depositors_2) {
-        await borrowerOperations.openTrove(th._100pct, dec(10000, 18), account, account, {
-          from: account,
-          value: dec(200, "ether"),
-        });
-        await stabilityPool.provideToSP(dec(10000, 18), ZERO_ADDRESS, { from: account });
+        await borrowerOperations
+          .connect(account)
+          .openTrove(th._100pct, dec(10000, 18), account.address, account.address, {
+            value: dec(200, "ether"),
+          });
+        await stabilityPool.connect(account).provideToSP(dec(10000, 18), ZERO_ADDRESS);
       }
 
       // 1 month passes
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider);
 
       // Defaulter 2 liquidated. 10k DebtToken offset
-      await troveManager.liquidate(defaulter_2, { from: owner });
+      await troveManager.liquidate(defaulter_2.address);
 
       // Erin, Flyn each deposit 100 DebtToken
       const depositors_3 = [E, F];
       for (account of depositors_3) {
-        await borrowerOperations.openTrove(th._100pct, dec(10000, 18), account, account, {
-          from: account,
-          value: dec(200, "ether"),
-        });
-        await stabilityPool.provideToSP(dec(10000, 18), ZERO_ADDRESS, { from: account });
+        await borrowerOperations
+          .connect(account)
+          .openTrove(th._100pct, dec(10000, 18), account.address, account.address, {
+            value: dec(200, "ether"),
+          });
+        await stabilityPool.connect(account).provideToSP(dec(10000, 18), ZERO_ADDRESS);
       }
 
       // 1 month passes
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider);
 
       // Defaulter 3 liquidated. 100 DebtToken offset
-      await troveManager.liquidate(defaulter_3, { from: owner });
+      await troveManager.liquidate(defaulter_3.address);
 
       // Graham, Harriet each deposit 10k DebtToken
       const depositors_4 = [G, H];
       for (account of depositors_4) {
-        await borrowerOperations.openTrove(th._100pct, dec(10000, 18), account, account, {
-          from: account,
-          value: dec(200, "ether"),
-        });
-        await stabilityPool.provideToSP(dec(10000, 18), ZERO_ADDRESS, { from: account });
+        await borrowerOperations
+          .connect(account)
+          .openTrove(th._100pct, dec(10000, 18), account.address, account.address, {
+            value: dec(200, "ether"),
+          });
+        await stabilityPool.connect(account).provideToSP(dec(10000, 18), ZERO_ADDRESS);
       }
 
       // 1 month passes
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider);
 
       // Defaulter 4 liquidated. 100 DebtToken offset
-      await troveManager.liquidate(defaulter_4, { from: owner });
+      await troveManager.liquidate(defaulter_4.address);
 
       // All depositors withdraw from SP
       for (depositor of allDepositors) {
-        await stabilityPool.withdrawFromSP(dec(10000, 18), { from: depositor });
+        await stabilityPool.connect(depositor).withdrawFromSP(dec(10000, 18));
       }
 
       /* Each depositor constitutes 50% of the pool from the time they deposit, up until the liquidation.
@@ -799,25 +895,25 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
 
       // Check A, B only earn issuance from month 1. Error tolerance = 1e-3 tokens
       for (depositor of [A, B]) {
-        const protocolTokenBalance = await protocolToken.balanceOf(depositor);
+        const protocolTokenBalance = await protocolToken.balanceOf(depositor.address);
         assert.isAtMost(getDifference(protocolTokenBalance, expectedProtocolTokenGain_M1), 1e15);
       }
 
       // Check C, D only earn issuance from month 2.  Error tolerance = 1e-3 tokens
       for (depositor of [C, D]) {
-        const protocolTokenBalance = await protocolToken.balanceOf(depositor);
+        const protocolTokenBalance = await protocolToken.balanceOf(depositor.address);
         assert.isAtMost(getDifference(protocolTokenBalance, expectedProtocolTokenGain_M2), 1e15);
       }
 
       // Check E, F only earn issuance from month 3.  Error tolerance = 1e-3 tokens
       for (depositor of [E, F]) {
-        const protocolTokenBalance = await protocolToken.balanceOf(depositor);
+        const protocolTokenBalance = await protocolToken.balanceOf(depositor.address);
         assert.isAtMost(getDifference(protocolTokenBalance, expectedProtocolTokenGain_M3), 1e15);
       }
 
       // Check G, H only earn issuance from month 4.  Error tolerance = 1e-3 tokens
       for (depositor of [G, H]) {
-        const protocolTokenBalance = await protocolToken.balanceOf(depositor);
+        const protocolTokenBalance = await protocolToken.balanceOf(depositor.address);
         assert.isAtMost(getDifference(protocolTokenBalance, expectedProtocolTokenGain_M4), 1e15);
       }
 
@@ -828,18 +924,21 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
     it("ProtocolToken issuance for a given period is not obtainable if the SP was empty during the period", async () => {
       const CIBalanceBefore = await protocolToken.balanceOf(communityIssuanceTester.address);
 
-      await borrowerOperations.openTrove(th._100pct, dec(16000, 18), A, A, {
-        from: A,
-        value: dec(200, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), B, B, {
-        from: B,
-        value: dec(100, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(16000, 18), C, C, {
-        from: C,
-        value: dec(200, "ether"),
-      });
+      await borrowerOperations
+        .connect(A)
+        .openTrove(th._100pct, dec(16000, 18), A.address, A.address, {
+          value: dec(200, "ether"),
+        });
+      await borrowerOperations
+        .connect(B)
+        .openTrove(th._100pct, dec(10000, 18), B.address, B.address, {
+          value: dec(100, "ether"),
+        });
+      await borrowerOperations
+        .connect(C)
+        .openTrove(th._100pct, dec(16000, 18), C.address, C.address, {
+          value: dec(200, "ether"),
+        });
 
       const totalProtocolTokenIssuance_0 = await communityIssuanceTester.totalProtocolTokenIssued();
       const G_0 = await stabilityPool.epochToScaleToG(0, 0); // epochs and scales will not change in this test: no liquidations
@@ -853,7 +952,7 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       );
 
       // ProtocolToken issuance event triggered: A deposits
-      await stabilityPool.provideToSP(dec(10000, 18), ZERO_ADDRESS, { from: A });
+      await stabilityPool.connect(A).provideToSP(dec(10000, 18), ZERO_ADDRESS);
 
       // Check G is not updated, since SP was empty prior to A's deposit
       const G_1 = await stabilityPool.epochToScaleToG(0, 0);
@@ -867,7 +966,7 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider);
 
       //ProtocolToken issuance event triggered: A withdraws.
-      await stabilityPool.withdrawFromSP(dec(10000, 18), { from: A });
+      await stabilityPool.connect(A).withdrawFromSP(dec(10000, 18));
 
       // Check G is updated, since SP was not empty prior to A's withdrawal
       const G_2 = await stabilityPool.epochToScaleToG(0, 0);
@@ -881,7 +980,7 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider);
 
       // ProtocolToken issuance event triggered: C deposits
-      await stabilityPool.provideToSP(dec(10000, 18), ZERO_ADDRESS, { from: C });
+      await stabilityPool.connect(C).provideToSP(dec(10000, 18), ZERO_ADDRESS);
 
       // Check G is not updated, since SP was empty prior to C's deposit
       const G_3 = await stabilityPool.epochToScaleToG(0, 0);
@@ -895,7 +994,7 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider);
 
       // C withdraws
-      await stabilityPool.withdrawFromSP(dec(10000, 18), { from: C });
+      await stabilityPool.connect(C).withdrawFromSP(dec(10000, 18));
 
       // Check G is increased, since SP was not empty prior to C's withdrawal
       const G_4 = await stabilityPool.epochToScaleToG(0, 0);
@@ -906,8 +1005,8 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       assert.isTrue(totalProtocolTokenIssuance_4.gt(totalProtocolTokenIssuance_3));
 
       // Get ProtocolToken Gains
-      const A_protocolTokenGain = await protocolToken.balanceOf(A);
-      const C_protocolTokenGain = await protocolToken.balanceOf(C);
+      const A_protocolTokenGain = await protocolToken.balanceOf(A.address);
+      const C_protocolTokenGain = await protocolToken.balanceOf(C.address);
 
       // Check A earns gains from M2 only
       assert.isAtMost(getDifference(A_protocolTokenGain, issuance_M2), 1e15);
@@ -950,67 +1049,78 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
     expect A, B, C, D each withdraw ~1 month's worth of ProtocolToken */
     it("withdrawFromSP(): Several deposits of 100 DebtToken span one scale factor change. Depositors withdraw correct ProtocolToken gains", async () => {
       // Whale opens Trove with 100 FIL
-      await borrowerOperations.openTrove(
-        th._100pct,
-        await getOpenTroveDebtTokenAmount(dec(10000, 18)),
-        whale,
-        whale,
-        {
-          from: whale,
-          value: dec(100, "ether"),
-        },
-      );
+      await borrowerOperations
+        .connect(whale)
+        .openTrove(
+          th._100pct,
+          await getOpenTroveDebtTokenAmount(dec(10000, 18)),
+          whale.address,
+          whale.address,
+          {
+            value: dec(100, "ether"),
+          },
+        );
 
       const fiveDefaulters = [defaulter_1, defaulter_2, defaulter_3, defaulter_4, defaulter_5];
 
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), ZERO_ADDRESS, ZERO_ADDRESS, {
-        from: A,
-        value: dec(10000, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), ZERO_ADDRESS, ZERO_ADDRESS, {
-        from: B,
-        value: dec(10000, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), ZERO_ADDRESS, ZERO_ADDRESS, {
-        from: C,
-        value: dec(10000, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), ZERO_ADDRESS, ZERO_ADDRESS, {
-        from: D,
-        value: dec(10000, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), ZERO_ADDRESS, ZERO_ADDRESS, {
-        from: E,
-        value: dec(10000, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), ZERO_ADDRESS, ZERO_ADDRESS, {
-        from: F,
-        value: dec(10000, "ether"),
-      });
+      await borrowerOperations
+        .connect(A)
+        .openTrove(th._100pct, dec(10000, 18), ZERO_ADDRESS, ZERO_ADDRESS, {
+          value: dec(10000, "ether"),
+        });
+      await borrowerOperations
+        .connect(B)
+        .openTrove(th._100pct, dec(10000, 18), ZERO_ADDRESS, ZERO_ADDRESS, {
+          value: dec(10000, "ether"),
+        });
+      await borrowerOperations
+        .connect(C)
+        .openTrove(th._100pct, dec(10000, 18), ZERO_ADDRESS, ZERO_ADDRESS, {
+          value: dec(10000, "ether"),
+        });
+      await borrowerOperations
+        .connect(D)
+        .openTrove(th._100pct, dec(10000, 18), ZERO_ADDRESS, ZERO_ADDRESS, {
+          value: dec(10000, "ether"),
+        });
+      await borrowerOperations
+        .connect(E)
+        .openTrove(th._100pct, dec(10000, 18), ZERO_ADDRESS, ZERO_ADDRESS, {
+          value: dec(10000, "ether"),
+        });
+      await borrowerOperations
+        .connect(F)
+        .openTrove(th._100pct, dec(10000, 18), ZERO_ADDRESS, ZERO_ADDRESS, {
+          value: dec(10000, "ether"),
+        });
 
       for (const defaulter of fiveDefaulters) {
         // Defaulters 1-5 each withdraw to 9999.9 debt (including gas comp)
-        await borrowerOperations.openTrove(
-          th._100pct,
-          await getOpenTroveDebtTokenAmount("9999900000000000000000"),
-          defaulter,
-          defaulter,
-          { from: defaulter, value: dec(100, "ether") },
-        );
+        await borrowerOperations
+          .connect(defaulter)
+          .openTrove(
+            th._100pct,
+            await getOpenTroveDebtTokenAmount("9999900000000000000000"),
+            defaulter.address,
+            defaulter.address,
+            { value: dec(100, "ether") },
+          );
       }
 
       // Defaulter 6 withdraws to 10k debt (inc. gas comp)
-      await borrowerOperations.openTrove(
-        th._100pct,
-        await getOpenTroveDebtTokenAmount(dec(10000, 18)),
-        defaulter_6,
-        defaulter_6,
-        { from: defaulter_6, value: dec(100, "ether") },
-      );
+      await borrowerOperations
+        .connect(defaulter_6)
+        .openTrove(
+          th._100pct,
+          await getOpenTroveDebtTokenAmount(dec(10000, 18)),
+          defaulter_6.address,
+          defaulter_6.address,
+          { value: dec(100, "ether") },
+        );
 
       // Confirm all depositors have 0 ProtocolToken
       for (const depositor of [A, B, C, D, E, F]) {
-        assert.equal(await protocolToken.balanceOf(depositor), "0");
+        assert.equal(await protocolToken.balanceOf(depositor.address), "0");
       }
       // price drops by 50%
       await priceFeed.setPrice(dec(100, 18));
@@ -1019,7 +1129,7 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       // assert.equal(await stabilityPool.currentScale(), '0')
 
       // A provides to SP
-      await stabilityPool.provideToSP(dec(10000, 18), ZERO_ADDRESS, { from: A });
+      await stabilityPool.connect(A).provideToSP(dec(10000, 18), ZERO_ADDRESS);
 
       // 1 month passes
       await th.fastForwardTime(
@@ -1028,76 +1138,81 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       );
 
       // Defaulter 1 liquidated.  Value of P updated to  to 1e-5
-      const txL1 = await troveManager.liquidate(defaulter_1, { from: owner });
-      assert.isFalse(await sortedTroves.contains(defaulter_1));
-      assert.isTrue(txL1.receipt.status);
+      const txL1 = await troveManager.liquidate(defaulter_1.address);
+      const receiptL1 = await txL1.wait();
+      assert.isFalse(await sortedTroves.contains(defaulter_1.address));
+      assert.equal(receiptL1.status, 1);
 
       // Check scale is 0
       assert.equal(await stabilityPool.currentScale(), "0");
       assert.equal(await stabilityPool.P(), dec(1, 13)); //P decreases: P = 1e(18-5) = 1e13
 
       // B provides to SP
-      await stabilityPool.provideToSP(dec(99999, 17), ZERO_ADDRESS, { from: B });
+      await stabilityPool.connect(B).provideToSP(dec(99999, 17), ZERO_ADDRESS);
 
       // 1 month passes
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider);
 
       // Defaulter 2 liquidated
-      const txL2 = await troveManager.liquidate(defaulter_2, { from: owner });
-      assert.isFalse(await sortedTroves.contains(defaulter_2));
-      assert.isTrue(txL2.receipt.status);
+      const txL2 = await troveManager.liquidate(defaulter_2.address);
+      const receiptL2 = await txL2.wait();
+      assert.isFalse(await sortedTroves.contains(defaulter_2.address));
+      assert.equal(receiptL2.status, 1);
 
       // Check scale is 1
       assert.equal(await stabilityPool.currentScale(), "1");
       assert.equal(await stabilityPool.P(), dec(1, 17)); //Scale changes and P changes: P = 1e(13-5+9) = 1e17
 
       // C provides to SP
-      await stabilityPool.provideToSP(dec(99999, 17), ZERO_ADDRESS, { from: C });
+      await stabilityPool.connect(C).provideToSP(dec(99999, 17), ZERO_ADDRESS);
 
       // 1 month passes
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider);
 
       // Defaulter 3 liquidated
-      const txL3 = await troveManager.liquidate(defaulter_3, { from: owner });
-      assert.isFalse(await sortedTroves.contains(defaulter_3));
-      assert.isTrue(txL3.receipt.status);
+      const txL3 = await troveManager.liquidate(defaulter_3.address);
+      const receiptL3 = await txL3.wait();
+      assert.isFalse(await sortedTroves.contains(defaulter_3.address));
+      assert.equal(receiptL3.status, 1);
 
       // Check scale is 1
       assert.equal(await stabilityPool.currentScale(), "1");
       assert.equal(await stabilityPool.P(), dec(1, 12)); //P decreases: P 1e(17-5) = 1e12
 
       // D provides to SP
-      await stabilityPool.provideToSP(dec(99999, 17), ZERO_ADDRESS, { from: D });
+      await stabilityPool.connect(D).provideToSP(dec(99999, 17), ZERO_ADDRESS);
 
       // 1 month passes
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider);
 
       // Defaulter 4 liquidated
-      const txL4 = await troveManager.liquidate(defaulter_4, { from: owner });
-      assert.isFalse(await sortedTroves.contains(defaulter_4));
-      assert.isTrue(txL4.receipt.status);
+      const txL4 = await troveManager.liquidate(defaulter_4.address);
+      const receiptL4 = await txL4.wait();
+      assert.isFalse(await sortedTroves.contains(defaulter_4.address));
+      assert.equal(receiptL4.status, 1);
 
       // Check scale is 2
       assert.equal(await stabilityPool.currentScale(), "2");
       assert.equal(await stabilityPool.P(), dec(1, 16)); //Scale changes and P changes:: P = 1e(12-5+9) = 1e16
 
       // E provides to SP
-      await stabilityPool.provideToSP(dec(99999, 17), ZERO_ADDRESS, { from: E });
+      await stabilityPool.connect(E).provideToSP(dec(99999, 17), ZERO_ADDRESS);
 
       // 1 month passes
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider);
 
       // Defaulter 5 liquidated
-      const txL5 = await troveManager.liquidate(defaulter_5, { from: owner });
-      assert.isFalse(await sortedTroves.contains(defaulter_5));
-      assert.isTrue(txL5.receipt.status);
+      const txL5 = await troveManager.liquidate(defaulter_5.address);
+      const receiptL5 = await txL5.wait();
+      assert.isFalse(await sortedTroves.contains(defaulter_5.address));
+      assert.equal(receiptL5.status, 1);
 
       // Check scale is 2
       assert.equal(await stabilityPool.currentScale(), "2");
       assert.equal(await stabilityPool.P(), dec(1, 11)); // P decreases: P = 1e(16-5) = 1e11
 
       // F provides to SP
-      await stabilityPool.provideToSP(dec(99999, 17), ZERO_ADDRESS, { from: F });
+      await stabilityPool.connect(F).provideToSP(dec(99999, 17), ZERO_ADDRESS);
 
       // 1 month passes
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider);
@@ -1105,9 +1220,10 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       assert.equal(await stabilityPool.currentEpoch(), "0");
 
       // Defaulter 6 liquidated
-      const txL6 = await troveManager.liquidate(defaulter_6, { from: owner });
-      assert.isFalse(await sortedTroves.contains(defaulter_6));
-      assert.isTrue(txL6.receipt.status);
+      const txL6 = await troveManager.liquidate(defaulter_6.address);
+      const receiptL6 = await txL6.wait();
+      assert.isFalse(await sortedTroves.contains(defaulter_6.address));
+      assert.equal(receiptL6.status, 1);
 
       // Check scale is 0, epoch is 1
       assert.equal(await stabilityPool.currentScale(), "0");
@@ -1120,15 +1236,15 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       /* All depositors withdraw fully from SP.  Withdraw in reverse order, so that the largest remaining
       deposit (F) withdraws first, and does not get extra ProtocolToken gains from the periods between withdrawals */
       for (depositor of [F, E, D, C, B, A]) {
-        await stabilityPool.withdrawFromSP(dec(10000, 18), { from: depositor });
+        await stabilityPool.connect(depositor).withdrawFromSP(dec(10000, 18));
       }
 
-      const ProtocolTokenGain_A = await protocolToken.balanceOf(A);
-      const ProtocolTokenGain_B = await protocolToken.balanceOf(B);
-      const ProtocolTokenGain_C = await protocolToken.balanceOf(C);
-      const ProtocolTokenGain_D = await protocolToken.balanceOf(D);
-      const ProtocolTokenGain_E = await protocolToken.balanceOf(E);
-      const ProtocolTokenGain_F = await protocolToken.balanceOf(F);
+      const ProtocolTokenGain_A = await protocolToken.balanceOf(A.address);
+      const ProtocolTokenGain_B = await protocolToken.balanceOf(B.address);
+      const ProtocolTokenGain_C = await protocolToken.balanceOf(C.address);
+      const ProtocolTokenGain_D = await protocolToken.balanceOf(D.address);
+      const ProtocolTokenGain_E = await protocolToken.balanceOf(E.address);
+      const ProtocolTokenGain_F = await protocolToken.balanceOf(F.address);
 
       /* Expect each deposit to have earned 100% of the ProtocolToken issuance for the month in which it was active, prior
      to the liquidation that mostly depleted it.  Error tolerance = 1e-3 tokens. */
@@ -1169,56 +1285,62 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       const kickbackRate_F1 = toBN(dec(5, 17)); // F1 kicks 50% back to depositor
       const kickbackRate_F2 = toBN(dec(80, 16)); // F2 kicks 80% back to depositor
 
-      await stabilityPool.registerFrontEnd(kickbackRate_F1, { from: frontEnd_1 });
-      await stabilityPool.registerFrontEnd(kickbackRate_F2, { from: frontEnd_2 });
+      await stabilityPool.connect(frontEnd_1).registerFrontEnd(kickbackRate_F1);
+      await stabilityPool.connect(frontEnd_2).registerFrontEnd(kickbackRate_F2);
 
       const initialIssuance = await communityIssuanceTester.totalProtocolTokenIssued();
       assert.equal(initialIssuance, 0);
 
       // Whale opens Trove with 10k FIL
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), whale, whale, {
-        from: whale,
-        value: dec(10000, "ether"),
-      });
+      await borrowerOperations
+        .connect(whale)
+        .openTrove(th._100pct, dec(10000, 18), whale.address, whale.address, {
+          value: dec(10000, "ether"),
+        });
 
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), A, A, {
-        from: A,
-        value: dec(100, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), B, B, {
-        from: B,
-        value: dec(100, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), C, C, {
-        from: C,
-        value: dec(100, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), D, D, {
-        from: D,
-        value: dec(100, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), E, E, {
-        from: E,
-        value: dec(100, "ether"),
-      });
+      await borrowerOperations
+        .connect(A)
+        .openTrove(th._100pct, dec(10000, 18), A.address, A.address, {
+          value: dec(100, "ether"),
+        });
+      await borrowerOperations
+        .connect(B)
+        .openTrove(th._100pct, dec(10000, 18), B.address, B.address, {
+          value: dec(100, "ether"),
+        });
+      await borrowerOperations
+        .connect(C)
+        .openTrove(th._100pct, dec(10000, 18), C.address, C.address, {
+          value: dec(100, "ether"),
+        });
+      await borrowerOperations
+        .connect(D)
+        .openTrove(th._100pct, dec(10000, 18), D.address, D.address, {
+          value: dec(100, "ether"),
+        });
+      await borrowerOperations
+        .connect(E)
+        .openTrove(th._100pct, dec(10000, 18), E.address, E.address, {
+          value: dec(100, "ether"),
+        });
 
       // Check all ProtocolToken balances are initially 0
-      assert.equal(await protocolToken.balanceOf(A), 0);
-      assert.equal(await protocolToken.balanceOf(B), 0);
-      assert.equal(await protocolToken.balanceOf(C), 0);
-      assert.equal(await protocolToken.balanceOf(D), 0);
-      assert.equal(await protocolToken.balanceOf(frontEnd_1), 0);
-      assert.equal(await protocolToken.balanceOf(frontEnd_2), 0);
+      assert.equal(await protocolToken.balanceOf(A.address), 0);
+      assert.equal(await protocolToken.balanceOf(B.address), 0);
+      assert.equal(await protocolToken.balanceOf(C.address), 0);
+      assert.equal(await protocolToken.balanceOf(D.address), 0);
+      assert.equal(await protocolToken.balanceOf(frontEnd_1.address), 0);
+      assert.equal(await protocolToken.balanceOf(frontEnd_2.address), 0);
 
       // A, B, C, D deposit
-      await stabilityPool.provideToSP(dec(10000, 18), frontEnd_1, { from: A });
-      await stabilityPool.provideToSP(dec(10000, 18), frontEnd_2, { from: B });
-      await stabilityPool.provideToSP(dec(10000, 18), frontEnd_2, { from: C });
-      await stabilityPool.provideToSP(dec(10000, 18), ZERO_ADDRESS, { from: D });
+      await stabilityPool.connect(A).provideToSP(dec(10000, 18), frontEnd_1.address);
+      await stabilityPool.connect(B).provideToSP(dec(10000, 18), frontEnd_2.address);
+      await stabilityPool.connect(C).provideToSP(dec(10000, 18), frontEnd_2.address);
+      await stabilityPool.connect(D).provideToSP(dec(10000, 18), ZERO_ADDRESS);
 
       // Check initial frontEnd stakes are correct:
-      F1_stake = await stabilityPool.frontEndStakes(frontEnd_1);
-      F2_stake = await stabilityPool.frontEndStakes(frontEnd_2);
+      F1_stake = await stabilityPool.frontEndStakes(frontEnd_1.address);
+      F2_stake = await stabilityPool.frontEndStakes(frontEnd_2.address);
 
       assert.equal(F1_stake, dec(10000, 18));
       assert.equal(F2_stake, dec(20000, 18));
@@ -1230,19 +1352,23 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       );
 
       // E deposits, triggering ProtocolToken gains for A,B,C,D,F1,F2. Withdraws immediately after
-      await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: E });
-      await stabilityPool.withdrawFromSP(dec(1, 18), { from: E });
+      await stabilityPool.connect(E).provideToSP(dec(1, 18), ZERO_ADDRESS);
+      await stabilityPool.connect(E).withdrawFromSP(dec(1, 18));
 
       // Expected issuance for year 1 is 50% of total supply.
       const expectedIssuance_Y1 = communityProtocolTokenSupply.div(toBN("2"));
 
       // Get actual ProtocolToken gains
-      const A_protocolTokenGain_Y1 = await stabilityPool.getDepositorProtocolTokenGain(A);
-      const B_protocolTokenGain_Y1 = await stabilityPool.getDepositorProtocolTokenGain(B);
-      const C_protocolTokenGain_Y1 = await stabilityPool.getDepositorProtocolTokenGain(C);
-      const D_protocolTokenGain_Y1 = await stabilityPool.getDepositorProtocolTokenGain(D);
-      const F1_protocolTokenGain_Y1 = await stabilityPool.getFrontEndProtocolTokenGain(frontEnd_1);
-      const F2_protocolTokenGain_Y1 = await stabilityPool.getFrontEndProtocolTokenGain(frontEnd_2);
+      const A_protocolTokenGain_Y1 = await stabilityPool.getDepositorProtocolTokenGain(A.address);
+      const B_protocolTokenGain_Y1 = await stabilityPool.getDepositorProtocolTokenGain(B.address);
+      const C_protocolTokenGain_Y1 = await stabilityPool.getDepositorProtocolTokenGain(C.address);
+      const D_protocolTokenGain_Y1 = await stabilityPool.getDepositorProtocolTokenGain(D.address);
+      const F1_protocolTokenGain_Y1 = await stabilityPool.getFrontEndProtocolTokenGain(
+        frontEnd_1.address,
+      );
+      const F2_protocolTokenGain_Y1 = await stabilityPool.getFrontEndProtocolTokenGain(
+        frontEnd_2.address,
+      );
 
       // Expected depositor and front-end gains
       const A_expectedGain_Y1 = kickbackRate_F1
@@ -1284,8 +1410,8 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
 
       // E deposits, triggering ProtocolToken gains for A,B,CD,F1, F2. Withdraws immediately after
-      await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: E });
-      await stabilityPool.withdrawFromSP(dec(1, 18), { from: E });
+      await stabilityPool.connect(E).provideToSP(dec(1, 18), ZERO_ADDRESS);
+      await stabilityPool.connect(E).withdrawFromSP(dec(1, 18));
 
       // Expected gains for each depositor in Y2(25% total issued).  .
       const expectedIssuance_Y2 = communityProtocolTokenSupply.div(toBN("4"));
@@ -1322,22 +1448,34 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
         .div(toBN(dec(1, 18)));
 
       // Each depositor fully withdraws
-      await stabilityPool.withdrawFromSP(dec(10000, 18), { from: A });
-      await stabilityPool.withdrawFromSP(dec(10000, 18), { from: B });
-      await stabilityPool.withdrawFromSP(dec(10000, 18), { from: C });
-      await stabilityPool.withdrawFromSP(dec(10000, 18), { from: D });
+      await stabilityPool.connect(A).withdrawFromSP(dec(10000, 18));
+      await stabilityPool.connect(B).withdrawFromSP(dec(10000, 18));
+      await stabilityPool.connect(C).withdrawFromSP(dec(10000, 18));
+      await stabilityPool.connect(D).withdrawFromSP(dec(10000, 18));
 
       // Check ProtocolToken balances increase by correct amount
-      assert.isAtMost(getDifference(await protocolToken.balanceOf(A), A_expectedFinalGain), 1e12);
-      assert.isAtMost(getDifference(await protocolToken.balanceOf(B), B_expectedFinalGain), 1e12);
-      assert.isAtMost(getDifference(await protocolToken.balanceOf(C), C_expectedFinalGain), 1e12);
-      assert.isAtMost(getDifference(await protocolToken.balanceOf(D), D_expectedFinalGain), 1e12);
       assert.isAtMost(
-        getDifference(await protocolToken.balanceOf(frontEnd_1), F1_expectedFinalGain),
+        getDifference(await protocolToken.balanceOf(A.address), A_expectedFinalGain),
         1e12,
       );
       assert.isAtMost(
-        getDifference(await protocolToken.balanceOf(frontEnd_2), F2_expectedFinalGain),
+        getDifference(await protocolToken.balanceOf(B.address), B_expectedFinalGain),
+        1e12,
+      );
+      assert.isAtMost(
+        getDifference(await protocolToken.balanceOf(C.address), C_expectedFinalGain),
+        1e12,
+      );
+      assert.isAtMost(
+        getDifference(await protocolToken.balanceOf(D.address), D_expectedFinalGain),
+        1e12,
+      );
+      assert.isAtMost(
+        getDifference(await protocolToken.balanceOf(frontEnd_1.address), F1_expectedFinalGain),
+        1e12,
+      );
+      assert.isAtMost(
+        getDifference(await protocolToken.balanceOf(frontEnd_2.address), F2_expectedFinalGain),
         1e12,
       );
     });
@@ -1366,84 +1504,96 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       const F1_kickbackRate = toBN(dec(5, 17)); // F1 kicks 50% back to depositor
       const F2_kickbackRate = toBN(dec(80, 16)); // F2 kicks 80% back to depositor
 
-      await stabilityPool.registerFrontEnd(F1_kickbackRate, { from: frontEnd_1 });
-      await stabilityPool.registerFrontEnd(F2_kickbackRate, { from: frontEnd_2 });
+      await stabilityPool.connect(frontEnd_1).registerFrontEnd(F1_kickbackRate);
+      await stabilityPool.connect(frontEnd_2).registerFrontEnd(F2_kickbackRate);
 
       const initialIssuance = await communityIssuanceTester.totalProtocolTokenIssued();
       assert.equal(initialIssuance, 0);
 
       // Whale opens Trove with 10k FIL
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), whale, whale, {
-        from: whale,
-        value: dec(10000, "ether"),
-      });
+      await borrowerOperations
+        .connect(whale)
+        .openTrove(th._100pct, dec(10000, 18), whale.address, whale.address, {
+          value: dec(10000, "ether"),
+        });
 
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), A, A, {
-        from: A,
-        value: dec(200, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(60000, 18), B, B, {
-        from: B,
-        value: dec(800, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(30000, 18), C, C, {
-        from: C,
-        value: dec(400, "ether"),
-      });
-      await borrowerOperations.openTrove(th._100pct, dec(40000, 18), D, D, {
-        from: D,
-        value: dec(500, "ether"),
-      });
+      await borrowerOperations
+        .connect(A)
+        .openTrove(th._100pct, dec(10000, 18), A.address, A.address, {
+          value: dec(200, "ether"),
+        });
+      await borrowerOperations
+        .connect(B)
+        .openTrove(th._100pct, dec(60000, 18), B.address, B.address, {
+          value: dec(800, "ether"),
+        });
+      await borrowerOperations
+        .connect(C)
+        .openTrove(th._100pct, dec(30000, 18), C.address, C.address, {
+          value: dec(400, "ether"),
+        });
+      await borrowerOperations
+        .connect(D)
+        .openTrove(th._100pct, dec(40000, 18), D.address, D.address, {
+          value: dec(500, "ether"),
+        });
 
-      await borrowerOperations.openTrove(th._100pct, dec(30000, 18), E, E, {
-        from: E,
-        value: dec(400, "ether"),
-      });
+      await borrowerOperations
+        .connect(E)
+        .openTrove(th._100pct, dec(30000, 18), E.address, E.address, {
+          value: dec(400, "ether"),
+        });
 
       // D1, D2, D3 open troves with total debt 50k, 30k, 10k respectively (inc. gas comp)
-      await borrowerOperations.openTrove(
-        th._100pct,
-        await getOpenTroveDebtTokenAmount(dec(50000, 18)),
-        defaulter_1,
-        defaulter_1,
-        { from: defaulter_1, value: dec(500, "ether") },
-      );
-      await borrowerOperations.openTrove(
-        th._100pct,
-        await getOpenTroveDebtTokenAmount(dec(20000, 18)),
-        defaulter_2,
-        defaulter_2,
-        { from: defaulter_2, value: dec(200, "ether") },
-      );
-      await borrowerOperations.openTrove(
-        th._100pct,
-        await getOpenTroveDebtTokenAmount(dec(10000, 18)),
-        defaulter_3,
-        defaulter_3,
-        { from: defaulter_3, value: dec(100, "ether") },
-      );
+      await borrowerOperations
+        .connect(defaulter_1)
+        .openTrove(
+          th._100pct,
+          await getOpenTroveDebtTokenAmount(dec(50000, 18)),
+          defaulter_1.address,
+          defaulter_1.address,
+          { value: dec(500, "ether") },
+        );
+      await borrowerOperations
+        .connect(defaulter_2)
+        .openTrove(
+          th._100pct,
+          await getOpenTroveDebtTokenAmount(dec(20000, 18)),
+          defaulter_2.address,
+          defaulter_2.address,
+          { value: dec(200, "ether") },
+        );
+      await borrowerOperations
+        .connect(defaulter_3)
+        .openTrove(
+          th._100pct,
+          await getOpenTroveDebtTokenAmount(dec(10000, 18)),
+          defaulter_3.address,
+          defaulter_3.address,
+          { value: dec(100, "ether") },
+        );
 
       // Check all ProtocolToken balances are initially 0
-      assert.equal(await protocolToken.balanceOf(A), 0);
-      assert.equal(await protocolToken.balanceOf(B), 0);
-      assert.equal(await protocolToken.balanceOf(C), 0);
-      assert.equal(await protocolToken.balanceOf(D), 0);
-      assert.equal(await protocolToken.balanceOf(frontEnd_1), 0);
-      assert.equal(await protocolToken.balanceOf(frontEnd_2), 0);
+      assert.equal(await protocolToken.balanceOf(A.address), 0);
+      assert.equal(await protocolToken.balanceOf(B.address), 0);
+      assert.equal(await protocolToken.balanceOf(C.address), 0);
+      assert.equal(await protocolToken.balanceOf(D.address), 0);
+      assert.equal(await protocolToken.balanceOf(frontEnd_1.address), 0);
+      assert.equal(await protocolToken.balanceOf(frontEnd_2.address), 0);
 
       // A, B, C, D deposit
-      await stabilityPool.provideToSP(dec(10000, 18), frontEnd_1, { from: A });
-      await stabilityPool.provideToSP(dec(20000, 18), frontEnd_2, { from: B });
-      await stabilityPool.provideToSP(dec(30000, 18), frontEnd_2, { from: C });
-      await stabilityPool.provideToSP(dec(40000, 18), ZERO_ADDRESS, { from: D });
+      await stabilityPool.connect(A).provideToSP(dec(10000, 18), frontEnd_1.address);
+      await stabilityPool.connect(B).provideToSP(dec(20000, 18), frontEnd_2.address);
+      await stabilityPool.connect(C).provideToSP(dec(30000, 18), frontEnd_2.address);
+      await stabilityPool.connect(D).provideToSP(dec(40000, 18), ZERO_ADDRESS);
 
       // Price Drops, defaulters become undercollateralized
       await priceFeed.setPrice(dec(105, 18));
       assert.isFalse(await th.checkRecoveryMode(contracts));
 
       // Check initial frontEnd stakes are correct:
-      F1_stake = await stabilityPool.frontEndStakes(frontEnd_1);
-      F2_stake = await stabilityPool.frontEndStakes(frontEnd_2);
+      F1_stake = await stabilityPool.frontEndStakes(frontEnd_1.address);
+      F2_stake = await stabilityPool.frontEndStakes(frontEnd_2.address);
 
       assert.equal(F1_stake, dec(10000, 18));
       assert.equal(F2_stake, dec(50000, 18));
@@ -1457,8 +1607,8 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       assert.equal(await stabilityPool.getTotalDebtTokenDeposits(), dec(100000, 18)); // total 100k
 
       // LIQUIDATION 1
-      await troveManager.liquidate(defaulter_1);
-      assert.isFalse(await sortedTroves.contains(defaulter_1));
+      await troveManager.liquidate(defaulter_1.address);
+      assert.isFalse(await sortedTroves.contains(defaulter_1.address));
 
       th.assertIsApproximatelyEqual(
         await stabilityPool.getTotalDebtTokenDeposits(),
@@ -1494,12 +1644,16 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
         .div(toBN(dec(1, 18)));
 
       // Check ProtocolToken gain
-      const A_protocolTokenGain_M1 = await stabilityPool.getDepositorProtocolTokenGain(A);
-      const B_protocolTokenGain_M1 = await stabilityPool.getDepositorProtocolTokenGain(B);
-      const C_protocolTokenGain_M1 = await stabilityPool.getDepositorProtocolTokenGain(C);
-      const D_protocolTokenGain_M1 = await stabilityPool.getDepositorProtocolTokenGain(D);
-      const F1_protocolTokenGain_M1 = await stabilityPool.getFrontEndProtocolTokenGain(frontEnd_1);
-      const F2_protocolTokenGain_M1 = await stabilityPool.getFrontEndProtocolTokenGain(frontEnd_2);
+      const A_protocolTokenGain_M1 = await stabilityPool.getDepositorProtocolTokenGain(A.address);
+      const B_protocolTokenGain_M1 = await stabilityPool.getDepositorProtocolTokenGain(B.address);
+      const C_protocolTokenGain_M1 = await stabilityPool.getDepositorProtocolTokenGain(C.address);
+      const D_protocolTokenGain_M1 = await stabilityPool.getDepositorProtocolTokenGain(D.address);
+      const F1_protocolTokenGain_M1 = await stabilityPool.getFrontEndProtocolTokenGain(
+        frontEnd_1.address,
+      );
+      const F2_protocolTokenGain_M1 = await stabilityPool.getFrontEndProtocolTokenGain(
+        frontEnd_2.address,
+      );
 
       // Check gains are correct, error tolerance = 1e-3 of a token
       assert.isAtMost(getDifference(A_protocolTokenGain_M1, A_expectedProtocolTokenGain_M1), 1e15);
@@ -1516,7 +1670,7 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       );
 
       // E deposits 30k via F1
-      await stabilityPool.provideToSP(dec(30000, 18), frontEnd_1, { from: E });
+      await stabilityPool.connect(E).provideToSP(dec(30000, 18), frontEnd_1.address);
 
       th.assertIsApproximatelyEqual(
         await stabilityPool.getTotalDebtTokenDeposits(),
@@ -1527,8 +1681,8 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider);
 
       // LIQUIDATION 2
-      await troveManager.liquidate(defaulter_2);
-      assert.isFalse(await sortedTroves.contains(defaulter_2));
+      await troveManager.liquidate(defaulter_2.address);
+      assert.isFalse(await sortedTroves.contains(defaulter_2.address));
 
       th.assertIsApproximatelyEqual(
         await stabilityPool.getTotalDebtTokenDeposits(),
@@ -1572,15 +1726,27 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
         .div(toBN(dec(1, 18)));
 
       // Check ProtocolToken gains after month 2
-      const A_protocolTokenGain_After_M2 = await stabilityPool.getDepositorProtocolTokenGain(A);
-      const B_protocolTokenGain_After_M2 = await stabilityPool.getDepositorProtocolTokenGain(B);
-      const C_protocolTokenGain_After_M2 = await stabilityPool.getDepositorProtocolTokenGain(C);
-      const D_protocolTokenGain_After_M2 = await stabilityPool.getDepositorProtocolTokenGain(D);
-      const E_protocolTokenGain_After_M2 = await stabilityPool.getDepositorProtocolTokenGain(E);
-      const F1_protocolTokenGain_After_M2 =
-        await stabilityPool.getFrontEndProtocolTokenGain(frontEnd_1);
-      const F2_protocolTokenGain_After_M2 =
-        await stabilityPool.getFrontEndProtocolTokenGain(frontEnd_2);
+      const A_protocolTokenGain_After_M2 = await stabilityPool.getDepositorProtocolTokenGain(
+        A.address,
+      );
+      const B_protocolTokenGain_After_M2 = await stabilityPool.getDepositorProtocolTokenGain(
+        B.address,
+      );
+      const C_protocolTokenGain_After_M2 = await stabilityPool.getDepositorProtocolTokenGain(
+        C.address,
+      );
+      const D_protocolTokenGain_After_M2 = await stabilityPool.getDepositorProtocolTokenGain(
+        D.address,
+      );
+      const E_protocolTokenGain_After_M2 = await stabilityPool.getDepositorProtocolTokenGain(
+        E.address,
+      );
+      const F1_protocolTokenGain_After_M2 = await stabilityPool.getFrontEndProtocolTokenGain(
+        frontEnd_1.address,
+      );
+      const F2_protocolTokenGain_After_M2 = await stabilityPool.getFrontEndProtocolTokenGain(
+        frontEnd_2.address,
+      );
 
       assert.isAtMost(
         getDifference(
@@ -1616,7 +1782,7 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       );
 
       // Check F1 balance is his M1 gain (it was paid out when E joined through F1)
-      const F1_protocolTokenBalance_After_M2 = await protocolToken.balanceOf(frontEnd_1);
+      const F1_protocolTokenBalance_After_M2 = await protocolToken.balanceOf(frontEnd_1.address);
       assert.isAtMost(
         getDifference(F1_protocolTokenBalance_After_M2, F1_expectedProtocolTokenGain_M1),
         1e15,
@@ -1638,7 +1804,7 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       );
 
       // B tops up 40k via F2
-      await stabilityPool.provideToSP(dec(40000, 18), frontEnd_2, { from: B });
+      await stabilityPool.connect(B).provideToSP(dec(40000, 18), frontEnd_2.address);
 
       th.assertIsApproximatelyEqual(
         await stabilityPool.getTotalDebtTokenDeposits(),
@@ -1649,8 +1815,8 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider);
 
       // LIQUIDATION 3
-      await troveManager.liquidate(defaulter_3);
-      assert.isFalse(await sortedTroves.contains(defaulter_3));
+      await troveManager.liquidate(defaulter_3.address);
+      assert.isFalse(await sortedTroves.contains(defaulter_3.address));
 
       th.assertIsApproximatelyEqual(
         await stabilityPool.getTotalDebtTokenDeposits(),
@@ -1690,15 +1856,27 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
         .div(toBN(dec(1, 18)));
 
       // Check ProtocolToken gains after month 3
-      const A_protocolTokenGain_After_M3 = await stabilityPool.getDepositorProtocolTokenGain(A);
-      const B_protocolTokenGain_After_M3 = await stabilityPool.getDepositorProtocolTokenGain(B);
-      const C_protocolTokenGain_After_M3 = await stabilityPool.getDepositorProtocolTokenGain(C);
-      const D_protocolTokenGain_After_M3 = await stabilityPool.getDepositorProtocolTokenGain(D);
-      const E_protocolTokenGain_After_M3 = await stabilityPool.getDepositorProtocolTokenGain(E);
-      const F1_protocolTokenGain_After_M3 =
-        await stabilityPool.getFrontEndProtocolTokenGain(frontEnd_1);
-      const F2_protocolTokenGain_After_M3 =
-        await stabilityPool.getFrontEndProtocolTokenGain(frontEnd_2);
+      const A_protocolTokenGain_After_M3 = await stabilityPool.getDepositorProtocolTokenGain(
+        A.address,
+      );
+      const B_protocolTokenGain_After_M3 = await stabilityPool.getDepositorProtocolTokenGain(
+        B.address,
+      );
+      const C_protocolTokenGain_After_M3 = await stabilityPool.getDepositorProtocolTokenGain(
+        C.address,
+      );
+      const D_protocolTokenGain_After_M3 = await stabilityPool.getDepositorProtocolTokenGain(
+        D.address,
+      );
+      const E_protocolTokenGain_After_M3 = await stabilityPool.getDepositorProtocolTokenGain(
+        E.address,
+      );
+      const F1_protocolTokenGain_After_M3 = await stabilityPool.getFrontEndProtocolTokenGain(
+        frontEnd_1.address,
+      );
+      const F2_protocolTokenGain_After_M3 = await stabilityPool.getFrontEndProtocolTokenGain(
+        frontEnd_2.address,
+      );
 
       // Expect A, C, D ProtocolToken system gains to equal their gains from (M1 + M2 + M3)
       assert.isAtMost(
@@ -1745,7 +1923,7 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       );
 
       // Expect B ProtocolToken balance to equal gains from (M1 + M2)
-      const B_protocolTokenBalance_After_M3 = await await protocolToken.balanceOf(B);
+      const B_protocolTokenBalance_After_M3 = await await protocolToken.balanceOf(B.address);
       assert.isAtMost(
         getDifference(
           B_protocolTokenBalance_After_M3,
@@ -1764,7 +1942,7 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       );
 
       // Expect F1 ProtocolToken balance to equal their M1 gain
-      const F1_protocolTokenBalance_After_M3 = await protocolToken.balanceOf(frontEnd_1);
+      const F1_protocolTokenBalance_After_M3 = await protocolToken.balanceOf(frontEnd_1.address);
       assert.isAtMost(
         getDifference(F1_protocolTokenBalance_After_M3, F1_expectedProtocolTokenGain_M1),
         1e15,
@@ -1777,7 +1955,7 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       );
 
       // Expect F2 ProtocolToken balance to equal their gain from M1 + M2
-      const F2_protocolTokenBalance_After_M3 = await protocolToken.balanceOf(frontEnd_2);
+      const F2_protocolTokenBalance_After_M3 = await protocolToken.balanceOf(frontEnd_2.address);
       assert.isAtMost(
         getDifference(
           F2_protocolTokenBalance_After_M3,
@@ -1787,7 +1965,9 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       );
 
       // Expect deposit C now to be 10125 DebtToken
-      const C_compoundedDebtTokenDeposit = await stabilityPool.getCompoundedDebtTokenDeposit(C);
+      const C_compoundedDebtTokenDeposit = await stabilityPool.getCompoundedDebtTokenDeposit(
+        C.address,
+      );
       assert.isAtMost(getDifference(C_compoundedDebtTokenDeposit, dec(10125, 18)), 1000);
 
       // --- C withdraws ---
@@ -1797,7 +1977,7 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
         dec(90000, 18),
       );
 
-      await stabilityPool.withdrawFromSP(dec(10000, 18), { from: C });
+      await stabilityPool.connect(C).withdrawFromSP(dec(10000, 18));
 
       th.assertIsApproximatelyEqual(
         await stabilityPool.getTotalDebtTokenDeposits(),
@@ -1809,9 +1989,10 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
 
       // All depositors fully withdraw
       for (depositor of [A, B, C, D, E]) {
-        await stabilityPool.withdrawFromSP(dec(100000, 18), { from: depositor });
-        const compoundedDebtTokenDeposit =
-          await stabilityPool.getCompoundedDebtTokenDeposit(depositor);
+        await stabilityPool.connect(depositor).withdrawFromSP(dec(100000, 18));
+        const compoundedDebtTokenDeposit = await stabilityPool.getCompoundedDebtTokenDeposit(
+          depositor.address,
+        );
         assert.equal(compoundedDebtTokenDeposit, "0");
       }
 
@@ -1846,13 +2027,13 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
         .div(toBN(dec(1, 18)));
 
       // Get final ProtocolToken balances
-      const A_finalProtocolTokenBalance = await protocolToken.balanceOf(A);
-      const B_finalProtocolTokenBalance = await protocolToken.balanceOf(B);
-      const C_finalProtocolTokenBalance = await protocolToken.balanceOf(C);
-      const D_finalProtocolTokenBalance = await protocolToken.balanceOf(D);
-      const E_finalProtocolTokenBalance = await protocolToken.balanceOf(E);
-      const F1_finalProtocolTokenBalance = await protocolToken.balanceOf(frontEnd_1);
-      const F2_finalProtocolTokenBalance = await protocolToken.balanceOf(frontEnd_2);
+      const A_finalProtocolTokenBalance = await protocolToken.balanceOf(A.address);
+      const B_finalProtocolTokenBalance = await protocolToken.balanceOf(B.address);
+      const C_finalProtocolTokenBalance = await protocolToken.balanceOf(C.address);
+      const D_finalProtocolTokenBalance = await protocolToken.balanceOf(D.address);
+      const E_finalProtocolTokenBalance = await protocolToken.balanceOf(E.address);
+      const F1_finalProtocolTokenBalance = await protocolToken.balanceOf(frontEnd_1.address);
+      const F2_finalProtocolTokenBalance = await protocolToken.balanceOf(frontEnd_2.address);
 
       const A_expectedFinalProtocolTokenBalance = A_expectedProtocolTokenGain_M1.add(
         A_expectedProtocolTokenGain_M2,
@@ -1943,32 +2124,35 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
 
     it("withdrawFromSP(): Several deposits of 10k DebtToken span one scale factor change. Depositors withdraw correct ProtocolToken gains", async () => {
       const kickbackRate = toBN(dec(80, 16)); // F1 kicks 80% back to depositor
-      await stabilityPool.registerFrontEnd(kickbackRate, { from: frontEnd_1 });
+      await stabilityPool.connect(frontEnd_1).registerFrontEnd(kickbackRate);
 
       // Whale opens Trove with 10k FIL
-      await borrowerOperations.openTrove(th._100pct, dec(10000, 18), whale, whale, {
-        from: whale,
-        value: dec(10000, "ether"),
-      });
+      await borrowerOperations
+        .connect(whale)
+        .openTrove(th._100pct, dec(10000, 18), whale.address, whale.address, {
+          value: dec(10000, "ether"),
+        });
 
       const _4_Defaulters = [defaulter_1, defaulter_2, defaulter_3, defaulter_4];
 
       for (const defaulter of _4_Defaulters) {
         // Defaulters 1-4 each withdraw to 9999.9 debt (including gas comp)
-        await borrowerOperations.openTrove(
-          th._100pct,
-          await getOpenTroveDebtTokenAmount(dec(99999, 17)),
-          defaulter,
-          defaulter,
-          { from: defaulter, value: dec(100, "ether") },
-        );
+        await borrowerOperations
+          .connect(defaulter)
+          .openTrove(
+            th._100pct,
+            await getOpenTroveDebtTokenAmount(dec(99999, 17)),
+            defaulter.address,
+            defaulter.address,
+            { value: dec(100, "ether") },
+          );
       }
 
       // Confirm all would-be depositors have 0 ProtocolToken
       for (const depositor of [A, B, C, D, E]) {
-        assert.equal(await protocolToken.balanceOf(depositor), "0");
+        assert.equal(await protocolToken.balanceOf(depositor.address), "0");
       }
-      assert.equal(await protocolToken.balanceOf(frontEnd_1), "0");
+      assert.equal(await protocolToken.balanceOf(frontEnd_1.address), "0");
 
       // price drops by 50%
       await priceFeed.setPrice(dec(100, 18));
@@ -1977,16 +2161,18 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       assert.equal(await stabilityPool.currentScale(), "0");
 
       // A, B provides 5000 DebtToken to SP
-      await borrowerOperations.openTrove(th._100pct, dec(5000, 18), A, A, {
-        from: A,
-        value: dec(200, "ether"),
-      });
-      await stabilityPool.provideToSP(dec(5000, 18), frontEnd_1, { from: A });
-      await borrowerOperations.openTrove(th._100pct, dec(5000, 18), B, B, {
-        from: B,
-        value: dec(200, "ether"),
-      });
-      await stabilityPool.provideToSP(dec(5000, 18), frontEnd_1, { from: B });
+      await borrowerOperations
+        .connect(A)
+        .openTrove(th._100pct, dec(5000, 18), A.address, A.address, {
+          value: dec(200, "ether"),
+        });
+      await stabilityPool.connect(A).provideToSP(dec(5000, 18), frontEnd_1.address);
+      await borrowerOperations
+        .connect(B)
+        .openTrove(th._100pct, dec(5000, 18), B.address, B.address, {
+          value: dec(200, "ether"),
+        });
+      await stabilityPool.connect(B).provideToSP(dec(5000, 18), frontEnd_1.address);
 
       // 1 month passes (M1)
       await th.fastForwardTime(
@@ -1995,63 +2181,70 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       );
 
       // Defaulter 1 liquidated.  Value of P updated to  to 9999999, i.e. in decimal, ~1e-10
-      const txL1 = await troveManager.liquidate(defaulter_1, { from: owner });
-      assert.isFalse(await sortedTroves.contains(defaulter_1));
-      assert.isTrue(txL1.receipt.status);
+      const txL1 = await troveManager.liquidate(defaulter_1.address);
+      const receiptL1 = await txL1.wait();
+      assert.isFalse(await sortedTroves.contains(defaulter_1.address));
+      assert.equal(receiptL1.status, 1);
 
       // Check scale is 0
       assert.equal(await stabilityPool.currentScale(), "0");
 
       // C provides to SP
-      await borrowerOperations.openTrove(th._100pct, dec(99999, 17), C, C, {
-        from: C,
-        value: dec(200, "ether"),
-      });
-      await stabilityPool.provideToSP(dec(99999, 17), frontEnd_1, { from: C });
+      await borrowerOperations
+        .connect(C)
+        .openTrove(th._100pct, dec(99999, 17), C.address, C.address, {
+          value: dec(200, "ether"),
+        });
+      await stabilityPool.connect(C).provideToSP(dec(99999, 17), frontEnd_1.address);
 
       // 1 month passes (M2)
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider);
 
       // Defaulter 2 liquidated
-      const txL2 = await troveManager.liquidate(defaulter_2, { from: owner });
-      assert.isFalse(await sortedTroves.contains(defaulter_2));
-      assert.isTrue(txL2.receipt.status);
+      const txL2 = await troveManager.liquidate(defaulter_2.address);
+      const receiptL2 = await txL2.wait();
+      assert.isFalse(await sortedTroves.contains(defaulter_2.address));
+      assert.equal(receiptL2.status, 1);
 
       // Check scale is 1
       assert.equal(await stabilityPool.currentScale(), "1");
 
       // D provides to SP
-      await borrowerOperations.openTrove(th._100pct, dec(99999, 17), D, D, {
-        from: D,
-        value: dec(200, "ether"),
-      });
-      await stabilityPool.provideToSP(dec(99999, 17), frontEnd_1, { from: D });
+      await borrowerOperations
+        .connect(D)
+        .openTrove(th._100pct, dec(99999, 17), D.address, D.address, {
+          value: dec(200, "ether"),
+        });
+      await stabilityPool.connect(D).provideToSP(dec(99999, 17), frontEnd_1.address);
 
       // 1 month passes (M3)
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider);
 
       // Defaulter 3 liquidated
-      const txL3 = await troveManager.liquidate(defaulter_3, { from: owner });
-      assert.isFalse(await sortedTroves.contains(defaulter_3));
-      assert.isTrue(txL3.receipt.status);
+      const txL3 = await troveManager.liquidate(defaulter_3.address);
+      const receiptL3 = await txL3.wait();
+      assert.isFalse(await sortedTroves.contains(defaulter_3.address));
+      assert.equal(receiptL3.status, 1);
 
       // Check scale is 1
       assert.equal(await stabilityPool.currentScale(), "1");
 
       // E provides to SP
-      await borrowerOperations.openTrove(th._100pct, dec(99999, 17), E, E, {
-        from: E,
-        value: dec(200, "ether"),
-      });
-      await stabilityPool.provideToSP(dec(99999, 17), frontEnd_1, { from: E });
+      await borrowerOperations
+        .connect(E)
+        .openTrove(th._100pct, dec(99999, 17), E.address, E.address, {
+          value: dec(200, "ether"),
+        });
+      await stabilityPool.connect(E).provideToSP(dec(99999, 17), frontEnd_1.address);
 
       // 1 month passes (M4)
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider);
 
       // Defaulter 4 liquidated
-      const txL4 = await troveManager.liquidate(defaulter_4, { from: owner });
-      assert.isFalse(await sortedTroves.contains(defaulter_4));
-      assert.isTrue(txL4.receipt.status);
+      const txL4 = await troveManager.liquidate(defaulter_4.address);
+      const receiptL4 = await txL4.wait();
+      assert.isFalse(await sortedTroves.contains(defaulter_4.address));
+      assert.equal(receiptL4.status, 1);
 
       // Check scale is 2
       assert.equal(await stabilityPool.currentScale(), "2");
@@ -2059,16 +2252,16 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
       /* All depositors withdraw fully from SP.  Withdraw in reverse order, so that the largest remaining
       deposit (F) withdraws first, and does not get extra ProtocolToken gains from the periods between withdrawals */
       for (depositor of [E, D, C, B, A]) {
-        await stabilityPool.withdrawFromSP(dec(10000, 18), { from: depositor });
+        await stabilityPool.connect(depositor).withdrawFromSP(dec(10000, 18));
       }
 
-      const ProtocolTokenGain_A = await protocolToken.balanceOf(A);
-      const ProtocolTokenGain_B = await protocolToken.balanceOf(B);
-      const ProtocolTokenGain_C = await protocolToken.balanceOf(C);
-      const ProtocolTokenGain_D = await protocolToken.balanceOf(D);
-      const ProtocolTokenGain_E = await protocolToken.balanceOf(E);
+      const ProtocolTokenGain_A = await protocolToken.balanceOf(A.address);
+      const ProtocolTokenGain_B = await protocolToken.balanceOf(B.address);
+      const ProtocolTokenGain_C = await protocolToken.balanceOf(C.address);
+      const ProtocolTokenGain_D = await protocolToken.balanceOf(D.address);
+      const ProtocolTokenGain_E = await protocolToken.balanceOf(E.address);
 
-      const ProtocolTokenGain_F1 = await protocolToken.balanceOf(frontEnd_1);
+      const ProtocolTokenGain_F1 = await protocolToken.balanceOf(frontEnd_1.address);
 
       /* Expect each deposit to have earned ProtocolToken issuance for the month in which it was active, prior
      to the liquidation that mostly depleted it:
@@ -2141,4 +2334,4 @@ contract("StabilityPool - ProtocolToken Rewards", async (accounts) => {
   });
 });
 
-contract("Reset chain state", async (accounts) => {});
+contract("Reset chain state", async () => {});

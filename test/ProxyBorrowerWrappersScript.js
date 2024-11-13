@@ -1,8 +1,6 @@
 const deploymentHelper = require("../utils/deploymentHelpers.js");
 const testHelpers = require("../utils/testHelpers.js");
 
-const TroveManagerTester = artifacts.require("TroveManagerTester");
-
 const th = testHelpers.TestHelper;
 
 const dec = th.dec;
@@ -15,45 +13,15 @@ const assertRevert = th.assertRevert;
 
 const GAS_PRICE = 10000000;
 
-const {
-  buildUserProxies,
-  BorrowerOperationsProxy,
-  BorrowerWrappersProxy,
-  TroveManagerProxy,
-  StabilityPoolProxy,
-  SortedTrovesProxy,
-  TokenProxy,
-  ProtocolTokenStakingProxy,
-} = require("../utils/proxyHelpers.js");
-
-contract("BorrowerWrappers", async (accounts) => {
-  const [
-    owner,
-    alice,
-    bob,
-    carol,
-    dennis,
-    whale,
-    A,
-    B,
-    C,
-    D,
-    E,
-    defaulter_1,
-    defaulter_2,
-    // frontEnd_1, frontEnd_2, frontEnd_3
-  ] = accounts;
-
-  const [bountyAddress, lpRewardsAddress, multisig] = accounts.slice(997, 1000);
+contract("BorrowerWrappers", async () => {
+  let owner, alice, bob, carol, dennis, whale, A, B, C, D, E, defaulter_1, defaulter_2;
+  let bountyAddress, lpRewardsAddress, multisig;
 
   let priceFeed;
   let debtToken;
-  let sortedTroves;
   let troveManagerOriginal;
   let troveManager;
-  let activePool;
   let stabilityPool;
-  let defaultPool;
   let collSurplusPool;
   let borrowerOperations;
   let borrowerWrappers;
@@ -63,29 +31,51 @@ contract("BorrowerWrappers", async (accounts) => {
 
   let contracts;
 
-  let GAS_COMPENSATION;
-
-  const getOpenTroveDebtTokenAmount = async (totalDebt) =>
-    th.getOpenTroveDebtTokenAmount(contracts, totalDebt);
-  const getActualDebtFromComposite = async (compositeDebt) =>
-    th.getActualDebtFromComposite(compositeDebt, contracts);
-  const getNetBorrowingAmount = async (debtWithFee) =>
-    th.getNetBorrowingAmount(contracts, debtWithFee);
   const openTrove = async (params) => th.openTrove(contracts, params);
 
+  before(async () => {
+    const signers = await ethers.getSigners();
+
+    [owner, alice, bob, carol, dennis, whale, A, B, C, D, E, defaulter_1, defaulter_2] = signers;
+    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+  });
+
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    contracts.troveManager = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    contracts = await deploymentHelper.deployDebtToken(contracts);
-    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
-      bountyAddress,
-      lpRewardsAddress,
-      multisig,
+    await hre.network.provider.send("hardhat_reset");
+
+    const transactionCount = await owner.getTransactionCount();
+    const cpTesterContracts = await deploymentHelper.computeContractAddresses(
+      owner.address,
+      transactionCount,
+      3,
+    );
+    const cpContracts = await deploymentHelper.computeCoreProtocolContracts(
+      owner.address,
+      transactionCount + 3,
     );
 
-    await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
-    await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
-    await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
+    // Overwrite contracts with computed tester addresses
+    cpContracts.troveManager = cpTesterContracts[2];
+
+    const troveManagerTester = await deploymentHelper.deployTroveManagerTester(
+      th.GAS_COMPENSATION,
+      th.MIN_NET_DEBT,
+      cpContracts,
+    );
+
+    contracts = await deploymentHelper.deployProtocolCore(
+      th.GAS_COMPENSATION,
+      th.MIN_NET_DEBT,
+      cpContracts,
+    );
+    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
+      bountyAddress.address,
+      lpRewardsAddress.address,
+      multisig.address,
+      cpContracts,
+    );
+
+    contracts.troveManager = troveManagerTester;
 
     troveManagerOriginal = contracts.troveManager;
     protocolTokenOriginal = protocolTokenContracts.protocolToken;
@@ -95,69 +85,63 @@ contract("BorrowerWrappers", async (accounts) => {
 
     priceFeed = contracts.priceFeedTestnet;
     debtToken = contracts.debtToken;
-    sortedTroves = contracts.sortedTroves;
     troveManager = contracts.troveManager;
-    activePool = contracts.activePool;
     stabilityPool = contracts.stabilityPool;
-    defaultPool = contracts.defaultPool;
     collSurplusPool = contracts.collSurplusPool;
     borrowerOperations = contracts.borrowerOperations;
     borrowerWrappers = contracts.borrowerWrappers;
     protocolTokenStaking = protocolTokenContracts.protocolTokenStaking;
     protocolToken = protocolTokenContracts.protocolToken;
-
-    GAS_COMPENSATION = await borrowerOperations.GAS_COMPENSATION();
   });
 
   it("proxy owner can recover FIL", async () => {
-    const amount = toBN(dec(1, 18));
-    const proxyAddress = borrowerWrappers.getProxyAddressFromUser(alice);
+    const amount = dec(1, 18);
+    const proxyAddress = await borrowerWrappers.getProxyAddressFromUser(alice.address);
 
     // send some FIL to proxy
     await web3.eth.sendTransaction({
-      from: owner,
+      from: owner.address,
       to: proxyAddress,
       value: amount,
       gasPrice: GAS_PRICE,
     });
-    assert.equal(await web3.eth.getBalance(proxyAddress), amount.toString());
-
-    const balanceBefore = toBN(await web3.eth.getBalance(alice));
+    assert.equal(await web3.eth.getBalance(proxyAddress), amount);
+    const balanceBefore = toBN(await web3.eth.getBalance(alice.address));
 
     // recover FIL
-    const gas_Used = th.gasUsed(
-      await borrowerWrappers.transferFIL(alice, amount, { from: alice, gasPrice: GAS_PRICE }),
+    const gas_Used = await th.gasUsed(
+      await borrowerWrappers
+        .connect(alice)
+        .transferFIL(alice.address, amount, { gasPrice: GAS_PRICE }),
     );
 
-    const balanceAfter = toBN(await web3.eth.getBalance(alice));
+    const balanceAfter = toBN(await web3.eth.getBalance(alice.address));
     const expectedBalance = toBN(balanceBefore.sub(toBN(gas_Used * GAS_PRICE)));
-    assert.equal(balanceAfter.sub(expectedBalance), amount.toString());
+    assert.equal(balanceAfter.sub(expectedBalance), amount);
   });
 
   it("non proxy owner cannot recover FIL", async () => {
-    const amount = toBN(dec(1, 18));
-    const proxyAddress = borrowerWrappers.getProxyAddressFromUser(alice);
+    const amount = dec(1, 18);
+    const proxyAddress = borrowerWrappers.getProxyAddressFromUser(alice.address);
 
     // send some FIL to proxy
-    await web3.eth.sendTransaction({ from: owner, to: proxyAddress, value: amount });
-    assert.equal(await web3.eth.getBalance(proxyAddress), amount.toString());
+    await web3.eth.sendTransaction({ from: owner.address, to: proxyAddress, value: amount });
+    assert.equal(await web3.eth.getBalance(proxyAddress), amount);
 
-    const balanceBefore = toBN(await web3.eth.getBalance(alice));
+    const balanceBefore = toBN(await web3.eth.getBalance(alice.address));
 
     // try to recover FIL
-    const proxy = borrowerWrappers.getProxyFromUser(alice);
+    const proxy = borrowerWrappers.getProxyFromUser(alice.address);
     const signature = "transferFIL(address,uint256)";
-    const calldata = th.getTransactionData(signature, [alice, amount]);
+    const calldata = th.getTransactionData(signature, [alice.address, amount]);
     await assertRevert(
-      proxy.methods["execute(address,bytes)"](borrowerWrappers.scriptAddress, calldata, {
-        from: bob,
-      }),
+      proxy.connect(bob)["execute(address,bytes)"](borrowerWrappers.scriptAddress, calldata),
       "ds-auth-unauthorized",
     );
 
-    assert.equal(await web3.eth.getBalance(proxyAddress), amount.toString());
+    assert.equal(await web3.eth.getBalance(proxyAddress), amount);
 
-    const balanceAfter = toBN(await web3.eth.getBalance(alice));
+    const balanceAfter = toBN(await web3.eth.getBalance(alice.address));
     assert.equal(balanceAfter, balanceBefore.toString());
   });
 
@@ -165,15 +149,15 @@ contract("BorrowerWrappers", async (accounts) => {
 
   it("claimCollateralAndOpenTrove(): reverts if nothing to claim", async () => {
     // Whale opens Trove
-    await openTrove({ ICR: toBN(dec(2, 18)), extraParams: { from: whale } });
+    await openTrove({ ICR: dec(2, 18), extraParams: { from: whale } });
 
     // alice opens Trove
     const { debtTokenAmount, collateral } = await openTrove({
-      ICR: toBN(dec(15, 17)),
+      ICR: dec(15, 17),
       extraParams: { from: alice },
     });
 
-    const proxyAddress = borrowerWrappers.getProxyAddressFromUser(alice);
+    const proxyAddress = borrowerWrappers.getProxyAddressFromUser(alice.address);
     assert.equal(await web3.eth.getBalance(proxyAddress), "0");
 
     // skip bootstrapping phase
@@ -181,16 +165,24 @@ contract("BorrowerWrappers", async (accounts) => {
 
     // alice claims collateral and re-opens the trove
     await assertRevert(
-      borrowerWrappers.claimCollateralAndOpenTrove(th._100pct, debtTokenAmount, alice, alice, {
-        from: alice,
-      }),
+      borrowerWrappers
+        .connect(alice)
+        .claimCollateralAndOpenTrove(
+          th._100pct,
+          debtTokenAmount.toString(),
+          alice.address,
+          alice.address,
+        ),
       "CollSurplusPool: No collateral available to claim",
     );
 
     // check everything remain the same
     assert.equal(await web3.eth.getBalance(proxyAddress), "0");
     th.assertIsApproximatelyEqual(await collSurplusPool.getCollateral(proxyAddress), "0");
-    th.assertIsApproximatelyEqual(await debtToken.balanceOf(proxyAddress), debtTokenAmount);
+    th.assertIsApproximatelyEqual(
+      await debtToken.balanceOf(proxyAddress),
+      debtTokenAmount.toString(),
+    );
     assert.equal(await troveManager.getTroveStatus(proxyAddress), 1);
     th.assertIsApproximatelyEqual(await troveManager.getTroveColl(proxyAddress), collateral);
   });
@@ -203,17 +195,17 @@ contract("BorrowerWrappers", async (accounts) => {
       collateral,
     } = await openTrove({
       extraDebtTokenAmount: 0,
-      ICR: toBN(dec(3, 18)),
+      ICR: dec(3, 18),
       extraParams: { from: alice },
     });
     // Whale opens Trove
     await openTrove({
       extraDebtTokenAmount: redeemAmount,
-      ICR: toBN(dec(5, 18)),
+      ICR: dec(5, 18),
       extraParams: { from: whale },
     });
 
-    const proxyAddress = borrowerWrappers.getProxyAddressFromUser(alice);
+    const proxyAddress = borrowerWrappers.getProxyAddressFromUser(alice.address);
     assert.equal(await web3.eth.getBalance(proxyAddress), "0");
 
     // skip bootstrapping phase
@@ -233,9 +225,14 @@ contract("BorrowerWrappers", async (accounts) => {
     assert.equal(await troveManager.getTroveStatus(proxyAddress), 4); // closed by redemption
 
     // alice claims collateral and re-opens the trove
-    await borrowerWrappers.claimCollateralAndOpenTrove(th._100pct, debtTokenAmount, alice, alice, {
-      from: alice,
-    });
+    await borrowerWrappers
+      .connect(alice)
+      .claimCollateralAndOpenTrove(
+        th._100pct,
+        debtTokenAmount.toString(),
+        alice.address,
+        alice.address,
+      );
 
     assert.equal(await web3.eth.getBalance(proxyAddress), "0");
     th.assertIsApproximatelyEqual(await collSurplusPool.getCollateral(proxyAddress), "0");
@@ -257,11 +254,11 @@ contract("BorrowerWrappers", async (accounts) => {
     // Whale opens Trove
     await openTrove({
       extraDebtTokenAmount: redeemAmount,
-      ICR: toBN(dec(2, 18)),
+      ICR: dec(2, 18),
       extraParams: { from: whale },
     });
 
-    const proxyAddress = borrowerWrappers.getProxyAddressFromUser(alice);
+    const proxyAddress = borrowerWrappers.getProxyAddressFromUser(alice.address);
     assert.equal(await web3.eth.getBalance(proxyAddress), "0");
 
     // skip bootstrapping phase
@@ -281,10 +278,11 @@ contract("BorrowerWrappers", async (accounts) => {
     assert.equal(await troveManager.getTroveStatus(proxyAddress), 4); // closed by redemption
 
     // alice claims collateral and re-opens the trove
-    await borrowerWrappers.claimCollateralAndOpenTrove(th._100pct, debtTokenAmount, alice, alice, {
-      from: alice,
-      value: collateral,
-    });
+    await borrowerWrappers
+      .connect(alice)
+      .claimCollateralAndOpenTrove(th._100pct, debtTokenAmount, alice.address, alice.address, {
+        value: collateral,
+      });
 
     assert.equal(await web3.eth.getBalance(proxyAddress), "0");
     th.assertIsApproximatelyEqual(await collSurplusPool.getCollateral(proxyAddress), "0");
@@ -304,36 +302,34 @@ contract("BorrowerWrappers", async (accounts) => {
   it("claimSPRewardsAndRecycle(): only owner can call it", async () => {
     // Whale opens Trove
     await openTrove({
-      extraDebtTokenAmount: toBN(dec(1850, 18)),
-      ICR: toBN(dec(2, 18)),
+      extraDebtTokenAmount: dec(1850, 18),
+      ICR: dec(2, 18),
       extraParams: { from: whale },
     });
     // Whale deposits 1850 DebtToken in StabilityPool
-    await stabilityPool.provideToSP(dec(1850, 18), ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(dec(1850, 18), ZERO_ADDRESS);
 
     // alice opens trove and provides 150 DebtToken to StabilityPool
-    await openTrove({ extraDebtTokenAmount: toBN(dec(150, 18)), extraParams: { from: alice } });
-    await stabilityPool.provideToSP(dec(150, 18), ZERO_ADDRESS, { from: alice });
+    await openTrove({ extraDebtTokenAmount: dec(150, 18), extraParams: { from: alice } });
+    await stabilityPool.connect(alice).provideToSP(dec(150, 18), ZERO_ADDRESS);
 
     // Defaulter Trove opened
-    await openTrove({ ICR: toBN(dec(210, 16)), extraParams: { from: defaulter_1 } });
+    await openTrove({ ICR: dec(210, 16), extraParams: { from: defaulter_1 } });
 
     // price drops: defaulters' Troves fall below MCR, alice and whale Trove remain active
     const price = toBN(dec(100, 18));
     await priceFeed.setPrice(price);
 
     // Defaulter trove closed
-    const liquidationTX_1 = await troveManager.liquidate(defaulter_1, { from: owner });
+    const liquidationTX_1 = await troveManager.connect(owner).liquidate(defaulter_1.address);
     const [liquidatedDebt_1] = await th.getEmittedLiquidationValues(liquidationTX_1);
 
     // Bob tries to claims SP rewards in behalf of Alice
-    const proxy = borrowerWrappers.getProxyFromUser(alice);
+    const proxy = borrowerWrappers.getProxyFromUser(alice.address);
     const signature = "claimSPRewardsAndRecycle(uint256,address,address)";
-    const calldata = th.getTransactionData(signature, [th._100pct, alice, alice]);
+    const calldata = th.getTransactionData(signature, [th._100pct, alice.address, alice.address]);
     await assertRevert(
-      proxy.methods["execute(address,bytes)"](borrowerWrappers.scriptAddress, calldata, {
-        from: bob,
-      }),
+      proxy.connect(bob)["execute(address,bytes)"](borrowerWrappers.scriptAddress, calldata),
       "ds-auth-unauthorized",
     );
   });
@@ -343,24 +339,24 @@ contract("BorrowerWrappers", async (accounts) => {
     const whaleDeposit = toBN(dec(2350, 18));
     await openTrove({
       extraDebtTokenAmount: whaleDeposit,
-      ICR: toBN(dec(4, 18)),
+      ICR: dec(4, 18),
       extraParams: { from: whale },
     });
     // Whale deposits 1850 DebtToken in StabilityPool
-    await stabilityPool.provideToSP(whaleDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(whaleDeposit, ZERO_ADDRESS);
 
     // alice opens trove and provides 150 DebtToken to StabilityPool
-    const aliceDeposit = toBN(dec(150, 18));
+    const aliceDeposit = dec(150, 18);
     await openTrove({
       extraDebtTokenAmount: aliceDeposit,
-      ICR: toBN(dec(3, 18)),
+      ICR: dec(3, 18),
       extraParams: { from: alice },
     });
-    await stabilityPool.provideToSP(aliceDeposit, ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(aliceDeposit, ZERO_ADDRESS);
 
     // Defaulter Trove opened
     const { debtTokenAmount, netDebt, collateral } = await openTrove({
-      ICR: toBN(dec(210, 16)),
+      ICR: dec(210, 16),
       extraParams: { from: defaulter_1 },
     });
 
@@ -369,7 +365,7 @@ contract("BorrowerWrappers", async (accounts) => {
     await priceFeed.setPrice(price);
 
     // Defaulter trove closed
-    const liquidationTX_1 = await troveManager.liquidate(defaulter_1, { from: owner });
+    const liquidationTX_1 = await troveManager.connect(owner).liquidate(defaulter_1.address);
     const [liquidatedDebt_1] = await th.getEmittedLiquidationValues(liquidationTX_1);
 
     // Alice DebtTokenLoss is ((150/2500) * liquidatedDebt)
@@ -377,7 +373,9 @@ contract("BorrowerWrappers", async (accounts) => {
     const expectedDebtTokenLoss_A = liquidatedDebt_1.mul(aliceDeposit).div(totalDeposits);
 
     const expectedCompoundedDebtTokenDeposit_A = toBN(dec(150, 18)).sub(expectedDebtTokenLoss_A);
-    const compoundedDebtTokenDeposit_A = await stabilityPool.getCompoundedDebtTokenDeposit(alice);
+    const compoundedDebtTokenDeposit_A = await stabilityPool.getCompoundedDebtTokenDeposit(
+      alice.address,
+    );
     // collateral * 150 / 2500 * 0.995
     const expectedFILGain_A = collateral
       .mul(aliceDeposit)
@@ -391,15 +389,15 @@ contract("BorrowerWrappers", async (accounts) => {
     );
 
     const ethBalanceBefore = await web3.eth.getBalance(
-      borrowerOperations.getProxyAddressFromUser(alice),
+      borrowerOperations.getProxyAddressFromUser(alice.address),
     );
-    const troveCollBefore = await troveManager.getTroveColl(alice);
-    const debtTokenBalanceBefore = await debtToken.balanceOf(alice);
-    const troveDebtBefore = await troveManager.getTroveDebt(alice);
-    const protocolTokenBalanceBefore = await protocolToken.balanceOf(alice);
-    const ICRBefore = await troveManager.getCurrentICR(alice, price);
-    const depositBefore = (await stabilityPool.deposits(alice))[0];
-    const stakeBefore = await protocolTokenStaking.stakes(alice);
+    const troveCollBefore = await troveManager.getTroveColl(alice.address);
+    const debtTokenBalanceBefore = await debtToken.balanceOf(alice.address);
+    const troveDebtBefore = await troveManager.getTroveDebt(alice.address);
+    const protocolTokenBalanceBefore = await protocolToken.balanceOf(alice.address);
+    const ICRBefore = await troveManager.getCurrentICR(alice.address, price);
+    const depositBefore = (await stabilityPool.deposits(alice.address))[0];
+    const stakeBefore = await protocolTokenStaking.stakes(alice.address);
 
     const proportionalDebtToken = expectedFILGain_A.mul(price).div(ICRBefore);
     const borrowingRate = await troveManagerOriginal.getBorrowingRateWithDecay();
@@ -413,19 +411,21 @@ contract("BorrowerWrappers", async (accounts) => {
     await priceFeed.setPrice(price.mul(toBN(2)));
 
     // Alice claims SP rewards and puts them back in the system through the proxy
-    const proxyAddress = borrowerWrappers.getProxyAddressFromUser(alice);
-    await borrowerWrappers.claimSPRewardsAndRecycle(th._100pct, alice, alice, { from: alice });
+    const proxyAddress = borrowerWrappers.getProxyAddressFromUser(alice.address);
+    await borrowerWrappers
+      .connect(alice)
+      .claimSPRewardsAndRecycle(th._100pct, alice.address, alice.address);
 
     const ethBalanceAfter = await web3.eth.getBalance(
-      borrowerOperations.getProxyAddressFromUser(alice),
+      borrowerOperations.getProxyAddressFromUser(alice.address),
     );
-    const troveCollAfter = await troveManager.getTroveColl(alice);
-    const debtTokenBalanceAfter = await debtToken.balanceOf(alice);
-    const troveDebtAfter = await troveManager.getTroveDebt(alice);
-    const protocolTokenBalanceAfter = await protocolToken.balanceOf(alice);
-    const ICRAfter = await troveManager.getCurrentICR(alice, price);
-    const depositAfter = (await stabilityPool.deposits(alice))[0];
-    const stakeAfter = await protocolTokenStaking.stakes(alice);
+    const troveCollAfter = await troveManager.getTroveColl(alice.address);
+    const debtTokenBalanceAfter = await debtToken.balanceOf(alice.address);
+    const troveDebtAfter = await troveManager.getTroveDebt(alice.address);
+    const protocolTokenBalanceAfter = await protocolToken.balanceOf(alice.address);
+    const ICRAfter = await troveManager.getCurrentICR(alice.address, price);
+    const depositAfter = (await stabilityPool.deposits(alice.address))[0];
+    const stakeAfter = await protocolTokenStaking.stakes(alice.address);
 
     // check proxy balances remain the same
     assert.equal(ethBalanceAfter.toString(), ethBalanceBefore.toString());
@@ -449,7 +449,7 @@ contract("BorrowerWrappers", async (accounts) => {
     th.assertIsApproximatelyEqual(stakeAfter, stakeBefore.add(expectedProtocolTokenGain_A));
 
     // Expect Alice has withdrawn all FIL gain
-    const alice_pendingFILGain = await stabilityPool.getDepositorFILGain(alice);
+    const alice_pendingFILGain = await stabilityPool.getDepositorFILGain(alice.address);
     assert.equal(alice_pendingFILGain, 0);
   });
 
@@ -458,31 +458,31 @@ contract("BorrowerWrappers", async (accounts) => {
   it("claimStakingGainsAndRecycle(): only owner can call it", async () => {
     // Whale opens Trove
     await openTrove({
-      extraDebtTokenAmount: toBN(dec(1850, 18)),
-      ICR: toBN(dec(2, 18)),
+      extraDebtTokenAmount: dec(1850, 18),
+      ICR: dec(2, 18),
       extraParams: { from: whale },
     });
 
     // alice opens trove
-    await openTrove({ extraDebtTokenAmount: toBN(dec(150, 18)), extraParams: { from: alice } });
+    await openTrove({ extraDebtTokenAmount: dec(150, 18), extraParams: { from: alice } });
 
     // mint some ProtocolToken
     await protocolTokenOriginal.unprotectedMint(
-      borrowerOperations.getProxyAddressFromUser(whale),
+      borrowerOperations.getProxyAddressFromUser(whale.address),
       dec(1850, 18),
     );
     await protocolTokenOriginal.unprotectedMint(
-      borrowerOperations.getProxyAddressFromUser(alice),
+      borrowerOperations.getProxyAddressFromUser(alice.address),
       dec(150, 18),
     );
 
     // stake ProtocolToken
-    await protocolTokenStaking.stake(dec(1850, 18), { from: whale });
-    await protocolTokenStaking.stake(dec(150, 18), { from: alice });
+    await protocolTokenStaking.connect(whale).stake(dec(1850, 18));
+    await protocolTokenStaking.connect(alice).stake(dec(150, 18));
 
     // Defaulter Trove opened
     const { debtTokenAmount, netDebt, totalDebt, collateral } = await openTrove({
-      ICR: toBN(dec(210, 16)),
+      ICR: dec(210, 16),
       extraParams: { from: defaulter_1 },
     });
 
@@ -494,13 +494,11 @@ contract("BorrowerWrappers", async (accounts) => {
     await th.redeemCollateral(whale, contracts, redeemedAmount, GAS_PRICE);
 
     // Bob tries to claims staking gains in behalf of Alice
-    const proxy = borrowerWrappers.getProxyFromUser(alice);
+    const proxy = borrowerWrappers.getProxyFromUser(alice.address);
     const signature = "claimStakingGainsAndRecycle(uint256,address,address)";
-    const calldata = th.getTransactionData(signature, [th._100pct, alice, alice]);
+    const calldata = th.getTransactionData(signature, [th._100pct, alice.address, alice.address]);
     await assertRevert(
-      proxy.methods["execute(address,bytes)"](borrowerWrappers.scriptAddress, calldata, {
-        from: bob,
-      }),
+      proxy.connect(bob)["execute(address,bytes)"](borrowerWrappers.scriptAddress, calldata),
       "ds-auth-unauthorized",
     );
   });
@@ -510,34 +508,34 @@ contract("BorrowerWrappers", async (accounts) => {
 
     // Whale opens Trove
     await openTrove({
-      extraDebtTokenAmount: toBN(dec(1850, 18)),
-      ICR: toBN(dec(2, 18)),
+      extraDebtTokenAmount: dec(1850, 18),
+      ICR: dec(2, 18),
       extraParams: { from: whale },
     });
     // Whale deposits 1850 DebtToken in StabilityPool
-    await stabilityPool.provideToSP(dec(1850, 18), ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(dec(1850, 18), ZERO_ADDRESS);
 
     // alice opens trove and provides 150 DebtToken to StabilityPool
     //await openTrove({ extraDebtTokenAmount: toBN(dec(150, 18)), extraParams: { from: alice } })
-    //await stabilityPool.provideToSP(dec(150, 18), ZERO_ADDRESS, { from: alice })
+    //await stabilityPool.connect(alice).provideToSP(dec(150, 18), ZERO_ADDRESS)
 
     // mint some ProtocolToken
     await protocolTokenOriginal.unprotectedMint(
-      borrowerOperations.getProxyAddressFromUser(whale),
+      borrowerOperations.getProxyAddressFromUser(whale.address),
       dec(1850, 18),
     );
     await protocolTokenOriginal.unprotectedMint(
-      borrowerOperations.getProxyAddressFromUser(alice),
+      borrowerOperations.getProxyAddressFromUser(alice.address),
       dec(150, 18),
     );
 
     // stake ProtocolToken
-    await protocolTokenStaking.stake(dec(1850, 18), { from: whale });
-    await protocolTokenStaking.stake(dec(150, 18), { from: alice });
+    await protocolTokenStaking.connect(whale).stake(dec(1850, 18));
+    await protocolTokenStaking.connect(alice).stake(dec(150, 18));
 
     // Defaulter Trove opened
     const { debtTokenAmount, netDebt, totalDebt, collateral } = await openTrove({
-      ICR: toBN(dec(210, 16)),
+      ICR: dec(210, 16),
       extraParams: { from: defaulter_1 },
     });
     const borrowingFee = netDebt.sub(debtTokenAmount);
@@ -553,32 +551,34 @@ contract("BorrowerWrappers", async (accounts) => {
     await th.redeemCollateral(whale, contracts, redeemedAmount, GAS_PRICE);
 
     const ethBalanceBefore = await web3.eth.getBalance(
-      borrowerOperations.getProxyAddressFromUser(alice),
+      borrowerOperations.getProxyAddressFromUser(alice.address),
     );
-    const troveCollBefore = await troveManager.getTroveColl(alice);
-    const debtTokenBalanceBefore = await debtToken.balanceOf(alice);
-    const troveDebtBefore = await troveManager.getTroveDebt(alice);
-    const protocolTokenBalanceBefore = await protocolToken.balanceOf(alice);
-    const ICRBefore = await troveManager.getCurrentICR(alice, price);
-    const depositBefore = (await stabilityPool.deposits(alice))[0];
-    const stakeBefore = await protocolTokenStaking.stakes(alice);
+    const troveCollBefore = await troveManager.getTroveColl(alice.address);
+    const debtTokenBalanceBefore = await debtToken.balanceOf(alice.address);
+    const troveDebtBefore = await troveManager.getTroveDebt(alice.address);
+    const protocolTokenBalanceBefore = await protocolToken.balanceOf(alice.address);
+    const ICRBefore = await troveManager.getCurrentICR(alice.address, price);
+    const depositBefore = (await stabilityPool.deposits(alice.address))[0];
+    const stakeBefore = await protocolTokenStaking.stakes(alice.address);
 
     // Alice claims staking rewards and puts them back in the system through the proxy
     await assertRevert(
-      borrowerWrappers.claimStakingGainsAndRecycle(th._100pct, alice, alice, { from: alice }),
+      borrowerWrappers
+        .connect(alice)
+        .claimStakingGainsAndRecycle(th._100pct, alice.address, alice.address),
       "BorrowerWrappersScript: caller must have an active trove",
     );
 
     const ethBalanceAfter = await web3.eth.getBalance(
-      borrowerOperations.getProxyAddressFromUser(alice),
+      borrowerOperations.getProxyAddressFromUser(alice.address),
     );
-    const troveCollAfter = await troveManager.getTroveColl(alice);
-    const debtTokenBalanceAfter = await debtToken.balanceOf(alice);
-    const troveDebtAfter = await troveManager.getTroveDebt(alice);
-    const protocolTokenBalanceAfter = await protocolToken.balanceOf(alice);
-    const ICRAfter = await troveManager.getCurrentICR(alice, price);
-    const depositAfter = (await stabilityPool.deposits(alice))[0];
-    const stakeAfter = await protocolTokenStaking.stakes(alice);
+    const troveCollAfter = await troveManager.getTroveColl(alice.address);
+    const debtTokenBalanceAfter = await debtToken.balanceOf(alice.address);
+    const troveDebtAfter = await troveManager.getTroveDebt(alice.address);
+    const protocolTokenBalanceAfter = await protocolToken.balanceOf(alice.address);
+    const ICRAfter = await troveManager.getCurrentICR(alice.address, price);
+    const depositAfter = (await stabilityPool.deposits(alice.address))[0];
+    const stakeAfter = await protocolTokenStaking.stakes(alice.address);
 
     // check everything remains the same
     assert.equal(ethBalanceAfter.toString(), ethBalanceBefore.toString());
@@ -593,44 +593,44 @@ contract("BorrowerWrappers", async (accounts) => {
     th.assertIsApproximatelyEqual(stakeAfter, stakeBefore);
 
     // Expect Alice has withdrawn all FIL gain
-    const alice_pendingFILGain = await stabilityPool.getDepositorFILGain(alice);
+    const alice_pendingFILGain = await stabilityPool.getDepositorFILGain(alice.address);
     assert.equal(alice_pendingFILGain, 0);
   });
 
   it("claimStakingGainsAndRecycle(): with only FIL gain", async () => {
-    const price = toBN(dec(200, 18));
+    const price = dec(200, 18);
 
     // Whale opens Trove
     await openTrove({
-      extraDebtTokenAmount: toBN(dec(1850, 18)),
-      ICR: toBN(dec(2, 18)),
+      extraDebtTokenAmount: dec(1850, 18),
+      ICR: dec(2, 18),
       extraParams: { from: whale },
     });
 
     // Defaulter Trove opened
     const { debtTokenAmount, netDebt, collateral } = await openTrove({
-      ICR: toBN(dec(210, 16)),
+      ICR: dec(210, 16),
       extraParams: { from: defaulter_1 },
     });
     const borrowingFee = netDebt.sub(debtTokenAmount);
 
     // alice opens trove and provides 150 DebtToken to StabilityPool
-    await openTrove({ extraDebtTokenAmount: toBN(dec(150, 18)), extraParams: { from: alice } });
-    await stabilityPool.provideToSP(dec(150, 18), ZERO_ADDRESS, { from: alice });
+    await openTrove({ extraDebtTokenAmount: dec(150, 18), extraParams: { from: alice } });
+    await stabilityPool.connect(alice).provideToSP(dec(150, 18), ZERO_ADDRESS);
 
     // mint some ProtocolToken
     await protocolTokenOriginal.unprotectedMint(
-      borrowerOperations.getProxyAddressFromUser(whale),
+      borrowerOperations.getProxyAddressFromUser(whale.address),
       dec(1850, 18),
     );
     await protocolTokenOriginal.unprotectedMint(
-      borrowerOperations.getProxyAddressFromUser(alice),
+      borrowerOperations.getProxyAddressFromUser(alice.address),
       dec(150, 18),
     );
 
     // stake ProtocolToken
-    await protocolTokenStaking.stake(dec(1850, 18), { from: whale });
-    await protocolTokenStaking.stake(dec(150, 18), { from: alice });
+    await protocolTokenStaking.connect(whale).stake(dec(1850, 18));
+    await protocolTokenStaking.connect(alice).stake(dec(150, 18));
 
     // skip bootstrapping phase
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_WEEK * 2, web3.currentProvider);
@@ -648,15 +648,15 @@ contract("BorrowerWrappers", async (accounts) => {
       .div(price);
 
     const ethBalanceBefore = await web3.eth.getBalance(
-      borrowerOperations.getProxyAddressFromUser(alice),
+      borrowerOperations.getProxyAddressFromUser(alice.address),
     );
-    const troveCollBefore = await troveManager.getTroveColl(alice);
-    const debtTokenBalanceBefore = await debtToken.balanceOf(alice);
-    const troveDebtBefore = await troveManager.getTroveDebt(alice);
-    const protocolTokenBalanceBefore = await protocolToken.balanceOf(alice);
-    const ICRBefore = await troveManager.getCurrentICR(alice, price);
-    const depositBefore = (await stabilityPool.deposits(alice))[0];
-    const stakeBefore = await protocolTokenStaking.stakes(alice);
+    const troveCollBefore = await troveManager.getTroveColl(alice.address);
+    const debtTokenBalanceBefore = await debtToken.balanceOf(alice.address);
+    const troveDebtBefore = await troveManager.getTroveDebt(alice.address);
+    const protocolTokenBalanceBefore = await protocolToken.balanceOf(alice.address);
+    const ICRBefore = await troveManager.getCurrentICR(alice.address, price);
+    const depositBefore = (await stabilityPool.deposits(alice.address))[0];
+    const stakeBefore = await protocolTokenStaking.stakes(alice.address);
 
     const proportionalDebtToken = expectedFILGain_A.mul(price).div(ICRBefore);
     const borrowingRate = await troveManagerOriginal.getBorrowingRateWithDecay();
@@ -666,9 +666,11 @@ contract("BorrowerWrappers", async (accounts) => {
 
     const expectedProtocolTokenGain_A = toBN("839557069990108416000000");
 
-    const proxyAddress = borrowerWrappers.getProxyAddressFromUser(alice);
+    const proxyAddress = borrowerWrappers.getProxyAddressFromUser(alice.address);
     // Alice claims staking rewards and puts them back in the system through the proxy
-    await borrowerWrappers.claimStakingGainsAndRecycle(th._100pct, alice, alice, { from: alice });
+    await borrowerWrappers
+      .connect(alice)
+      .claimStakingGainsAndRecycle(th._100pct, alice.address, alice.address);
 
     // Alice new DebtToken gain due to her own Trove adjustment: ((150/2000) * (borrowing fee over netDebtChange))
     const newBorrowingFee = await troveManagerOriginal.getBorrowingFeeWithDecay(netDebtChange);
@@ -677,15 +679,15 @@ contract("BorrowerWrappers", async (accounts) => {
       .div(toBN(dec(2000, 18)));
 
     const ethBalanceAfter = await web3.eth.getBalance(
-      borrowerOperations.getProxyAddressFromUser(alice),
+      borrowerOperations.getProxyAddressFromUser(alice.address),
     );
-    const troveCollAfter = await troveManager.getTroveColl(alice);
-    const debtTokenBalanceAfter = await debtToken.balanceOf(alice);
-    const troveDebtAfter = await troveManager.getTroveDebt(alice);
-    const protocolTokenBalanceAfter = await protocolToken.balanceOf(alice);
-    const ICRAfter = await troveManager.getCurrentICR(alice, price);
-    const depositAfter = (await stabilityPool.deposits(alice))[0];
-    const stakeAfter = await protocolTokenStaking.stakes(alice);
+    const troveCollAfter = await troveManager.getTroveColl(alice.address);
+    const debtTokenBalanceAfter = await debtToken.balanceOf(alice.address);
+    const troveDebtAfter = await troveManager.getTroveDebt(alice.address);
+    const protocolTokenBalanceAfter = await protocolToken.balanceOf(alice.address);
+    const ICRAfter = await troveManager.getCurrentICR(alice.address, price);
+    const depositAfter = (await stabilityPool.deposits(alice.address))[0];
+    const stakeAfter = await protocolTokenStaking.stakes(alice.address);
 
     // check proxy balances remain the same
     assert.equal(ethBalanceAfter.toString(), ethBalanceBefore.toString());
@@ -714,41 +716,41 @@ contract("BorrowerWrappers", async (accounts) => {
     th.assertIsApproximatelyEqual(stakeAfter, stakeBefore.add(expectedProtocolTokenGain_A));
 
     // Expect Alice has withdrawn all FIL gain
-    const alice_pendingFILGain = await stabilityPool.getDepositorFILGain(alice);
+    const alice_pendingFILGain = await stabilityPool.getDepositorFILGain(alice.address);
     assert.equal(alice_pendingFILGain, 0);
   });
 
   it("claimStakingGainsAndRecycle(): with only DebtToken gain", async () => {
-    const price = toBN(dec(200, 18));
+    const price = dec(200, 18);
 
     // Whale opens Trove
     await openTrove({
-      extraDebtTokenAmount: toBN(dec(1850, 18)),
-      ICR: toBN(dec(2, 18)),
+      extraDebtTokenAmount: dec(1850, 18),
+      ICR: dec(2, 18),
       extraParams: { from: whale },
     });
 
     // alice opens trove and provides 150 DebtToken to StabilityPool
-    await openTrove({ extraDebtTokenAmount: toBN(dec(150, 18)), extraParams: { from: alice } });
-    await stabilityPool.provideToSP(dec(150, 18), ZERO_ADDRESS, { from: alice });
+    await openTrove({ extraDebtTokenAmount: dec(150, 18), extraParams: { from: alice } });
+    await stabilityPool.connect(alice).provideToSP(dec(150, 18), ZERO_ADDRESS);
 
     // mint some ProtocolToken
     await protocolTokenOriginal.unprotectedMint(
-      borrowerOperations.getProxyAddressFromUser(whale),
+      borrowerOperations.getProxyAddressFromUser(whale.address),
       dec(1850, 18),
     );
     await protocolTokenOriginal.unprotectedMint(
-      borrowerOperations.getProxyAddressFromUser(alice),
+      borrowerOperations.getProxyAddressFromUser(alice.address),
       dec(150, 18),
     );
 
     // stake ProtocolToken
-    await protocolTokenStaking.stake(dec(1850, 18), { from: whale });
-    await protocolTokenStaking.stake(dec(150, 18), { from: alice });
+    await protocolTokenStaking.connect(whale).stake(dec(1850, 18));
+    await protocolTokenStaking.connect(alice).stake(dec(150, 18));
 
     // Defaulter Trove opened
     const { debtTokenAmount, netDebt, collateral } = await openTrove({
-      ICR: toBN(dec(210, 16)),
+      ICR: dec(210, 16),
       extraParams: { from: defaulter_1 },
     });
     const borrowingFee = netDebt.sub(debtTokenAmount);
@@ -757,31 +759,33 @@ contract("BorrowerWrappers", async (accounts) => {
     const expectedDebtTokenGain_A = borrowingFee.mul(toBN(dec(150, 18))).div(toBN(dec(2000, 18)));
 
     const ethBalanceBefore = await web3.eth.getBalance(
-      borrowerOperations.getProxyAddressFromUser(alice),
+      borrowerOperations.getProxyAddressFromUser(alice.address),
     );
-    const troveCollBefore = await troveManager.getTroveColl(alice);
-    const debtTokenBalanceBefore = await debtToken.balanceOf(alice);
-    const troveDebtBefore = await troveManager.getTroveDebt(alice);
-    const protocolTokenBalanceBefore = await protocolToken.balanceOf(alice);
-    const ICRBefore = await troveManager.getCurrentICR(alice, price);
-    const depositBefore = (await stabilityPool.deposits(alice))[0];
-    const stakeBefore = await protocolTokenStaking.stakes(alice);
+    const troveCollBefore = await troveManager.getTroveColl(alice.address);
+    const debtTokenBalanceBefore = await debtToken.balanceOf(alice.address);
+    const troveDebtBefore = await troveManager.getTroveDebt(alice.address);
+    const protocolTokenBalanceBefore = await protocolToken.balanceOf(alice.address);
+    const ICRBefore = await troveManager.getCurrentICR(alice.address, price);
+    const depositBefore = (await stabilityPool.deposits(alice.address))[0];
+    const stakeBefore = await protocolTokenStaking.stakes(alice.address);
 
     const borrowingRate = await troveManagerOriginal.getBorrowingRateWithDecay();
 
     // Alice claims staking rewards and puts them back in the system through the proxy
-    await borrowerWrappers.claimStakingGainsAndRecycle(th._100pct, alice, alice, { from: alice });
+    await borrowerWrappers
+      .connect(alice)
+      .claimStakingGainsAndRecycle(th._100pct, alice.address, alice.address);
 
     const ethBalanceAfter = await web3.eth.getBalance(
-      borrowerOperations.getProxyAddressFromUser(alice),
+      borrowerOperations.getProxyAddressFromUser(alice.address),
     );
-    const troveCollAfter = await troveManager.getTroveColl(alice);
-    const debtTokenBalanceAfter = await debtToken.balanceOf(alice);
-    const troveDebtAfter = await troveManager.getTroveDebt(alice);
-    const protocolTokenBalanceAfter = await protocolToken.balanceOf(alice);
-    const ICRAfter = await troveManager.getCurrentICR(alice, price);
-    const depositAfter = (await stabilityPool.deposits(alice))[0];
-    const stakeAfter = await protocolTokenStaking.stakes(alice);
+    const troveCollAfter = await troveManager.getTroveColl(alice.address);
+    const debtTokenBalanceAfter = await debtToken.balanceOf(alice.address);
+    const troveDebtAfter = await troveManager.getTroveDebt(alice.address);
+    const protocolTokenBalanceAfter = await protocolToken.balanceOf(alice.address);
+    const ICRAfter = await troveManager.getCurrentICR(alice.address, price);
+    const depositAfter = (await stabilityPool.deposits(alice.address))[0];
+    const stakeAfter = await protocolTokenStaking.stakes(alice.address);
 
     // check proxy balances remain the same
     assert.equal(ethBalanceAfter.toString(), ethBalanceBefore.toString());
@@ -800,41 +804,41 @@ contract("BorrowerWrappers", async (accounts) => {
     th.assertIsApproximatelyEqual(protocolTokenBalanceBefore, protocolTokenBalanceAfter);
 
     // Expect Alice has withdrawn all FIL gain
-    const alice_pendingFILGain = await stabilityPool.getDepositorFILGain(alice);
+    const alice_pendingFILGain = await stabilityPool.getDepositorFILGain(alice.address);
     assert.equal(alice_pendingFILGain, 0);
   });
 
   it("claimStakingGainsAndRecycle(): with both FIL and DebtToken gains", async () => {
-    const price = toBN(dec(200, 18));
+    const price = dec(200, 18);
 
     // Whale opens Trove
     await openTrove({
-      extraDebtTokenAmount: toBN(dec(1850, 18)),
-      ICR: toBN(dec(2, 18)),
+      extraDebtTokenAmount: dec(1850, 18),
+      ICR: dec(2, 18),
       extraParams: { from: whale },
     });
 
     // alice opens trove and provides 150 DebtToken to StabilityPool
-    await openTrove({ extraDebtTokenAmount: toBN(dec(150, 18)), extraParams: { from: alice } });
-    await stabilityPool.provideToSP(dec(150, 18), ZERO_ADDRESS, { from: alice });
+    await openTrove({ extraDebtTokenAmount: dec(150, 18), extraParams: { from: alice } });
+    await stabilityPool.connect(alice).provideToSP(dec(150, 18), ZERO_ADDRESS);
 
     // mint some ProtocolToken
     await protocolTokenOriginal.unprotectedMint(
-      borrowerOperations.getProxyAddressFromUser(whale),
+      borrowerOperations.getProxyAddressFromUser(whale.address),
       dec(1850, 18),
     );
     await protocolTokenOriginal.unprotectedMint(
-      borrowerOperations.getProxyAddressFromUser(alice),
+      borrowerOperations.getProxyAddressFromUser(alice.address),
       dec(150, 18),
     );
 
     // stake ProtocolToken
-    await protocolTokenStaking.stake(dec(1850, 18), { from: whale });
-    await protocolTokenStaking.stake(dec(150, 18), { from: alice });
+    await protocolTokenStaking.connect(whale).stake(dec(1850, 18));
+    await protocolTokenStaking.connect(alice).stake(dec(150, 18));
 
     // Defaulter Trove opened
     const { debtTokenAmount, netDebt, collateral } = await openTrove({
-      ICR: toBN(dec(210, 16)),
+      ICR: dec(210, 16),
       extraParams: { from: defaulter_1 },
     });
     const borrowingFee = netDebt.sub(debtTokenAmount);
@@ -858,15 +862,15 @@ contract("BorrowerWrappers", async (accounts) => {
       .div(price);
 
     const ethBalanceBefore = await web3.eth.getBalance(
-      borrowerOperations.getProxyAddressFromUser(alice),
+      borrowerOperations.getProxyAddressFromUser(alice.address),
     );
-    const troveCollBefore = await troveManager.getTroveColl(alice);
-    const debtTokenBalanceBefore = await debtToken.balanceOf(alice);
-    const troveDebtBefore = await troveManager.getTroveDebt(alice);
-    const protocolTokenBalanceBefore = await protocolToken.balanceOf(alice);
-    const ICRBefore = await troveManager.getCurrentICR(alice, price);
-    const depositBefore = (await stabilityPool.deposits(alice))[0];
-    const stakeBefore = await protocolTokenStaking.stakes(alice);
+    const troveCollBefore = await troveManager.getTroveColl(alice.address);
+    const debtTokenBalanceBefore = await debtToken.balanceOf(alice.address);
+    const troveDebtBefore = await troveManager.getTroveDebt(alice.address);
+    const protocolTokenBalanceBefore = await protocolToken.balanceOf(alice.address);
+    const ICRBefore = await troveManager.getCurrentICR(alice.address, price);
+    const depositBefore = (await stabilityPool.deposits(alice.address))[0];
+    const stakeBefore = await protocolTokenStaking.stakes(alice.address);
 
     const proportionalDebtToken = expectedFILGain_A.mul(price).div(ICRBefore);
     const borrowingRate = await troveManagerOriginal.getBorrowingRateWithDecay();
@@ -878,7 +882,9 @@ contract("BorrowerWrappers", async (accounts) => {
     const expectedProtocolTokenGain_A = toBN("839557069990108416000000");
 
     // Alice claims staking rewards and puts them back in the system through the proxy
-    await borrowerWrappers.claimStakingGainsAndRecycle(th._100pct, alice, alice, { from: alice });
+    await borrowerWrappers
+      .connect(alice)
+      .claimStakingGainsAndRecycle(th._100pct, alice.address, alice.address);
 
     // Alice new DebtToken gain due to her own Trove adjustment: ((150/2000) * (borrowing fee over netDebtChange))
     const newBorrowingFee = await troveManagerOriginal.getBorrowingFeeWithDecay(netDebtChange);
@@ -887,15 +893,15 @@ contract("BorrowerWrappers", async (accounts) => {
       .div(toBN(dec(2000, 18)));
 
     const ethBalanceAfter = await web3.eth.getBalance(
-      borrowerOperations.getProxyAddressFromUser(alice),
+      borrowerOperations.getProxyAddressFromUser(alice.address),
     );
-    const troveCollAfter = await troveManager.getTroveColl(alice);
-    const debtTokenBalanceAfter = await debtToken.balanceOf(alice);
-    const troveDebtAfter = await troveManager.getTroveDebt(alice);
-    const protocolTokenBalanceAfter = await protocolToken.balanceOf(alice);
-    const ICRAfter = await troveManager.getCurrentICR(alice, price);
-    const depositAfter = (await stabilityPool.deposits(alice))[0];
-    const stakeAfter = await protocolTokenStaking.stakes(alice);
+    const troveCollAfter = await troveManager.getTroveColl(alice.address);
+    const debtTokenBalanceAfter = await debtToken.balanceOf(alice.address);
+    const troveDebtAfter = await troveManager.getTroveDebt(alice.address);
+    const protocolTokenBalanceAfter = await protocolToken.balanceOf(alice.address);
+    const ICRAfter = await troveManager.getCurrentICR(alice.address, price);
+    const depositAfter = (await stabilityPool.deposits(alice.address))[0];
+    const stakeAfter = await protocolTokenStaking.stakes(alice.address);
 
     // check proxy balances remain the same
     assert.equal(ethBalanceAfter.toString(), ethBalanceBefore.toString());
@@ -924,7 +930,7 @@ contract("BorrowerWrappers", async (accounts) => {
     th.assertIsApproximatelyEqual(stakeAfter, stakeBefore.add(expectedProtocolTokenGain_A));
 
     // Expect Alice has withdrawn all FIL gain
-    const alice_pendingFILGain = await stabilityPool.getDepositorFILGain(alice);
+    const alice_pendingFILGain = await stabilityPool.getDepositorFILGain(alice.address);
     assert.equal(alice_pendingFILGain, 0);
   });
 });

@@ -74,11 +74,11 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
 
     // Cache the domain separator as an immutable value, but also store the chain id that it corresponds to, in order to
     // invalidate the cached domain separator if the chain id changes.
-    bytes32 private immutable _CACHED_DOMAIN_SEPARATOR;
-    uint256 private immutable _CACHED_CHAIN_ID;
+    bytes32 private _CACHED_DOMAIN_SEPARATOR;
+    uint256 private _CACHED_CHAIN_ID;
 
-    bytes32 private immutable _HASHED_NAME;
-    bytes32 private immutable _HASHED_VERSION;
+    bytes32 private _HASHED_NAME;
+    bytes32 private _HASHED_VERSION;
 
     mapping(address => uint256) private _nonces;
 
@@ -103,14 +103,6 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
 
     constructor() {
         deploymentStartTime = block.timestamp;
-
-        bytes32 hashedName = keccak256(bytes(_NAME));
-        bytes32 hashedVersion = keccak256(bytes(_VERSION));
-
-        _HASHED_NAME = hashedName;
-        _HASHED_VERSION = hashedVersion;
-        _CACHED_CHAIN_ID = _chainID();
-        _CACHED_DOMAIN_SEPARATOR = _buildDomainSeparator(_TYPE_HASH, hashedName, hashedVersion);
     }
 
     function initialize(
@@ -149,6 +141,14 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
         communityIssuanceAddress = _communityIssuanceAddress;
         protocolTokenStakingAddress = _protocolTokenStakingAddress;
         lockupContractFactory = ILockupContractFactory(_lockupFactoryAddress);
+
+        bytes32 hashedName = keccak256(bytes(_NAME));
+        bytes32 hashedVersion = keccak256(bytes(_VERSION));
+
+        _HASHED_NAME = hashedName;
+        _HASHED_VERSION = hashedVersion;
+        _CACHED_CHAIN_ID = _chainID();
+        _CACHED_DOMAIN_SEPARATOR = _buildDomainSeparator(_TYPE_HASH, hashedName, hashedVersion);
 
         // --- Initial ProtocolToken allocations ---
 

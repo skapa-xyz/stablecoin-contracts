@@ -2,37 +2,9 @@ const deploymentHelper = require("../utils/deploymentHelpers.js");
 const { TestHelper: th, MoneyValues: mv } = require("../utils/testHelpers.js");
 const { toBN, dec, ZERO_ADDRESS } = th;
 
-const TroveManagerTester = artifacts.require("./TroveManagerTester");
-const DebtToken = artifacts.require("./DebtToken.sol");
-
-contract("TroveManager - in Recovery Mode - back to normal mode in 1 tx", async (accounts) => {
-  const [bountyAddress, lpRewardsAddress, multisig] = accounts.slice(997, 1000);
-  const [
-    owner,
-    alice,
-    bob,
-    carol,
-    dennis,
-    erin,
-    freddy,
-    greta,
-    harry,
-    ida,
-    whale,
-    defaulter_1,
-    defaulter_2,
-    defaulter_3,
-    defaulter_4,
-    A,
-    B,
-    C,
-    D,
-    E,
-    F,
-    G,
-    H,
-    I,
-  ] = accounts;
+contract("TroveManager - in Recovery Mode - back to normal mode in 1 tx", async () => {
+  let owner, alice, bob, carol, whale;
+  let bountyAddress, lpRewardsAddress, multisig;
 
   let contracts;
   let troveManager;
@@ -42,24 +14,58 @@ contract("TroveManager - in Recovery Mode - back to normal mode in 1 tx", async 
 
   const openTrove = async (params) => th.openTrove(contracts, params);
 
+  before(async () => {
+    const signers = await ethers.getSigners();
+
+    [owner, alice, bob, carol, whale] = signers;
+    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+  });
+
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    contracts.troveManager = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    contracts.debtToken = await DebtToken.new();
-    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress,
-      lpRewardsAddress,
-      multisig,
+    await hre.network.provider.send("hardhat_reset");
+
+    const transactionCount = await owner.getTransactionCount();
+    const cpTesterContracts = await deploymentHelper.computeContractAddresses(
+      owner.address,
+      transactionCount,
+      5,
+    );
+    const cpContracts = await deploymentHelper.computeCoreProtocolContracts(
+      owner.address,
+      transactionCount + 5,
+    );
+
+    // Overwrite contracts with computed tester addresses
+    cpContracts.troveManager = cpTesterContracts[2];
+    cpContracts.debtToken = cpTesterContracts[4];
+
+    const troveManagerTester = await deploymentHelper.deployTroveManagerTester(
+      th.GAS_COMPENSATION,
+      th.MIN_NET_DEBT,
+      cpContracts,
+    );
+    const debtTokenTester = await deploymentHelper.deployDebtTokenTester(cpContracts);
+
+    contracts = await deploymentHelper.deployProtocolCore(
+      th.GAS_COMPENSATION,
+      th.MIN_NET_DEBT,
+      cpContracts,
+    );
+
+    contracts.troveManager = troveManagerTester;
+    contracts.debtToken = debtTokenTester;
+
+    await deploymentHelper.deployProtocolTokenContracts(
+      bountyAddress.address,
+      lpRewardsAddress.address,
+      multisig.address,
+      cpContracts,
     );
 
     troveManager = contracts.troveManager;
     stabilityPool = contracts.stabilityPool;
     priceFeed = contracts.priceFeedTestnet;
     sortedTroves = contracts.sortedTroves;
-
-    await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
-    await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
-    await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
   });
 
   context("Batch liquidations", () => {
@@ -84,7 +90,7 @@ contract("TroveManager - in Recovery Mode - back to normal mode in 1 tx", async 
         extraDebtTokenAmount: totalLiquidatedDebt,
         extraParams: { from: whale },
       });
-      await stabilityPool.provideToSP(totalLiquidatedDebt, ZERO_ADDRESS, { from: whale });
+      await stabilityPool.connect(whale).provideToSP(totalLiquidatedDebt, ZERO_ADDRESS);
 
       // Price drops
       await priceFeed.setPrice(dec(100, 18));
@@ -95,9 +101,9 @@ contract("TroveManager - in Recovery Mode - back to normal mode in 1 tx", async 
       assert.isTrue(await th.checkRecoveryMode(contracts));
 
       // Check troves A, B are in range 110% < ICR < TCR, C is below 100%
-      const ICR_A = await troveManager.getCurrentICR(alice, price);
-      const ICR_B = await troveManager.getCurrentICR(bob, price);
-      const ICR_C = await troveManager.getCurrentICR(carol, price);
+      const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+      const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+      const ICR_C = await troveManager.getCurrentICR(carol.address, price);
 
       assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
       assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
@@ -117,7 +123,7 @@ contract("TroveManager - in Recovery Mode - back to normal mode in 1 tx", async 
 
     it("First trove only doesn’t get out of Recovery Mode", async () => {
       await setup();
-      const tx = await troveManager.batchLiquidateTroves([alice]);
+      const tx = await troveManager.batchLiquidateTroves([alice.address]);
 
       const TCR = await th.getTCR(contracts);
       assert.isTrue(await th.checkRecoveryMode(contracts));
@@ -125,20 +131,24 @@ contract("TroveManager - in Recovery Mode - back to normal mode in 1 tx", async 
 
     it("Two troves over MCR are liquidated", async () => {
       await setup();
-      const tx = await troveManager.batchLiquidateTroves([alice, bob, carol]);
+      const tx = await troveManager.batchLiquidateTroves([
+        alice.address,
+        bob.address,
+        carol.address,
+      ]);
 
-      const liquidationEvents = th.getAllEventsByName(tx, "TroveLiquidated");
+      const liquidationEvents = await th.getAllEventsByName(tx, "TroveLiquidated");
       assert.equal(liquidationEvents.length, 3, "Not enough liquidations");
 
       // Confirm all troves removed
-      assert.isFalse(await sortedTroves.contains(alice));
-      assert.isFalse(await sortedTroves.contains(bob));
-      assert.isFalse(await sortedTroves.contains(carol));
+      assert.isFalse(await sortedTroves.contains(alice.address));
+      assert.isFalse(await sortedTroves.contains(bob.address));
+      assert.isFalse(await sortedTroves.contains(carol.address));
 
       // Confirm troves have status 'closed by liquidation' (Status enum element idx 3)
-      assert.equal((await troveManager.Troves(alice))[3], "3");
-      assert.equal((await troveManager.Troves(bob))[3], "3");
-      assert.equal((await troveManager.Troves(carol))[3], "3");
+      assert.equal((await troveManager.Troves(alice.address))[3], "3");
+      assert.equal((await troveManager.Troves(bob.address))[3], "3");
+      assert.equal((await troveManager.Troves(carol.address))[3], "3");
     });
 
     it("Stability Pool profit matches", async () => {
@@ -148,15 +158,15 @@ contract("TroveManager - in Recovery Mode - back to normal mode in 1 tx", async 
       const spEthBefore = await stabilityPool.getFIL();
       const spDebtTokenBefore = await stabilityPool.getTotalDebtTokenDeposits();
 
-      const tx = await troveManager.batchLiquidateTroves([alice, carol]);
+      const tx = await troveManager.batchLiquidateTroves([alice.address, carol.address]);
 
       // Confirm all troves removed
-      assert.isFalse(await sortedTroves.contains(alice));
-      assert.isFalse(await sortedTroves.contains(carol));
+      assert.isFalse(await sortedTroves.contains(alice.address));
+      assert.isFalse(await sortedTroves.contains(carol.address));
 
       // Confirm troves have status 'closed by liquidation' (Status enum element idx 3)
-      assert.equal((await troveManager.Troves(alice))[3], "3");
-      assert.equal((await troveManager.Troves(carol))[3], "3");
+      assert.equal((await troveManager.Troves(alice.address))[3], "3");
+      assert.equal((await troveManager.Troves(carol.address))[3], "3");
 
       const spEthAfter = await stabilityPool.getFIL();
       const spDebtTokenAfter = await stabilityPool.getTotalDebtTokenDeposits();
@@ -215,7 +225,7 @@ contract("TroveManager - in Recovery Mode - back to normal mode in 1 tx", async 
         extraDebtTokenAmount: totalLiquidatedDebt,
         extraParams: { from: whale },
       });
-      await stabilityPool.provideToSP(totalLiquidatedDebt, ZERO_ADDRESS, { from: whale });
+      await stabilityPool.connect(whale).provideToSP(totalLiquidatedDebt, ZERO_ADDRESS);
 
       // Price drops
       await priceFeed.setPrice(dec(100, 18));
@@ -226,29 +236,29 @@ contract("TroveManager - in Recovery Mode - back to normal mode in 1 tx", async 
       assert.isTrue(await th.checkRecoveryMode(contracts));
 
       // Check troves A, B are in range 110% < ICR < TCR, C is below 100%
-      const ICR_A = await troveManager.getCurrentICR(alice, price);
-      const ICR_B = await troveManager.getCurrentICR(bob, price);
-      const ICR_C = await troveManager.getCurrentICR(carol, price);
+      const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+      const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+      const ICR_C = await troveManager.getCurrentICR(carol.address, price);
 
       assert.isTrue(ICR_A.gt(TCR));
       assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
       assert.isTrue(ICR_C.lt(mv._ICR100));
 
-      const tx = await troveManager.batchLiquidateTroves([bob, alice]);
+      const tx = await troveManager.batchLiquidateTroves([bob.address, alice.address]);
 
-      const liquidationEvents = th.getAllEventsByName(tx, "TroveLiquidated");
+      const liquidationEvents = await th.getAllEventsByName(tx, "TroveLiquidated");
       assert.equal(liquidationEvents.length, 1, "Not enough liquidations");
 
       // Confirm only Bob’s trove removed
-      assert.isTrue(await sortedTroves.contains(alice));
-      assert.isFalse(await sortedTroves.contains(bob));
-      assert.isTrue(await sortedTroves.contains(carol));
+      assert.isTrue(await sortedTroves.contains(alice.address));
+      assert.isFalse(await sortedTroves.contains(bob.address));
+      assert.isTrue(await sortedTroves.contains(carol.address));
 
       // Confirm troves have status 'closed by liquidation' (Status enum element idx 3)
-      assert.equal((await troveManager.Troves(bob))[3], "3");
+      assert.equal((await troveManager.Troves(bob.address))[3], "3");
       // Confirm troves have status 'open' (Status enum element idx 1)
-      assert.equal((await troveManager.Troves(alice))[3], "1");
-      assert.equal((await troveManager.Troves(carol))[3], "1");
+      assert.equal((await troveManager.Troves(alice.address))[3], "1");
+      assert.equal((await troveManager.Troves(carol.address))[3], "1");
     });
   });
 
@@ -270,7 +280,7 @@ contract("TroveManager - in Recovery Mode - back to normal mode in 1 tx", async 
         extraDebtTokenAmount: totalLiquidatedDebt,
         extraParams: { from: whale },
       });
-      await stabilityPool.provideToSP(totalLiquidatedDebt, ZERO_ADDRESS, { from: whale });
+      await stabilityPool.connect(whale).provideToSP(totalLiquidatedDebt, ZERO_ADDRESS);
 
       // Price drops
       await priceFeed.setPrice(dec(100, 18));
@@ -281,8 +291,8 @@ contract("TroveManager - in Recovery Mode - back to normal mode in 1 tx", async 
       assert.isTrue(await th.checkRecoveryMode(contracts));
 
       // Check troves A, B are in range 110% < ICR < TCR, C is below 100%
-      const ICR_A = await troveManager.getCurrentICR(alice, price);
-      const ICR_B = await troveManager.getCurrentICR(bob, price);
+      const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+      const ICR_B = await troveManager.getCurrentICR(bob.address, price);
 
       assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
       assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
@@ -309,16 +319,16 @@ contract("TroveManager - in Recovery Mode - back to normal mode in 1 tx", async 
       await setup();
       const tx = await troveManager.liquidateTroves(10);
 
-      const liquidationEvents = th.getAllEventsByName(tx, "TroveLiquidated");
+      const liquidationEvents = await th.getAllEventsByName(tx, "TroveLiquidated");
       assert.equal(liquidationEvents.length, 2, "Not enough liquidations");
 
       // Confirm all troves removed
-      assert.isFalse(await sortedTroves.contains(alice));
-      assert.isFalse(await sortedTroves.contains(bob));
+      assert.isFalse(await sortedTroves.contains(alice.address));
+      assert.isFalse(await sortedTroves.contains(bob.address));
 
       // Confirm troves have status 'closed by liquidation' (Status enum element idx 3)
-      assert.equal((await troveManager.Troves(alice))[3], "3");
-      assert.equal((await troveManager.Troves(bob))[3], "3");
+      assert.equal((await troveManager.Troves(alice.address))[3], "3");
+      assert.equal((await troveManager.Troves(bob.address))[3], "3");
     });
   });
 });

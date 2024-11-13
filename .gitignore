@@ -9,6 +9,9 @@ node_modules
 # Truffle contract JSONs
 /build/contracts
 
+# OpenZeppelin
+.openzeppelin
+
 /bin
 
 # Buidler compilation cache

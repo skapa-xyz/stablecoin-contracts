@@ -13,27 +13,17 @@ const { ecsign } = require("ethereumjs-util");
 const th = testHelpers.TestHelper;
 const toBN = th.toBN;
 const dec = th.dec;
-const getDifference = th.getDifference;
-const timeValues = testHelpers.TimeValues;
 
 const ZERO_ADDRESS = th.ZERO_ADDRESS;
 const assertRevert = th.assertRevert;
 
-contract("ProtocolToken", async (accounts) => {
-  const [owner, A, B, C, D] = accounts;
-
-  const [bountyAddress, lpRewardsAddress, multisig] = accounts.slice(997, 1000);
-
-  // Create the approval tx data, for use in permit()
-  const approve = {
-    owner: A,
-    spender: B,
-    value: 1,
-  };
+contract("ProtocolToken", async () => {
+  let owner, A, B, C, D;
+  let bountyAddress, lpRewardsAddress, multisig;
+  let approve;
 
   const A_PrivateKey = "0xeaa445c85f7b438dEd6e831d06a4eD0CEBDc2f8527f84Fcda6EBB5fCfAd4C0e9";
 
-  let contracts;
   let protocolTokenTester;
   let protocolTokenStaking;
   let communityIssuance;
@@ -106,13 +96,13 @@ contract("ProtocolToken", async (accounts) => {
 
   const mintToABC = async () => {
     // mint some tokens
-    await protocolTokenTester.unprotectedMint(A, dec(150, 18));
-    await protocolTokenTester.unprotectedMint(B, dec(100, 18));
-    await protocolTokenTester.unprotectedMint(C, dec(50, 18));
+    await protocolTokenTester.unprotectedMint(A.address, dec(150, 18));
+    await protocolTokenTester.unprotectedMint(B.address, dec(100, 18));
+    await protocolTokenTester.unprotectedMint(C.address, dec(50, 18));
   };
 
   const buildPermitTx = async (deadline) => {
-    const nonce = (await protocolTokenTester.nonces(approve.owner)).toString();
+    const nonce = (await protocolTokenTester.nonces(approve.owner.address)).toString();
 
     // Get the EIP712 digest
     const digest = getPermitDigest(
@@ -120,8 +110,8 @@ contract("ProtocolToken", async (accounts) => {
       protocolTokenTester.address,
       chainId,
       tokenVersion,
-      approve.owner,
-      approve.spender,
+      approve.owner.address,
+      approve.spender.address,
       approve.value,
       nonce,
       deadline,
@@ -130,8 +120,8 @@ contract("ProtocolToken", async (accounts) => {
     const { v, r, s } = sign(digest, A_PrivateKey);
 
     const tx = protocolTokenTester.permit(
-      approve.owner,
-      approve.spender,
+      approve.owner.address,
+      approve.spender.address,
       approve.value,
       deadline,
       v,
@@ -142,12 +132,39 @@ contract("ProtocolToken", async (accounts) => {
     return { v, r, s, tx };
   };
 
+  before(async () => {
+    const signers = await ethers.getSigners();
+
+    [owner, A, B, C, D] = signers;
+    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+
+    // Create the approval tx data, for use in permit()
+    approve = {
+      owner: A,
+      spender: B,
+      value: 1,
+    };
+  });
+
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+    await hre.network.provider.send("hardhat_reset");
+
+    const transactionCount = await owner.getTransactionCount();
+    const cpContracts = await deploymentHelper.computeCoreProtocolContracts(
+      owner.address,
+      transactionCount + 1,
+    );
+
+    const contracts = await deploymentHelper.deployProtocolCore(
+      th.GAS_COMPENSATION,
+      th.MIN_NET_DEBT,
+      cpContracts,
+    );
     const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
-      bountyAddress,
-      lpRewardsAddress,
-      multisig,
+      bountyAddress.address,
+      lpRewardsAddress.address,
+      multisig.address,
+      cpContracts,
     );
 
     protocolTokenStaking = protocolTokenContracts.protocolTokenStaking;
@@ -157,18 +174,14 @@ contract("ProtocolToken", async (accounts) => {
     tokenName = await protocolTokenTester.name();
     tokenVersion = await protocolTokenTester.version();
     chainId = await protocolTokenTester.getChainId();
-
-    await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
-    await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
-    await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
   });
 
   it("balanceOf(): gets the balance of the account", async () => {
     await mintToABC();
 
-    const A_Balance = await protocolTokenTester.balanceOf(A);
-    const B_Balance = await protocolTokenTester.balanceOf(B);
-    const C_Balance = await protocolTokenTester.balanceOf(C);
+    const A_Balance = await protocolTokenTester.balanceOf(A.address);
+    const B_Balance = await protocolTokenTester.balanceOf(B.address);
+    const C_Balance = await protocolTokenTester.balanceOf(C.address);
 
     assert.equal(A_Balance, dec(150, 18));
     assert.equal(B_Balance, dec(100, 18));
@@ -204,10 +217,10 @@ contract("ProtocolToken", async (accounts) => {
   it("allowance(): returns an account's spending allowance for another account's balance", async () => {
     await mintToABC();
 
-    await protocolTokenTester.approve(A, dec(100, 18), { from: B });
+    await protocolTokenTester.connect(B).approve(A.address, dec(100, 18));
 
-    const allowance_A = await protocolTokenTester.allowance(B, A);
-    const allowance_D = await protocolTokenTester.allowance(B, D);
+    const allowance_A = await protocolTokenTester.allowance(B.address, A.address);
+    const allowance_D = await protocolTokenTester.allowance(B.address, D.address);
 
     assert.equal(allowance_A, dec(100, 18));
     assert.equal(allowance_D, "0");
@@ -216,119 +229,111 @@ contract("ProtocolToken", async (accounts) => {
   it("approve(): approves an account to spend the specified ammount", async () => {
     await mintToABC();
 
-    const allowance_A_before = await protocolTokenTester.allowance(B, A);
+    const allowance_A_before = await protocolTokenTester.allowance(B.address, A.address);
     assert.equal(allowance_A_before, "0");
 
-    await protocolTokenTester.approve(A, dec(100, 18), { from: B });
+    await protocolTokenTester.connect(B).approve(A.address, dec(100, 18));
 
-    const allowance_A_after = await protocolTokenTester.allowance(B, A);
+    const allowance_A_after = await protocolTokenTester.allowance(B.address, A.address);
     assert.equal(allowance_A_after, dec(100, 18));
   });
 
   it("approve(): reverts when spender param is address(0)", async () => {
     await mintToABC();
 
-    const txPromise = protocolTokenTester.approve(ZERO_ADDRESS, dec(100, 18), { from: B });
+    const txPromise = protocolTokenTester.connect(B).approve(ZERO_ADDRESS, dec(100, 18));
     await assertRevert(txPromise);
   });
 
   it("approve(): reverts when owner param is address(0)", async () => {
     await mintToABC();
 
-    const txPromise = protocolTokenTester.callInternalApprove(ZERO_ADDRESS, A, dec(100, 18), {
-      from: B,
-    });
+    const txPromise = protocolTokenTester
+      .connect(B)
+      .callInternalApprove(ZERO_ADDRESS, A.address, dec(100, 18));
     await assertRevert(txPromise);
   });
 
   it("transferFrom(): successfully transfers from an account which it is approved to transfer from", async () => {
     await mintToABC();
 
-    const allowance_A_0 = await protocolTokenTester.allowance(B, A);
+    const allowance_A_0 = await protocolTokenTester.allowance(B.address, A.address);
     assert.equal(allowance_A_0, "0");
 
-    await protocolTokenTester.approve(A, dec(50, 18), { from: B });
+    await protocolTokenTester.connect(B).approve(A.address, dec(50, 18));
 
     // Check A's allowance of B's funds has increased
-    const allowance_A_1 = await protocolTokenTester.allowance(B, A);
+    const allowance_A_1 = await protocolTokenTester.allowance(B.address, A.address);
     assert.equal(allowance_A_1, dec(50, 18));
 
-    assert.equal(await protocolTokenTester.balanceOf(C), dec(50, 18));
+    assert.equal(await protocolTokenTester.balanceOf(C.address), dec(50, 18));
 
     // A transfers from B to C, using up her allowance
-    await protocolTokenTester.transferFrom(B, C, dec(50, 18), { from: A });
-    assert.equal(await protocolTokenTester.balanceOf(C), dec(100, 18));
+    await protocolTokenTester.connect(A).transferFrom(B.address, C.address, dec(50, 18));
+    assert.equal(await protocolTokenTester.balanceOf(C.address), dec(100, 18));
 
     // Check A's allowance of B's funds has decreased
-    const allowance_A_2 = await protocolTokenTester.allowance(B, A);
+    const allowance_A_2 = await protocolTokenTester.allowance(B.address, A.address);
     assert.equal(allowance_A_2, "0");
 
     // Check B's balance has decreased
-    assert.equal(await protocolTokenTester.balanceOf(B), dec(50, 18));
+    assert.equal(await protocolTokenTester.balanceOf(B.address), dec(50, 18));
 
     // A tries to transfer more tokens from B's account to C than she's allowed
-    const txPromise = protocolTokenTester.transferFrom(B, C, dec(50, 18), { from: A });
+    const txPromise = protocolTokenTester
+      .connect(A)
+      .transferFrom(B.address, C.address, dec(50, 18));
     await assertRevert(txPromise);
   });
 
   it("transfer(): increases the recipient's balance by the correct amount", async () => {
     await mintToABC();
 
-    assert.equal(await protocolTokenTester.balanceOf(A), dec(150, 18));
+    assert.equal(await protocolTokenTester.balanceOf(A.address), dec(150, 18));
 
-    await protocolTokenTester.transfer(A, dec(37, 18), { from: B });
+    await protocolTokenTester.connect(B).transfer(A.address, dec(37, 18));
 
-    assert.equal(await protocolTokenTester.balanceOf(A), dec(187, 18));
+    assert.equal(await protocolTokenTester.balanceOf(A.address), dec(187, 18));
   });
 
   it("transfer(): reverts when amount exceeds sender's balance", async () => {
     await mintToABC();
 
-    assert.equal(await protocolTokenTester.balanceOf(B), dec(100, 18));
+    assert.equal(await protocolTokenTester.balanceOf(B.address), dec(100, 18));
 
-    const txPromise = protocolTokenTester.transfer(A, dec(101, 18), { from: B });
+    const txPromise = protocolTokenTester.connect(B).transfer(A.address, dec(101, 18));
     await assertRevert(txPromise);
   });
 
   it("transfer(): transfer to a blacklisted address reverts", async () => {
     await mintToABC();
 
-    await assertRevert(protocolTokenTester.transfer(protocolTokenTester.address, 1, { from: A }));
-    await assertRevert(protocolTokenTester.transfer(ZERO_ADDRESS, 1, { from: A }));
-    await assertRevert(protocolTokenTester.transfer(communityIssuance.address, 1, { from: A }));
-    await assertRevert(protocolTokenTester.transfer(protocolTokenStaking.address, 1, { from: A }));
+    await assertRevert(protocolTokenTester.connect(A).transfer(protocolTokenTester.address, 1));
+    await assertRevert(protocolTokenTester.connect(A).transfer(ZERO_ADDRESS, 1));
+    await assertRevert(protocolTokenTester.connect(A).transfer(communityIssuance.address, 1));
+    await assertRevert(protocolTokenTester.connect(A).transfer(protocolTokenStaking.address, 1));
   });
 
   it("transfer(): transfer to or from the zero-address reverts", async () => {
     await mintToABC();
 
-    const txPromiseFromZero = protocolTokenTester.callInternalTransfer(
-      ZERO_ADDRESS,
-      A,
-      dec(100, 18),
-      {
-        from: B,
-      },
-    );
-    const txPromiseToZero = protocolTokenTester.callInternalTransfer(
-      A,
-      ZERO_ADDRESS,
-      dec(100, 18),
-      {
-        from: B,
-      },
-    );
+    const txPromiseFromZero = protocolTokenTester
+      .connect(B)
+      .callInternalTransfer(ZERO_ADDRESS, A.address, dec(100, 18));
+    const txPromiseToZero = protocolTokenTester
+      .connect(B)
+      .callInternalTransfer(A.address, ZERO_ADDRESS, dec(100, 18));
     await assertRevert(txPromiseFromZero);
     await assertRevert(txPromiseToZero);
   });
 
   it("mint(): issues correct amount of tokens to the given address", async () => {
-    const A_balanceBefore = await protocolTokenTester.balanceOf(A);
+    const A_balanceBefore = await protocolTokenTester.balanceOf(A.address);
     assert.equal(A_balanceBefore, "0");
 
-    await protocolTokenTester.unprotectedMint(A, dec(100, 18));
+    await protocolTokenTester.unprotectedMint(A.address, dec(100, 18));
 
-    const A_BalanceAfter = await protocolTokenTester.balanceOf(A);
+    const A_BalanceAfter = await protocolTokenTester.balanceOf(A.address);
     assert.equal(A_BalanceAfter, dec(100, 18));
   });
 
@@ -339,20 +344,20 @@ contract("ProtocolToken", async (accounts) => {
 
   it("sendToProtocolTokenStaking(): changes balances of ProtocolTokenStaking and calling account by the correct amounts", async () => {
     // mint some tokens to A
-    await protocolTokenTester.unprotectedMint(A, dec(150, 18));
+    await protocolTokenTester.unprotectedMint(A.address, dec(150, 18));
 
     // Check caller and ProtocolTokenStaking balance before
-    const A_BalanceBefore = await protocolTokenTester.balanceOf(A);
+    const A_BalanceBefore = await protocolTokenTester.balanceOf(A.address);
     assert.equal(A_BalanceBefore, dec(150, 18));
     const protocolTokenStakingBalanceBefore = await protocolTokenTester.balanceOf(
       protocolTokenStaking.address,
     );
     assert.equal(protocolTokenStakingBalanceBefore, "0");
 
-    await protocolTokenTester.unprotectedSendToProtocolTokenStaking(A, dec(37, 18));
+    await protocolTokenTester.unprotectedSendToProtocolTokenStaking(A.address, dec(37, 18));
 
     // Check caller and ProtocolTokenStaking balance before
-    const A_BalanceAfter = await protocolTokenTester.balanceOf(A);
+    const A_BalanceAfter = await protocolTokenTester.balanceOf(A.address);
     assert.equal(A_BalanceAfter, dec(113, 18));
     const protocolTokenStakingBalanceAfter = await protocolTokenTester.balanceOf(
       protocolTokenStaking.address,
@@ -374,7 +379,7 @@ contract("ProtocolToken", async (accounts) => {
   });
 
   it("Initial nonce for a given address is 0", async function () {
-    assert.equal(toBN(await protocolTokenTester.nonces(A)).toString(), "0");
+    assert.equal(toBN(await protocolTokenTester.nonces(A.address)).toString(), "0");
   });
 
   it("permit(): permits and emits an Approval event (replay protected)", async () => {
@@ -382,20 +387,28 @@ contract("ProtocolToken", async (accounts) => {
 
     // Approve it
     const { v, r, s, tx } = await buildPermitTx(deadline);
-    const receipt = await tx;
-    const event = receipt.logs[0];
+    const receipt = await (await tx).wait();
+    const event = receipt.events[0];
 
     // Check that approval was successful
     assert.equal(event.event, "Approval");
-    assert.equal(await protocolTokenTester.nonces(approve.owner), 1);
+    assert.equal(await protocolTokenTester.nonces(approve.owner.address), 1);
     assert.equal(
-      await protocolTokenTester.allowance(approve.owner, approve.spender),
+      await protocolTokenTester.allowance(approve.owner.address, approve.spender.address),
       approve.value,
     );
 
     // Check that we can not use re-use the same signature, since the user's nonce has been incremented (replay protection)
     await assertRevert(
-      protocolTokenTester.permit(approve.owner, approve.spender, approve.value, deadline, v, r, s),
+      protocolTokenTester.permit(
+        approve.owner.address,
+        approve.spender.address,
+        approve.value,
+        deadline,
+        v,
+        r,
+        s,
+      ),
       "ProtocolToken: invalid signature",
     );
 
@@ -403,7 +416,7 @@ contract("ProtocolToken", async (accounts) => {
     await assertRevert(
       protocolTokenTester.permit(
         "0x0000000000000000000000000000000000000000",
-        approve.spender,
+        approve.spender.address,
         approve.value,
         deadline,
         "0x99",
@@ -427,8 +440,8 @@ contract("ProtocolToken", async (accounts) => {
     const { v, r, s } = await buildPermitTx(deadline);
 
     const tx = protocolTokenTester.permit(
-      C,
-      approve.spender,
+      C.address,
+      approve.spender.address,
       approve.value, // Carol is passed as spender param, rather than Bob
       deadline,
       v,

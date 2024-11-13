@@ -8,28 +8,15 @@ const assertRevert = th.assertRevert;
 const mv = testHelpers.MoneyValues;
 const timeValues = testHelpers.TimeValues;
 
-const TroveManagerTester = artifacts.require("./TroveManagerTester");
-const DebtToken = artifacts.require("./DebtToken.sol");
-
 const GAS_PRICE = 10000000;
 
-contract("TroveManager - in Recovery Mode", async (accounts) => {
+contract("TroveManager - in Recovery Mode", async () => {
   const _1_Ether = web3.utils.toWei("1", "ether");
   const _2_Ether = web3.utils.toWei("2", "ether");
   const _3_Ether = web3.utils.toWei("3", "ether");
-  const _3pt5_Ether = web3.utils.toWei("3.5", "ether");
-  const _6_Ether = web3.utils.toWei("6", "ether");
-  const _10_Ether = web3.utils.toWei("10", "ether");
-  const _20_Ether = web3.utils.toWei("20", "ether");
-  const _21_Ether = web3.utils.toWei("21", "ether");
-  const _22_Ether = web3.utils.toWei("22", "ether");
-  const _24_Ether = web3.utils.toWei("24", "ether");
-  const _25_Ether = web3.utils.toWei("25", "ether");
-  const _30_Ether = web3.utils.toWei("30", "ether");
 
   const ZERO_ADDRESS = th.ZERO_ADDRESS;
-  const [
-    owner,
+  let owner,
     alice,
     bob,
     carol,
@@ -38,7 +25,6 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     freddy,
     greta,
     harry,
-    ida,
     whale,
     defaulter_1,
     defaulter_2,
@@ -52,54 +38,100 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     F,
     G,
     H,
-    I,
-  ] = accounts;
-
-  const [bountyAddress, lpRewardsAddress, multisig] = accounts.slice(997, 1000);
+    I;
+  let bountyAddress, lpRewardsAddress, multisig;
 
   let priceFeed;
   let debtToken;
   let sortedTroves;
   let troveManager;
-  let activePool;
   let stabilityPool;
-  let defaultPool;
-  let functionCaller;
   let borrowerOperations;
   let collSurplusPool;
 
   let contracts;
 
-  const getOpenTroveDebtTokenAmount = async (totalDebt) =>
-    th.getOpenTroveDebtTokenAmount(contracts, totalDebt);
-  const getNetBorrowingAmount = async (debtWithFee) =>
-    th.getNetBorrowingAmount(contracts, debtWithFee);
   const openTrove = async (params) => th.openTrove(contracts, params);
 
+  before(async () => {
+    const signers = await ethers.getSigners();
+
+    [
+      owner,
+      alice,
+      bob,
+      carol,
+      dennis,
+      erin,
+      freddy,
+      greta,
+      harry,
+      whale,
+      defaulter_1,
+      defaulter_2,
+      defaulter_3,
+      defaulter_4,
+      A,
+      B,
+      C,
+      D,
+      E,
+      F,
+      G,
+      H,
+      I,
+    ] = signers;
+    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+  });
+
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    contracts.troveManager = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    contracts.debtToken = await DebtToken.new();
-    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress,
-      lpRewardsAddress,
-      multisig,
+    await hre.network.provider.send("hardhat_reset");
+
+    const transactionCount = await owner.getTransactionCount();
+    const cpTesterContracts = await deploymentHelper.computeContractAddresses(
+      owner.address,
+      transactionCount,
+      5,
+    );
+    const cpContracts = await deploymentHelper.computeCoreProtocolContracts(
+      owner.address,
+      transactionCount + 5,
+    );
+
+    // Overwrite contracts with computed tester addresses
+    cpContracts.troveManager = cpTesterContracts[2];
+    cpContracts.debtToken = cpTesterContracts[4];
+
+    const troveManagerTester = await deploymentHelper.deployTroveManagerTester(
+      th.GAS_COMPENSATION,
+      th.MIN_NET_DEBT,
+      cpContracts,
+    );
+    const debtTokenTester = await deploymentHelper.deployDebtTokenTester(cpContracts);
+
+    contracts = await deploymentHelper.deployProtocolCore(
+      th.GAS_COMPENSATION,
+      th.MIN_NET_DEBT,
+      cpContracts,
+    );
+
+    contracts.troveManager = troveManagerTester;
+    contracts.debtToken = debtTokenTester;
+
+    await deploymentHelper.deployProtocolTokenContracts(
+      bountyAddress.address,
+      lpRewardsAddress.address,
+      multisig.address,
+      cpContracts,
     );
 
     priceFeed = contracts.priceFeedTestnet;
     debtToken = contracts.debtToken;
     sortedTroves = contracts.sortedTroves;
     troveManager = contracts.troveManager;
-    activePool = contracts.activePool;
     stabilityPool = contracts.stabilityPool;
-    defaultPool = contracts.defaultPool;
-    functionCaller = contracts.functionCaller;
     borrowerOperations = contracts.borrowerOperations;
     collSurplusPool = contracts.collSurplusPool;
-
-    await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
-    await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
-    await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
   });
 
   it("checkRecoveryMode(): Returns true if TCR falls below CCR", async () => {
@@ -142,7 +174,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     const recoveryMode_Before = await th.checkRecoveryMode(contracts);
     assert.isTrue(recoveryMode_Before);
 
-    await borrowerOperations.addColl(alice, alice, { from: alice, value: "1" });
+    await borrowerOperations.connect(alice).addColl(alice.address, alice.address, { value: "1" });
 
     const recoveryMode_After = await th.checkRecoveryMode(contracts);
     assert.isTrue(recoveryMode_After);
@@ -157,7 +189,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     const recoveryMode_Before = await th.checkRecoveryMode(contracts);
     assert.isFalse(recoveryMode_Before);
 
-    await borrowerOperations.withdrawColl(_1_Ether, alice, alice, { from: alice });
+    await borrowerOperations.connect(alice).withdrawColl(_1_Ether, alice.address, alice.address);
 
     const recoveryMode_After = await th.checkRecoveryMode(contracts);
     assert.isFalse(recoveryMode_After);
@@ -181,7 +213,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     const recoveryMode_Before = await th.checkRecoveryMode(contracts);
     assert.isTrue(recoveryMode_Before);
 
-    await borrowerOperations.addColl(alice, alice, { from: alice, value: A_coll });
+    await borrowerOperations
+      .connect(alice)
+      .addColl(alice.address, alice.address, { value: A_coll });
 
     const recoveryMode_After = await th.checkRecoveryMode(contracts);
     assert.isFalse(recoveryMode_After);
@@ -205,7 +239,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     const TCR = (await th.getTCR(contracts)).toString();
     assert.equal(TCR, "1500000000000000000");
 
-    const bob_Stake_Before = (await troveManager.Troves(bob))[2];
+    const bob_Stake_Before = (await troveManager.Troves(bob.address))[2];
     const totalStakes_Before = await troveManager.totalStakes();
 
     assert.equal(bob_Stake_Before.toString(), B_coll);
@@ -220,13 +254,13 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode);
 
     // check Bob's ICR falls to 75%
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
     assert.equal(bob_ICR, "750000000000000000");
 
     // Liquidate Bob
-    await troveManager.liquidate(bob, { from: owner });
+    await troveManager.connect(bob).liquidate(bob.address);
 
-    const bob_Stake_After = (await troveManager.Troves(bob))[2];
+    const bob_Stake_After = (await troveManager.Troves(bob.address))[2];
     const totalStakes_After = await troveManager.totalStakes();
 
     assert.equal(bob_Stake_After, 0);
@@ -260,7 +294,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode);
 
     // Dennis is liquidated
-    await troveManager.liquidate(dennis, { from: owner });
+    await troveManager.connect(owner).liquidate(dennis.address);
 
     const totalStakesSnaphot_before = (await troveManager.totalStakesSnapshot()).toString();
     const totalCollateralSnapshot_before = (
@@ -277,7 +311,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     const B_reward = th.applyLiquidationFee(D_coll).mul(B_coll).div(A_coll.add(B_coll));
 
     // Liquidate Bob
-    await troveManager.liquidate(bob, { from: owner });
+    await troveManager.connect(bob).liquidate(bob.address);
 
     const totalStakesSnaphot_After = await troveManager.totalStakesSnapshot();
     const totalCollateralSnapshot_After = await troveManager.totalCollateralSnapshot();
@@ -306,8 +340,8 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     const TCR = (await th.getTCR(contracts)).toString();
     assert.equal(TCR, "1500000000000000000");
 
-    const bob_TroveStatus_Before = (await troveManager.Troves(bob))[3];
-    const bob_Trove_isInSortedList_Before = await sortedTroves.contains(bob);
+    const bob_TroveStatus_Before = (await troveManager.Troves(bob.address))[3];
+    const bob_Trove_isInSortedList_Before = await sortedTroves.contains(bob.address);
 
     assert.equal(bob_TroveStatus_Before, 1); // status enum element 1 corresponds to "Active"
     assert.isTrue(bob_Trove_isInSortedList_Before);
@@ -321,15 +355,15 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode);
 
     // check Bob's ICR falls to 75%
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
     assert.equal(bob_ICR, "750000000000000000");
 
     // Liquidate Bob
-    await troveManager.liquidate(bob, { from: owner });
+    await troveManager.connect(bob).liquidate(bob.address);
 
     // check Bob's Trove is successfully closed, and removed from sortedList
-    const bob_TroveStatus_After = (await troveManager.Troves(bob))[3];
-    const bob_Trove_isInSortedList_After = await sortedTroves.contains(bob);
+    const bob_TroveStatus_After = (await troveManager.Troves(bob.address))[3];
+    const bob_Trove_isInSortedList_After = await sortedTroves.contains(bob.address);
     assert.equal(bob_TroveStatus_After, 3); // status enum element 3 corresponds to "Closed by liquidation"
     assert.isFalse(bob_Trove_isInSortedList_After);
   });
@@ -353,7 +387,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Alice deposits to SP
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // check rewards-per-unit-staked before
     const P_Before = (await stabilityPool.P()).toString();
@@ -371,7 +405,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode);
 
     // liquidate bob
-    await troveManager.liquidate(bob, { from: owner });
+    await troveManager.connect(bob).liquidate(bob.address);
 
     // check SP rewards-per-unit-staked after liquidation - should be no increase
     const P_After = (await stabilityPool.P()).toString();
@@ -402,7 +436,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       1000,
     );
 
-    const bob_Stake_Before = (await troveManager.Troves(bob))[2];
+    const bob_Stake_Before = (await troveManager.Troves(bob.address))[2];
     const totalStakes_Before = await troveManager.totalStakes();
 
     assert.equal(bob_Stake_Before.toString(), B_coll);
@@ -417,13 +451,13 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode);
 
     // check Bob's ICR falls to 105%
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
     assert.equal(bob_ICR, "1050000000000000000");
 
     // Liquidate Bob
-    await troveManager.liquidate(bob, { from: owner });
+    await troveManager.connect(bob).liquidate(bob.address);
 
-    const bob_Stake_After = (await troveManager.Troves(bob))[2];
+    const bob_Stake_After = (await troveManager.Troves(bob.address))[2];
     const totalStakes_After = await troveManager.totalStakes();
 
     assert.equal(bob_Stake_After, 0);
@@ -462,7 +496,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode);
 
     // Dennis is liquidated
-    await troveManager.liquidate(dennis, { from: owner });
+    await troveManager.connect(owner).liquidate(dennis.address);
 
     const A_reward = th.applyLiquidationFee(D_coll).mul(A_coll).div(A_coll.add(B_coll));
     const B_reward = th.applyLiquidationFee(D_coll).mul(B_coll).div(A_coll.add(B_coll));
@@ -479,16 +513,16 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.equal(totalCollateralSnapshot_2, A_coll.add(B_coll).add(th.applyLiquidationFee(D_coll))); // 24 + 3*0.995
 
     // check Bob's ICR is now in range 100% < ICR 110%
-    const _110percent = web3.utils.toBN("1100000000000000000");
-    const _100percent = web3.utils.toBN("1000000000000000000");
+    const _110percent = toBN("1100000000000000000");
+    const _100percent = toBN("1000000000000000000");
 
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
 
     assert.isTrue(bob_ICR.lt(_110percent));
     assert.isTrue(bob_ICR.gt(_100percent));
 
     // Liquidate Bob
-    await troveManager.liquidate(bob, { from: owner });
+    await troveManager.connect(bob).liquidate(bob.address);
 
     /* After Bob's liquidation, Bob's stake (21 ether) should be removed from total stakes, 
     but his collateral should remain in the system (*0.995). */
@@ -518,8 +552,8 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraParams: { from: bob },
     });
 
-    const bob_TroveStatus_Before = (await troveManager.Troves(bob))[3];
-    const bob_Trove_isInSortedList_Before = await sortedTroves.contains(bob);
+    const bob_TroveStatus_Before = (await troveManager.Troves(bob.address))[3];
+    const bob_Trove_isInSortedList_Before = await sortedTroves.contains(bob.address);
 
     assert.equal(bob_TroveStatus_Before, 1); // status enum element 1 corresponds to "Active"
     assert.isTrue(bob_Trove_isInSortedList_Before);
@@ -533,15 +567,15 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode);
 
     // check Bob's ICR has fallen to 105%
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
     assert.equal(bob_ICR, "1050000000000000000");
 
     // Liquidate Bob
-    await troveManager.liquidate(bob, { from: owner });
+    await troveManager.connect(bob).liquidate(bob.address);
 
     // check Bob's Trove is successfully closed, and removed from sortedList
-    const bob_TroveStatus_After = (await troveManager.Troves(bob))[3];
-    const bob_Trove_isInSortedList_After = await sortedTroves.contains(bob);
+    const bob_TroveStatus_After = (await troveManager.Troves(bob.address))[3];
+    const bob_Trove_isInSortedList_After = await sortedTroves.contains(bob.address);
     assert.equal(bob_TroveStatus_After, 3); // status enum element 3 corresponds to "Closed by liquidation"
     assert.isFalse(bob_Trove_isInSortedList_After);
   });
@@ -567,7 +601,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Alice deposits 390DebtToken to the Stability Pool
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // --- TEST ---
     // price drops to 1FIL:100DebtToken, reducing TCR below 150%
@@ -578,7 +612,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode);
 
     // check Bob's ICR has fallen to 105%
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
     assert.equal(bob_ICR, "1050000000000000000");
 
     // check pool DebtToken before liquidation
@@ -603,10 +637,10 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     After offsetting 390 DebtToken and 4.074525 ether, the remainders - 1610 DebtToken and 16.820475 ether - should be redistributed to all active Troves.
    */
     // Liquidate Bob
-    await troveManager.liquidate(bob, { from: owner });
+    await troveManager.connect(bob).liquidate(bob.address);
 
-    const aliceDeposit = await stabilityPool.getCompoundedDebtTokenDeposit(alice);
-    const aliceFILGain = await stabilityPool.getDepositorFILGain(alice);
+    const aliceDeposit = await stabilityPool.getCompoundedDebtTokenDeposit(alice.address);
+    const aliceFILGain = await stabilityPool.getDepositorFILGain(alice.address);
     const aliceExpectedFILGain = spDeposit.mul(th.applyLiquidationFee(B_coll)).div(B_totalDebt);
 
     assert.equal(aliceDeposit.toString(), 0);
@@ -671,9 +705,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode);
 
     // Check Bob's ICR is >110% but still lowest
-    const bob_ICR = (await troveManager.getCurrentICR(bob, price)).toString();
-    const alice_ICR = (await troveManager.getCurrentICR(alice, price)).toString();
-    const dennis_ICR = (await troveManager.getCurrentICR(dennis, price)).toString();
+    const bob_ICR = (await troveManager.getCurrentICR(bob.address, price)).toString();
+    const alice_ICR = (await troveManager.getCurrentICR(alice.address, price)).toString();
+    const dennis_ICR = (await troveManager.getCurrentICR(dennis.address, price)).toString();
     assert.equal(bob_ICR, "1200000000000000000");
     assert.equal(alice_ICR, dec(133, 16));
     assert.equal(dennis_ICR, dec(133, 16));
@@ -681,7 +715,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     // console.log(`TCR: ${await th.getTCR(contracts)}`)
     // Try to liquidate Bob
     await assertRevert(
-      troveManager.liquidate(bob, { from: owner }),
+      troveManager.connect(owner).liquidate(bob.address),
       "TroveManager: nothing to liquidate",
     );
 
@@ -698,12 +732,12 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.equal(L_FIL, "0");
 
     // Check that Bob's Trove and stake remains active with unchanged coll and debt
-    const bob_Trove = await troveManager.Troves(bob);
+    const bob_Trove = await troveManager.Troves(bob.address);
     const bob_Debt = bob_Trove[0].toString();
     const bob_Coll = bob_Trove[1].toString();
     const bob_Stake = bob_Trove[2].toString();
     const bob_TroveStatus = bob_Trove[3].toString();
-    const bob_isInSortedTrovesList = await sortedTroves.contains(bob);
+    const bob_isInSortedTrovesList = await sortedTroves.contains(bob.address);
 
     th.assertIsApproximatelyEqual(bob_Debt.toString(), B_totalDebt);
     assert.equal(bob_Coll.toString(), B_coll);
@@ -736,7 +770,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     // Alice deposits DebtToken in the Stability Pool
     const spDeposit = B_totalDebt.add(toBN(1));
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // --- TEST ---
     // price drops to 1FIL:100DebtToken, reducing TCR below 150%
@@ -748,11 +782,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode);
 
     // Check Bob's ICR is between 110 and TCR
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
     assert.isTrue(bob_ICR.gt(mv._MCR) && bob_ICR.lt(TCR));
 
     // Liquidate Bob
-    await troveManager.liquidate(bob, { from: owner });
+    await troveManager.connect(bob).liquidate(bob.address);
 
     /* Check accrued Stability Pool rewards after. Total Pool deposits was 1490 DebtToken, Alice sole depositor.
     As liquidated debt (250 DebtToken) was completely offset
@@ -761,8 +795,8 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     Alice's expected FIL gain:  Bob's liquidated capped coll (minus gas comp), 2.75*0.995 ether
   
     */
-    const aliceExpectedDeposit = await stabilityPool.getCompoundedDebtTokenDeposit(alice);
-    const aliceExpectedFILGain = await stabilityPool.getDepositorFILGain(alice);
+    const aliceExpectedDeposit = await stabilityPool.getCompoundedDebtTokenDeposit(alice.address);
+    const aliceExpectedFILGain = await stabilityPool.getDepositorFILGain(alice.address);
 
     assert.isAtMost(
       th.getDifference(aliceExpectedDeposit.toString(), spDeposit.sub(B_totalDebt)),
@@ -779,16 +813,16 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     // check Bob’s collateral surplus
     const bob_remainingCollateral = B_coll.sub(B_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(bob),
+      await collSurplusPool.getCollateral(bob.address),
       bob_remainingCollateral,
     );
     // can claim collateral
-    const bob_balanceBefore = th.toBN(await web3.eth.getBalance(bob));
-    const BOB_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: bob, gasPrice: GAS_PRICE }),
+    const bob_balanceBefore = th.toBN(await web3.eth.getBalance(bob.address));
+    const BOB_GAS = await th.gasUsed(
+      await borrowerOperations.connect(bob).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const bob_expectedBalance = bob_balanceBefore.sub(th.toBN(BOB_GAS * GAS_PRICE));
-    const bob_balanceAfter = th.toBN(await web3.eth.getBalance(bob));
+    const bob_balanceAfter = th.toBN(await web3.eth.getBalance(bob.address));
     th.assertIsApproximatelyEqual(
       bob_balanceAfter,
       bob_expectedBalance.add(th.toBN(bob_remainingCollateral)),
@@ -817,7 +851,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     // Alice deposits DebtToken in the Stability Pool
     const spDeposit = B_totalDebt.add(toBN(1));
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // --- TEST ---
     // price drops to 1FIL:100DebtToken, reducing TCR below 150%
@@ -829,11 +863,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode);
 
     // Check Bob's ICR = 110
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
     assert.isTrue(bob_ICR.eq(mv._MCR));
 
     // Liquidate Bob
-    await troveManager.liquidate(bob, { from: owner });
+    await troveManager.connect(bob).liquidate(bob.address);
 
     /* Check accrued Stability Pool rewards after. Total Pool deposits was 1490 DebtToken, Alice sole depositor.
     As liquidated debt (250 DebtToken) was completely offset
@@ -842,8 +876,8 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     Alice's expected FIL gain:  Bob's liquidated capped coll (minus gas comp), 2.75*0.995 ether
 
     */
-    const aliceExpectedDeposit = await stabilityPool.getCompoundedDebtTokenDeposit(alice);
-    const aliceExpectedFILGain = await stabilityPool.getDepositorFILGain(alice);
+    const aliceExpectedDeposit = await stabilityPool.getCompoundedDebtTokenDeposit(alice.address);
+    const aliceExpectedFILGain = await stabilityPool.getDepositorFILGain(alice.address);
 
     assert.isAtMost(
       th.getDifference(aliceExpectedDeposit.toString(), spDeposit.sub(B_totalDebt)),
@@ -858,7 +892,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     );
 
     // check Bob’s collateral surplus
-    th.assertIsApproximatelyEqual(await collSurplusPool.getCollateral(bob), "0");
+    th.assertIsApproximatelyEqual(await collSurplusPool.getCollateral(bob.address), "0");
   });
 
   it("liquidate(), with  110% < ICR < TCR, and StabilityPool DebtToken > debt to liquidate: removes stake and updates totalStakes", async () => {
@@ -882,7 +916,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Alice deposits DebtToken in the Stability Pool
-    await stabilityPool.provideToSP(B_totalDebt.add(toBN(1)), ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(B_totalDebt.add(toBN(1)), ZERO_ADDRESS);
 
     // --- TEST ---
     // price drops to 1FIL:100DebtToken, reducing TCR below 150%
@@ -893,21 +927,21 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode);
 
     // check stake and totalStakes before
-    const bob_Stake_Before = (await troveManager.Troves(bob))[2];
+    const bob_Stake_Before = (await troveManager.Troves(bob.address))[2];
     const totalStakes_Before = await troveManager.totalStakes();
 
     assert.equal(bob_Stake_Before.toString(), B_coll);
     assert.equal(totalStakes_Before.toString(), A_coll.add(B_coll).add(D_coll));
 
     // Check Bob's ICR is between 110 and 150
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
     assert.isTrue(bob_ICR.gt(mv._MCR) && bob_ICR.lt(await th.getTCR(contracts)));
 
     // Liquidate Bob
-    await troveManager.liquidate(bob, { from: owner });
+    await troveManager.connect(bob).liquidate(bob.address);
 
     // check stake and totalStakes after
-    const bob_Stake_After = (await troveManager.Troves(bob))[2];
+    const bob_Stake_After = (await troveManager.Troves(bob.address))[2];
     const totalStakes_After = await troveManager.totalStakes();
 
     assert.equal(bob_Stake_After, 0);
@@ -916,16 +950,16 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     // check Bob’s collateral surplus
     const bob_remainingCollateral = B_coll.sub(B_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(bob),
+      await collSurplusPool.getCollateral(bob.address),
       bob_remainingCollateral,
     );
     // can claim collateral
-    const bob_balanceBefore = th.toBN(await web3.eth.getBalance(bob));
-    const BOB_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: bob, gasPrice: GAS_PRICE }),
+    const bob_balanceBefore = th.toBN(await web3.eth.getBalance(bob.address));
+    const BOB_GAS = await th.gasUsed(
+      await borrowerOperations.connect(bob).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const bob_expectedBalance = bob_balanceBefore.sub(th.toBN(BOB_GAS * GAS_PRICE));
-    const bob_balanceAfter = th.toBN(await web3.eth.getBalance(bob));
+    const bob_balanceAfter = th.toBN(await web3.eth.getBalance(bob.address));
     th.assertIsApproximatelyEqual(
       bob_balanceAfter,
       bob_expectedBalance.add(th.toBN(bob_remainingCollateral)),
@@ -953,7 +987,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Alice deposits DebtToken in the Stability Pool
-    await stabilityPool.provideToSP(B_totalDebt.add(toBN(1)), ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(B_totalDebt.add(toBN(1)), ZERO_ADDRESS);
 
     // --- TEST ---
     // price drops to 1FIL:100DebtToken, reducing TCR below 150%
@@ -973,11 +1007,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.equal(totalCollateralSnapshot_before, "0");
 
     // Check Bob's ICR is between 110 and TCR
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
     assert.isTrue(bob_ICR.gt(mv._MCR) && bob_ICR.lt(await th.getTCR(contracts)));
 
     // Liquidate Bob
-    await troveManager.liquidate(bob, { from: owner });
+    await troveManager.connect(bob).liquidate(bob.address);
 
     const totalStakesSnaphot_After = await troveManager.totalStakesSnapshot();
     const totalCollateralSnapshot_After = await troveManager.totalCollateralSnapshot();
@@ -1009,7 +1043,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Alice deposits DebtToken in the Stability Pool
-    await stabilityPool.provideToSP(B_totalDebt.add(toBN(1)), ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(B_totalDebt.add(toBN(1)), ZERO_ADDRESS);
 
     // --- TEST ---
     // price drops to 1FIL:100DebtToken, reducing TCR below 150%
@@ -1020,22 +1054,22 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode);
 
     // Check Bob's Trove is active
-    const bob_TroveStatus_Before = (await troveManager.Troves(bob))[3];
-    const bob_Trove_isInSortedList_Before = await sortedTroves.contains(bob);
+    const bob_TroveStatus_Before = (await troveManager.Troves(bob.address))[3];
+    const bob_Trove_isInSortedList_Before = await sortedTroves.contains(bob.address);
 
     assert.equal(bob_TroveStatus_Before, 1); // status enum element 1 corresponds to "Active"
     assert.isTrue(bob_Trove_isInSortedList_Before);
 
     // Check Bob's ICR is between 110 and TCR
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
     assert.isTrue(bob_ICR.gt(mv._MCR) && bob_ICR.lt(await th.getTCR(contracts)));
 
     // Liquidate Bob
-    await troveManager.liquidate(bob, { from: owner });
+    await troveManager.connect(bob).liquidate(bob.address);
 
     // Check Bob's Trove is closed after liquidation
-    const bob_TroveStatus_After = (await troveManager.Troves(bob))[3];
-    const bob_Trove_isInSortedList_After = await sortedTroves.contains(bob);
+    const bob_TroveStatus_After = (await troveManager.Troves(bob.address))[3];
+    const bob_Trove_isInSortedList_After = await sortedTroves.contains(bob.address);
 
     assert.equal(bob_TroveStatus_After, 3); // status enum element 3 corresponds to "Closed by liquidation"
     assert.isFalse(bob_Trove_isInSortedList_After);
@@ -1043,16 +1077,16 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     // check Bob’s collateral surplus
     const bob_remainingCollateral = B_coll.sub(B_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(bob),
+      await collSurplusPool.getCollateral(bob.address),
       bob_remainingCollateral,
     );
     // can claim collateral
-    const bob_balanceBefore = th.toBN(await web3.eth.getBalance(bob));
-    const BOB_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: bob, gasPrice: GAS_PRICE }),
+    const bob_balanceBefore = th.toBN(await web3.eth.getBalance(bob.address));
+    const BOB_GAS = await th.gasUsed(
+      await borrowerOperations.connect(bob).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const bob_expectedBalance = bob_balanceBefore.sub(th.toBN(BOB_GAS * GAS_PRICE));
-    const bob_balanceAfter = th.toBN(await web3.eth.getBalance(bob));
+    const bob_balanceAfter = th.toBN(await web3.eth.getBalance(bob.address));
     th.assertIsApproximatelyEqual(
       bob_balanceAfter,
       bob_expectedBalance.add(th.toBN(bob_remainingCollateral)),
@@ -1093,7 +1127,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: totalLiquidatedDebt,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(totalLiquidatedDebt, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(totalLiquidatedDebt, ZERO_ADDRESS);
 
     // Price drops
     await priceFeed.setPrice(dec(120, 18));
@@ -1104,10 +1138,10 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check troves A-D are in range 110% < ICR < TCR
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
-    const ICR_B = await troveManager.getCurrentICR(bob, price);
-    const ICR_C = await troveManager.getCurrentICR(carol, price);
-    const ICR_D = await troveManager.getCurrentICR(dennis, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+    const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+    const ICR_C = await troveManager.getCurrentICR(carol.address, price);
+    const ICR_D = await troveManager.getCurrentICR(dennis.address, price);
 
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
     assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
@@ -1117,74 +1151,77 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     // Troves are ordered by ICR, low to high: A, B, C, D.
 
     // Liquidate out of ICR order: D, B, C.  Confirm Recovery Mode is active prior to each.
-    const liquidationTx_D = await troveManager.liquidate(dennis);
+    const liquidationTx_D = await troveManager.liquidate(dennis.address);
+    const receipt_D = await liquidationTx_D.wait();
 
     assert.isTrue(await th.checkRecoveryMode(contracts));
-    const liquidationTx_B = await troveManager.liquidate(bob);
+    const liquidationTx_B = await troveManager.liquidate(bob.address);
+    const receipt_B = await liquidationTx_B.wait();
 
     assert.isTrue(await th.checkRecoveryMode(contracts));
-    const liquidationTx_C = await troveManager.liquidate(carol);
+    const liquidationTx_C = await troveManager.liquidate(carol.address);
+    const receipt_C = await liquidationTx_C.wait();
 
     // Check transactions all succeeded
-    assert.isTrue(liquidationTx_D.receipt.status);
-    assert.isTrue(liquidationTx_B.receipt.status);
-    assert.isTrue(liquidationTx_C.receipt.status);
+    assert.equal(receipt_D.status, 1);
+    assert.equal(receipt_B.status, 1);
+    assert.equal(receipt_C.status, 1);
 
     // Confirm troves D, B, C removed
-    assert.isFalse(await sortedTroves.contains(dennis));
-    assert.isFalse(await sortedTroves.contains(bob));
-    assert.isFalse(await sortedTroves.contains(carol));
+    assert.isFalse(await sortedTroves.contains(dennis.address));
+    assert.isFalse(await sortedTroves.contains(bob.address));
+    assert.isFalse(await sortedTroves.contains(carol.address));
 
     // Confirm troves have status 'closed by liquidation' (Status enum element idx 3)
-    assert.equal((await troveManager.Troves(dennis))[3], "3");
-    assert.equal((await troveManager.Troves(bob))[3], "3");
-    assert.equal((await troveManager.Troves(carol))[3], "3");
+    assert.equal((await troveManager.Troves(dennis.address))[3], "3");
+    assert.equal((await troveManager.Troves(bob.address))[3], "3");
+    assert.equal((await troveManager.Troves(carol.address))[3], "3");
 
     // check collateral surplus
     const dennis_remainingCollateral = D_coll.sub(D_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     const bob_remainingCollateral = B_coll.sub(B_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     const carol_remainingCollateral = C_coll.sub(C_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(dennis),
+      await collSurplusPool.getCollateral(dennis.address),
       dennis_remainingCollateral,
     );
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(bob),
+      await collSurplusPool.getCollateral(bob.address),
       bob_remainingCollateral,
     );
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(carol),
+      await collSurplusPool.getCollateral(carol.address),
       carol_remainingCollateral,
     );
 
     // can claim collateral
-    const dennis_balanceBefore = th.toBN(await web3.eth.getBalance(dennis));
-    const DENNIS_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: dennis, gasPrice: GAS_PRICE }),
+    const dennis_balanceBefore = th.toBN(await web3.eth.getBalance(dennis.address));
+    const DENNIS_GAS = await th.gasUsed(
+      await borrowerOperations.connect(dennis).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const dennis_expectedBalance = dennis_balanceBefore.sub(th.toBN(DENNIS_GAS * GAS_PRICE));
-    const dennis_balanceAfter = th.toBN(await web3.eth.getBalance(dennis));
+    const dennis_balanceAfter = th.toBN(await web3.eth.getBalance(dennis.address));
     assert.isTrue(
       dennis_balanceAfter.eq(dennis_expectedBalance.add(th.toBN(dennis_remainingCollateral))),
     );
 
-    const bob_balanceBefore = th.toBN(await web3.eth.getBalance(bob));
-    const BOB_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: bob, gasPrice: GAS_PRICE }),
+    const bob_balanceBefore = th.toBN(await web3.eth.getBalance(bob.address));
+    const BOB_GAS = await th.gasUsed(
+      await borrowerOperations.connect(bob).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const bob_expectedBalance = bob_balanceBefore.sub(th.toBN(BOB_GAS * GAS_PRICE));
-    const bob_balanceAfter = th.toBN(await web3.eth.getBalance(bob));
+    const bob_balanceAfter = th.toBN(await web3.eth.getBalance(bob.address));
     th.assertIsApproximatelyEqual(
       bob_balanceAfter,
       bob_expectedBalance.add(th.toBN(bob_remainingCollateral)),
     );
 
-    const carol_balanceBefore = th.toBN(await web3.eth.getBalance(carol));
-    const CAROL_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: carol, gasPrice: GAS_PRICE }),
+    const carol_balanceBefore = th.toBN(await web3.eth.getBalance(carol.address));
+    const CAROL_GAS = await th.gasUsed(
+      await borrowerOperations.connect(carol).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const carol_expectedBalance = carol_balanceBefore.sub(th.toBN(CAROL_GAS * GAS_PRICE));
-    const carol_balanceAfter = th.toBN(await web3.eth.getBalance(carol));
+    const carol_balanceAfter = th.toBN(await web3.eth.getBalance(carol.address));
     th.assertIsApproximatelyEqual(
       carol_balanceAfter,
       carol_expectedBalance.add(th.toBN(carol_remainingCollateral)),
@@ -1215,7 +1252,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Alice deposits 1490 DebtToken in the Stability Pool
-    await stabilityPool.provideToSP("1490000000000000000000", ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP("1490000000000000000000", ZERO_ADDRESS);
 
     // --- TEST ---
     // price drops to 1FIL:100DebtToken, reducing TCR below 150%
@@ -1225,23 +1262,23 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode);
 
     // Check Bob's Trove is active
-    const bob_TroveStatus_Before = (await troveManager.Troves(bob))[3];
-    const bob_Trove_isInSortedList_Before = await sortedTroves.contains(bob);
+    const bob_TroveStatus_Before = (await troveManager.Troves(bob.address))[3];
+    const bob_Trove_isInSortedList_Before = await sortedTroves.contains(bob.address);
 
     assert.equal(bob_TroveStatus_Before, 1); // status enum element 1 corresponds to "Active"
     assert.isTrue(bob_Trove_isInSortedList_Before);
 
     // Try to liquidate Bob
     await assertRevert(
-      troveManager.liquidate(bob, { from: owner }),
+      troveManager.connect(owner).liquidate(bob.address),
       "TroveManager: nothing to liquidate",
     );
 
     /* Since the pool only contains 100 DebtToken, and Bob's pre-liquidation debt was 250 DebtToken,
     expect Bob's trove to remain untouched, and remain active after liquidation */
 
-    const bob_TroveStatus_After = (await troveManager.Troves(bob))[3];
-    const bob_Trove_isInSortedList_After = await sortedTroves.contains(bob);
+    const bob_TroveStatus_After = (await troveManager.Troves(bob.address))[3];
+    const bob_Trove_isInSortedList_After = await sortedTroves.contains(bob.address);
 
     assert.equal(bob_TroveStatus_After, 1); // status enum element 1 corresponds to "Active"
     assert.isTrue(bob_Trove_isInSortedList_After);
@@ -1268,7 +1305,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Alice deposits 100 DebtToken in the Stability Pool
-    await stabilityPool.provideToSP(dec(100, 18), ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(dec(100, 18), ZERO_ADDRESS);
 
     // --- TEST ---
     // price drops to 1FIL:100DebtToken, reducing TCR below 150%
@@ -1278,15 +1315,15 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode);
 
     // Check Bob's Trove is active
-    const bob_TroveStatus_Before = (await troveManager.Troves(bob))[3];
-    const bob_Trove_isInSortedList_Before = await sortedTroves.contains(bob);
+    const bob_TroveStatus_Before = (await troveManager.Troves(bob.address))[3];
+    const bob_Trove_isInSortedList_Before = await sortedTroves.contains(bob.address);
 
     assert.equal(bob_TroveStatus_Before, 1); // status enum element 1 corresponds to "Active"
     assert.isTrue(bob_Trove_isInSortedList_Before);
 
     // Try to liquidate Bob
     await assertRevert(
-      troveManager.liquidate(bob, { from: owner }),
+      troveManager.connect(owner).liquidate(bob.address),
       "TroveManager: nothing to liquidate",
     );
 
@@ -1300,7 +1337,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     for (let i = 0; i < arrayLength; i++) {
       const address = (await troveManager.TroveOwners(i)).toString();
-      if (address === bob) {
+      if (address === bob.address) {
         addressFound = true;
         addressIdx = i;
       }
@@ -1309,7 +1346,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(addressFound);
 
     // Check TroveOwners idx on trove struct == idx of address found in TroveOwners array
-    const idxOnStruct = (await troveManager.Troves(bob))[4].toString();
+    const idxOnStruct = (await troveManager.Troves(bob.address))[4].toString();
     assert.equal(addressIdx.toString(), idxOnStruct);
   });
 
@@ -1334,7 +1371,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Alice deposits 100 DebtToken in the Stability Pool
-    await stabilityPool.provideToSP(dec(100, 18), ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(dec(100, 18), ZERO_ADDRESS);
 
     // --- TEST ---
     // price drops to 1FIL:100DebtToken, reducing TCR below 150%
@@ -1345,7 +1382,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     // Try to liquidate Bob
     await assertRevert(
-      troveManager.liquidate(bob, { from: owner }),
+      troveManager.connect(owner).liquidate(bob.address),
       "TroveManager: nothing to liquidate",
     );
 
@@ -1357,7 +1394,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     Bob's new coll and stake should remain the same, and the updated totalStakes should still equal 25 ether.
     */
-    const bob_Trove = await troveManager.Troves(bob);
+    const bob_Trove = await troveManager.Troves(bob.address);
     const bob_DebtAfter = bob_Trove[0].toString();
     const bob_CollAfter = bob_Trove[1].toString();
     const bob_StakeAfter = bob_Trove[2].toString();
@@ -1391,7 +1428,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Alice deposits 100 DebtToken in the Stability Pool
-    await stabilityPool.provideToSP(dec(100, 18), ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(dec(100, 18), ZERO_ADDRESS);
 
     // --- TEST ---
     // price drops to 1FIL:100DebtToken, reducing TCR below 150%
@@ -1411,7 +1448,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     // Liquidate Bob, it won’t happen as there are no funds in the SP
     await assertRevert(
-      troveManager.liquidate(bob, { from: owner }),
+      troveManager.connect(owner).liquidate(bob.address),
       "TroveManager: nothing to liquidate",
     );
 
@@ -1447,7 +1484,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Alice deposits 100 DebtToken in the Stability Pool
-    await stabilityPool.provideToSP(dec(100, 18), ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(dec(100, 18), ZERO_ADDRESS);
 
     // --- TEST ---
     // price drops to 1FIL:100DebtToken, reducing TCR below 150%
@@ -1458,14 +1495,14 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     // Try to liquidate Bob. Shouldn’t happen
     await assertRevert(
-      troveManager.liquidate(bob, { from: owner }),
+      troveManager.connect(owner).liquidate(bob.address),
       "TroveManager: nothing to liquidate",
     );
 
     // check Stability Pool rewards. Nothing happened, so everything should remain the same
 
-    const aliceExpectedDeposit = await stabilityPool.getCompoundedDebtTokenDeposit(alice);
-    const aliceExpectedFILGain = await stabilityPool.getDepositorFILGain(alice);
+    const aliceExpectedDeposit = await stabilityPool.getCompoundedDebtTokenDeposit(alice.address);
+    const aliceExpectedFILGain = await stabilityPool.getDepositorFILGain(alice.address);
 
     assert.equal(aliceExpectedDeposit.toString(), dec(100, 18));
     assert.equal(aliceExpectedFILGain.toString(), "0");
@@ -1507,28 +1544,28 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Alice deposits 100 DebtToken in the Stability Pool
-    await stabilityPool.provideToSP(dec(100, 18), ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(dec(100, 18), ZERO_ADDRESS);
 
     // --- TEST ---
     // price drops to 1FIL:100DebtToken, reducing TCR below 150%
     await priceFeed.setPrice(dec(100, 18));
     const price = await priceFeed.getPrice();
 
-    const bob_ICR_Before = (await troveManager.getCurrentICR(bob, price)).toString();
-    const carol_ICR_Before = (await troveManager.getCurrentICR(carol, price)).toString();
+    const bob_ICR_Before = (await troveManager.getCurrentICR(bob.address, price)).toString();
+    const carol_ICR_Before = (await troveManager.getCurrentICR(carol.address, price)).toString();
 
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
-    const bob_Coll_Before = (await troveManager.Troves(bob))[1];
-    const bob_Debt_Before = (await troveManager.Troves(bob))[0];
+    const bob_Coll_Before = (await troveManager.Troves(bob.address))[1];
+    const bob_Debt_Before = (await troveManager.Troves(bob.address))[0];
 
     // confirm Bob is last trove in list, and has >110% ICR
-    assert.equal((await sortedTroves.getLast()).toString(), bob);
-    assert.isTrue((await troveManager.getCurrentICR(bob, price)).gt(mv._MCR));
+    assert.equal((await sortedTroves.getLast()).toString(), bob.address);
+    assert.isTrue((await troveManager.getCurrentICR(bob.address, price)).gt(mv._MCR));
 
     // L1: Try to liquidate Bob. Nothing happens
     await assertRevert(
-      troveManager.liquidate(bob, { from: owner }),
+      troveManager.connect(owner).liquidate(bob.address),
       "TroveManager: nothing to liquidate",
     );
 
@@ -1536,53 +1573,53 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.equal((await stabilityPool.getTotalDebtTokenDeposits()).toString(), dec(100, 18));
 
     // Check Bob remains active
-    assert.isTrue(await sortedTroves.contains(bob));
+    assert.isTrue(await sortedTroves.contains(bob.address));
 
     // Check Bob's collateral and debt remains the same
-    const bob_Coll_After = (await troveManager.Troves(bob))[1];
-    const bob_Debt_After = (await troveManager.Troves(bob))[0];
+    const bob_Coll_After = (await troveManager.Troves(bob.address))[1];
+    const bob_Debt_After = (await troveManager.Troves(bob.address))[0];
     assert.isTrue(bob_Coll_After.eq(bob_Coll_Before));
     assert.isTrue(bob_Debt_After.eq(bob_Debt_Before));
 
-    const bob_ICR_After = (await troveManager.getCurrentICR(bob, price)).toString();
+    const bob_ICR_After = (await troveManager.getCurrentICR(bob.address, price)).toString();
 
     // check Bob's ICR has not changed
     assert.equal(bob_ICR_After, bob_ICR_Before);
 
     // to compensate borrowing fees
-    await debtToken.transfer(bob, dec(100, 18), { from: alice });
+    await debtToken.connect(alice).transfer(bob.address, dec(100, 18));
 
     // Remove Bob from system to test Carol's trove: price rises, Bob closes trove, price drops to 100 again
     await priceFeed.setPrice(dec(200, 18));
-    await borrowerOperations.closeTrove({ from: bob });
+    await borrowerOperations.connect(bob).closeTrove();
     await priceFeed.setPrice(dec(100, 18));
-    assert.isFalse(await sortedTroves.contains(bob));
+    assert.isFalse(await sortedTroves.contains(bob.address));
 
     // Alice provides another 50 DebtToken to pool
-    await stabilityPool.provideToSP(dec(50, 18), ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(dec(50, 18), ZERO_ADDRESS);
 
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
-    const carol_Coll_Before = (await troveManager.Troves(carol))[1];
-    const carol_Debt_Before = (await troveManager.Troves(carol))[0];
+    const carol_Coll_Before = (await troveManager.Troves(carol.address))[1];
+    const carol_Debt_Before = (await troveManager.Troves(carol.address))[0];
 
     // Confirm Carol is last trove in list, and has >110% ICR
-    assert.equal(await sortedTroves.getLast(), carol);
-    assert.isTrue((await troveManager.getCurrentICR(carol, price)).gt(mv._MCR));
+    assert.equal(await sortedTroves.getLast(), carol.address);
+    assert.isTrue((await troveManager.getCurrentICR(carol.address, price)).gt(mv._MCR));
 
     // L2: Try to liquidate Carol. Nothing happens
-    await assertRevert(troveManager.liquidate(carol), "TroveManager: nothing to liquidate");
+    await assertRevert(troveManager.liquidate(carol.address), "TroveManager: nothing to liquidate");
 
     //Check SP DebtToken has been completely emptied
     assert.equal((await stabilityPool.getTotalDebtTokenDeposits()).toString(), dec(150, 18));
 
     // Check Carol's collateral and debt remains the same
-    const carol_Coll_After = (await troveManager.Troves(carol))[1];
-    const carol_Debt_After = (await troveManager.Troves(carol))[0];
+    const carol_Coll_After = (await troveManager.Troves(carol.address))[1];
+    const carol_Debt_After = (await troveManager.Troves(carol.address))[0];
     assert.isTrue(carol_Coll_After.eq(carol_Coll_Before));
     assert.isTrue(carol_Debt_After.eq(carol_Debt_Before));
 
-    const carol_ICR_After = (await troveManager.getCurrentICR(carol, price)).toString();
+    const carol_ICR_After = (await troveManager.getCurrentICR(carol.address, price)).toString();
 
     // check Carol's ICR has not changed
     assert.equal(carol_ICR_After, carol_ICR_Before);
@@ -1602,7 +1639,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: dec(50, 18),
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(dec(50, 18), ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(dec(50, 18), ZERO_ADDRESS);
 
     const { collateral: A_coll } = await openTrove({
       ICR: toBN(dec(200, 16)),
@@ -1633,14 +1670,14 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check C is in range 110% < ICR < 150%
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(await th.getTCR(contracts)));
 
     const entireSystemCollBefore = await troveManager.getEntireSystemColl();
     const entireSystemDebtBefore = await troveManager.getEntireSystemDebt();
 
     // Try to liquidate Alice
-    await assertRevert(troveManager.liquidate(alice), "TroveManager: nothing to liquidate");
+    await assertRevert(troveManager.liquidate(alice.address), "TroveManager: nothing to liquidate");
 
     // Expect system debt and system coll not reduced
     const entireSystemCollAfter = await troveManager.getEntireSystemColl();
@@ -1658,7 +1695,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
   it("liquidate(): Doesn't liquidate undercollateralized trove if it is the only trove in the system", async () => {
     // Alice creates a single trove with 0.62 FIL and a debt of 62 DebtToken, and provides 10 DebtToken to SP
     await openTrove({ ICR: toBN(dec(200, 16)), extraParams: { from: alice } });
-    await stabilityPool.provideToSP(dec(10, 18), ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(dec(10, 18), ZERO_ADDRESS);
 
     assert.isFalse(await th.checkRecoveryMode(contracts));
 
@@ -1668,7 +1705,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
-    const alice_ICR = (await troveManager.getCurrentICR(alice, price)).toString();
+    const alice_ICR = (await troveManager.getCurrentICR(alice.address, price)).toString();
     assert.equal(alice_ICR, "1050000000000000000");
 
     const activeTrovesCount_Before = await troveManager.getTroveOwnersCount();
@@ -1677,7 +1714,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     // Try to liquidate the trove
     await assertRevert(
-      troveManager.liquidate(alice, { from: owner }),
+      troveManager.connect(owner).liquidate(alice.address),
       "TroveManager: nothing to liquidate",
     );
 
@@ -1685,7 +1722,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     const activeTrovesCount_After = await troveManager.getTroveOwnersCount();
     assert.equal(activeTrovesCount_After, 1);
 
-    const alice_isInSortedList = await sortedTroves.contains(alice);
+    const alice_isInSortedList = await sortedTroves.contains(alice.address);
     assert.isTrue(alice_isInSortedList);
   });
 
@@ -1696,7 +1733,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     await openTrove({ ICR: toBN(dec(200, 16)), extraParams: { from: alice } });
 
     // Alice proves 10 DebtToken to SP
-    await stabilityPool.provideToSP(dec(10, 18), ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(dec(10, 18), ZERO_ADDRESS);
 
     assert.isFalse(await th.checkRecoveryMode(contracts));
 
@@ -1706,7 +1743,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
-    const alice_ICR = (await troveManager.getCurrentICR(alice, price)).toString();
+    const alice_ICR = (await troveManager.getCurrentICR(alice.address, price)).toString();
     assert.equal(alice_ICR, "1050000000000000000");
 
     const activeTrovesCount_Before = await troveManager.getTroveOwnersCount();
@@ -1714,16 +1751,16 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.equal(activeTrovesCount_Before, 2);
 
     // Liquidate the trove
-    await troveManager.liquidate(alice, { from: owner });
+    await troveManager.connect(owner).liquidate(alice.address);
 
     // Check Alice's trove is removed, and bob remains
     const activeTrovesCount_After = await troveManager.getTroveOwnersCount();
     assert.equal(activeTrovesCount_After, 1);
 
-    const alice_isInSortedList = await sortedTroves.contains(alice);
+    const alice_isInSortedList = await sortedTroves.contains(alice.address);
     assert.isFalse(alice_isInSortedList);
 
-    const bob_isInSortedList = await sortedTroves.contains(bob);
+    const bob_isInSortedList = await sortedTroves.contains(bob.address);
     assert.isTrue(bob_isInSortedList);
   });
 
@@ -1742,7 +1779,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check Bob's ICR > 110%
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
     assert.isTrue(bob_ICR.gte(mv._MCR));
 
     // Confirm SP is empty
@@ -1750,12 +1787,12 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.equal(debtTokenInSP, "0");
 
     // Attempt to liquidate bob
-    await assertRevert(troveManager.liquidate(bob), "TroveManager: nothing to liquidate");
+    await assertRevert(troveManager.liquidate(bob.address), "TroveManager: nothing to liquidate");
 
     // check A, B, C remain active
-    assert.isTrue(await sortedTroves.contains(bob));
-    assert.isTrue(await sortedTroves.contains(alice));
-    assert.isTrue(await sortedTroves.contains(carol));
+    assert.isTrue(await sortedTroves.contains(bob.address));
+    assert.isTrue(await sortedTroves.contains(alice.address));
+    assert.isTrue(await sortedTroves.contains(carol.address));
 
     const TCR_After = (await th.getTCR(contracts)).toString();
     const listSize_After = (await sortedTroves.getSize()).toString();
@@ -1771,7 +1808,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     await openTrove({ ICR: toBN(dec(142, 16)), extraParams: { from: C } });
 
     // C fills SP with 130 DebtToken
-    await stabilityPool.provideToSP(dec(130, 18), ZERO_ADDRESS, { from: C });
+    await stabilityPool.connect(C).provideToSP(dec(130, 18), ZERO_ADDRESS);
 
     await priceFeed.setPrice(dec(150, 18));
     const price = await priceFeed.getPrice();
@@ -1779,25 +1816,26 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     const TCR = await th.getTCR(contracts);
 
-    const ICR_A = await troveManager.getCurrentICR(A, price);
-    const ICR_B = await troveManager.getCurrentICR(B, price);
-    const ICR_C = await troveManager.getCurrentICR(C, price);
+    const ICR_A = await troveManager.getCurrentICR(A.address, price);
+    const ICR_B = await troveManager.getCurrentICR(B.address, price);
+    const ICR_C = await troveManager.getCurrentICR(C.address, price);
 
     assert.isTrue(ICR_A.gt(TCR));
     // Try to liquidate A
-    await assertRevert(troveManager.liquidate(A), "TroveManager: nothing to liquidate");
+    await assertRevert(troveManager.liquidate(A.address), "TroveManager: nothing to liquidate");
 
     // Check liquidation of A does nothing - trove remains in system
-    assert.isTrue(await sortedTroves.contains(A));
-    assert.equal(await troveManager.getTroveStatus(A), 1); // Status 1 -> active
+    assert.isTrue(await sortedTroves.contains(A.address));
+    assert.equal(await troveManager.getTroveStatus(A.address), 1); // Status 1 -> active
 
     // Check C, with ICR < TCR, can be liquidated
     assert.isTrue(ICR_C.lt(TCR));
-    const liqTxC = await troveManager.liquidate(C);
-    assert.isTrue(liqTxC.receipt.status);
+    const liqTxC = await troveManager.liquidate(C.address);
+    const receipt = await liqTxC.wait();
+    assert.equal(receipt.status, 1);
 
-    assert.isFalse(await sortedTroves.contains(C));
-    assert.equal(await troveManager.getTroveStatus(C), 3); // Status liquidated
+    assert.isFalse(await sortedTroves.contains(C.address));
+    assert.equal(await troveManager.getTroveStatus(C.address), 3); // Status liquidated
   });
 
   it("liquidate(): reverts if trove is non-existent", async () => {
@@ -1810,13 +1848,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check Carol does not have an existing trove
-    assert.equal(await troveManager.getTroveStatus(carol), 0);
-    assert.isFalse(await sortedTroves.contains(carol));
+    assert.equal(await troveManager.getTroveStatus(carol.address), 0);
+    assert.isFalse(await sortedTroves.contains(carol.address));
 
     try {
-      await troveManager.liquidate(carol);
-
-      assert.isFalse(txCarol.receipt.status);
+      await troveManager.liquidate(carol.address);
     } catch (err) {
       assert.include(err.message, "revert");
     }
@@ -1827,7 +1863,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     await openTrove({ ICR: toBN(dec(133, 16)), extraParams: { from: bob } });
     await openTrove({ ICR: toBN(dec(133, 16)), extraParams: { from: carol } });
 
-    assert.isTrue(await sortedTroves.contains(carol));
+    assert.isTrue(await sortedTroves.contains(carol.address));
 
     // Price drops, Carol ICR falls below MCR
     await priceFeed.setPrice(dec(100, 18));
@@ -1836,15 +1872,16 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Carol liquidated, and her trove is closed
-    const txCarol_L1 = await troveManager.liquidate(carol);
-    assert.isTrue(txCarol_L1.receipt.status);
+    const txCarol_L1 = await troveManager.liquidate(carol.address);
+    const receipt = await txCarol_L1.wait();
+    assert.equal(receipt.status, 1);
 
     // Check Carol's trove is closed by liquidation
-    assert.isFalse(await sortedTroves.contains(carol));
-    assert.equal(await troveManager.getTroveStatus(carol), 3);
+    assert.isFalse(await sortedTroves.contains(carol.address));
+    assert.equal(await troveManager.getTroveStatus(carol.address), 3);
 
     try {
-      await troveManager.liquidate(carol);
+      await troveManager.liquidate(carol.address);
     } catch (err) {
       assert.include(err.message, "revert");
     }
@@ -1865,9 +1902,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     // Confirm Recovery Mode
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
-    const alice_ICR_Before = await troveManager.getCurrentICR(alice, price);
-    const bob_ICR_Before = await troveManager.getCurrentICR(bob, price);
-    const carol_ICR_Before = await troveManager.getCurrentICR(carol, price);
+    const alice_ICR_Before = await troveManager.getCurrentICR(alice.address, price);
+    const bob_ICR_Before = await troveManager.getCurrentICR(bob.address, price);
+    const carol_ICR_Before = await troveManager.getCurrentICR(carol.address, price);
 
     /* Before liquidation: 
     Alice ICR: = (1 * 100 / 50) = 200%
@@ -1880,11 +1917,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(carol_ICR_Before.lte(mv._MCR));
 
     // Liquidate defaulter. 30 DebtToken and 0.3 FIL is distributed uniformly between A, B and C. Each receive 10 DebtToken, 0.1 FIL
-    await troveManager.liquidate(defaulter_1);
+    await troveManager.liquidate(defaulter_1.address);
 
-    const alice_ICR_After = await troveManager.getCurrentICR(alice, price);
-    const bob_ICR_After = await troveManager.getCurrentICR(bob, price);
-    const carol_ICR_After = await troveManager.getCurrentICR(carol, price);
+    const alice_ICR_After = await troveManager.getCurrentICR(alice.address, price);
+    const bob_ICR_After = await troveManager.getCurrentICR(bob.address, price);
+    const carol_ICR_After = await troveManager.getCurrentICR(carol.address, price);
 
     /* After liquidation: 
 
@@ -1899,28 +1936,28 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     /* Though Bob's true ICR (including pending rewards) is below the MCR, 
     check that Bob's raw coll and debt has not changed, and that his "raw" ICR is above the MCR */
-    const bob_Coll = (await troveManager.Troves(bob))[1];
-    const bob_Debt = (await troveManager.Troves(bob))[0];
+    const bob_Coll = (await troveManager.Troves(bob.address))[1];
+    const bob_Debt = (await troveManager.Troves(bob.address))[0];
 
     const bob_rawICR = bob_Coll.mul(th.toBN(dec(100, 18))).div(bob_Debt);
     assert.isTrue(bob_rawICR.gte(mv._MCR));
 
     //liquidate A, B, C
-    await assertRevert(troveManager.liquidate(alice), "TroveManager: nothing to liquidate");
-    await troveManager.liquidate(bob);
-    await troveManager.liquidate(carol);
+    await assertRevert(troveManager.liquidate(alice.address), "TroveManager: nothing to liquidate");
+    await troveManager.liquidate(bob.address);
+    await troveManager.liquidate(carol.address);
 
     /*  Since there is 0 DebtToken in the stability Pool, A, with ICR >110%, should stay active.
     Check Alice stays active, Carol gets liquidated, and Bob gets liquidated 
     (because his pending rewards bring his ICR < MCR) */
-    assert.isTrue(await sortedTroves.contains(alice));
-    assert.isFalse(await sortedTroves.contains(bob));
-    assert.isFalse(await sortedTroves.contains(carol));
+    assert.isTrue(await sortedTroves.contains(alice.address));
+    assert.isFalse(await sortedTroves.contains(bob.address));
+    assert.isFalse(await sortedTroves.contains(carol.address));
 
     // check trove statuses - A active (1), B and C liquidated (3)
-    assert.equal((await troveManager.Troves(alice))[3].toString(), "1");
-    assert.equal((await troveManager.Troves(bob))[3].toString(), "3");
-    assert.equal((await troveManager.Troves(carol))[3].toString(), "3");
+    assert.equal((await troveManager.Troves(alice.address))[3].toString(), "1");
+    assert.equal((await troveManager.Troves(bob.address))[3].toString(), "3");
+    assert.equal((await troveManager.Troves(carol.address))[3].toString(), "3");
   });
 
   it("liquidate(): does not affect the SP deposit or FIL gain when called on an SP depositor's address that has no trove", async () => {
@@ -1936,10 +1973,10 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Bob sends tokens to Dennis, who has no trove
-    await debtToken.transfer(dennis, spDeposit, { from: bob });
+    await debtToken.connect(bob).transfer(dennis.address, spDeposit);
 
     //Dennis provides 200 DebtToken to SP
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: dennis });
+    await stabilityPool.connect(dennis).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drop
     await priceFeed.setPrice(dec(105, 18));
@@ -1948,28 +1985,32 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Carol gets liquidated
-    await troveManager.liquidate(carol);
+    await troveManager.liquidate(carol.address);
 
     // Check Dennis' SP deposit has absorbed Carol's debt, and he has received her liquidated FIL
     const dennis_Deposit_Before = (
-      await stabilityPool.getCompoundedDebtTokenDeposit(dennis)
+      await stabilityPool.getCompoundedDebtTokenDeposit(dennis.address)
     ).toString();
-    const dennis_FILGain_Before = (await stabilityPool.getDepositorFILGain(dennis)).toString();
+    const dennis_FILGain_Before = (
+      await stabilityPool.getDepositorFILGain(dennis.address)
+    ).toString();
     assert.isAtMost(th.getDifference(dennis_Deposit_Before, spDeposit.sub(C_totalDebt)), 1000);
     assert.isAtMost(th.getDifference(dennis_FILGain_Before, th.applyLiquidationFee(C_coll)), 1000);
 
     // Attempt to liquidate Dennis
     try {
-      await troveManager.liquidate(dennis);
+      await troveManager.liquidate(dennis.address);
     } catch (err) {
       assert.include(err.message, "revert");
     }
 
     // Check Dennis' SP deposit does not change after liquidation attempt
     const dennis_Deposit_After = (
-      await stabilityPool.getCompoundedDebtTokenDeposit(dennis)
+      await stabilityPool.getCompoundedDebtTokenDeposit(dennis.address)
     ).toString();
-    const dennis_FILGain_After = (await stabilityPool.getDepositorFILGain(dennis)).toString();
+    const dennis_FILGain_After = (
+      await stabilityPool.getDepositorFILGain(dennis.address)
+    ).toString();
     assert.equal(dennis_Deposit_Before, dennis_Deposit_After);
     assert.equal(dennis_FILGain_Before, dennis_FILGain_After);
   });
@@ -2003,30 +2044,30 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check token balances
-    assert.equal((await debtToken.balanceOf(alice)).toString(), A_debtTokenAmount);
-    assert.equal((await debtToken.balanceOf(bob)).toString(), B_debtTokenAmount);
-    assert.equal((await debtToken.balanceOf(carol)).toString(), C_debtTokenAmount);
+    assert.equal((await debtToken.balanceOf(alice.address)).toString(), A_debtTokenAmount);
+    assert.equal((await debtToken.balanceOf(bob.address)).toString(), B_debtTokenAmount);
+    assert.equal((await debtToken.balanceOf(carol.address)).toString(), C_debtTokenAmount);
 
     // Check sortedList size is 4
     assert.equal((await sortedTroves.getSize()).toString(), "4");
 
     // Liquidate A, B and C
-    await troveManager.liquidate(alice);
-    await troveManager.liquidate(bob);
-    await troveManager.liquidate(carol);
+    await troveManager.liquidate(alice.address);
+    await troveManager.liquidate(bob.address);
+    await troveManager.liquidate(carol.address);
 
     // Confirm A, B, C closed
-    assert.isFalse(await sortedTroves.contains(alice));
-    assert.isFalse(await sortedTroves.contains(bob));
-    assert.isFalse(await sortedTroves.contains(carol));
+    assert.isFalse(await sortedTroves.contains(alice.address));
+    assert.isFalse(await sortedTroves.contains(bob.address));
+    assert.isFalse(await sortedTroves.contains(carol.address));
 
     // Check sortedList size reduced to 1
     assert.equal((await sortedTroves.getSize()).toString(), "1");
 
     // Confirm token balances have not changed
-    assert.equal((await debtToken.balanceOf(alice)).toString(), A_debtTokenAmount);
-    assert.equal((await debtToken.balanceOf(bob)).toString(), B_debtTokenAmount);
-    assert.equal((await debtToken.balanceOf(carol)).toString(), C_debtTokenAmount);
+    assert.equal((await debtToken.balanceOf(alice.address)).toString(), A_debtTokenAmount);
+    assert.equal((await debtToken.balanceOf(bob.address)).toString(), B_debtTokenAmount);
+    assert.equal((await debtToken.balanceOf(carol.address)).toString(), C_debtTokenAmount);
   });
 
   it("liquidate(), with 110% < ICR < TCR, can claim collateral, re-open, be reedemed and claim again", async () => {
@@ -2045,7 +2086,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Alice deposits DebtToken in the Stability Pool
-    await stabilityPool.provideToSP(B_totalDebt, ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(B_totalDebt, ZERO_ADDRESS);
 
     // --- TEST ---
     // price drops to 1FIL:100DebtToken, reducing TCR below 150%
@@ -2057,25 +2098,25 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode);
 
     // Check Bob's ICR is between 110 and TCR
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
     assert.isTrue(bob_ICR.gt(mv._MCR) && bob_ICR.lt(TCR));
 
     // Liquidate Bob
-    await troveManager.liquidate(bob, { from: owner });
+    await troveManager.connect(bob).liquidate(bob.address);
 
     // check Bob’s collateral surplus: 5.76 * 100 - 480 * 1.1
     const bob_remainingCollateral = B_coll.sub(B_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(bob),
+      await collSurplusPool.getCollateral(bob.address),
       bob_remainingCollateral,
     );
     // can claim collateral
-    const bob_balanceBefore = th.toBN(await web3.eth.getBalance(bob));
-    const BOB_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: bob, gasPrice: GAS_PRICE }),
+    const bob_balanceBefore = th.toBN(await web3.eth.getBalance(bob.address));
+    const BOB_GAS = await th.gasUsed(
+      await borrowerOperations.connect(bob).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const bob_expectedBalance = bob_balanceBefore.sub(th.toBN(BOB_GAS * GAS_PRICE));
-    const bob_balanceAfter = th.toBN(await web3.eth.getBalance(bob));
+    const bob_balanceAfter = th.toBN(await web3.eth.getBalance(bob.address));
     th.assertIsApproximatelyEqual(
       bob_balanceAfter,
       bob_expectedBalance.add(th.toBN(bob_remainingCollateral)),
@@ -2100,14 +2141,14 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     await th.redeemCollateral(dennis, contracts, B_netDebt_2, GAS_PRICE);
     price = await priceFeed.getPrice();
     const bob_surplus = B_coll_2.sub(B_netDebt_2.mul(mv._1e18BN).div(price));
-    th.assertIsApproximatelyEqual(await collSurplusPool.getCollateral(bob), bob_surplus);
+    th.assertIsApproximatelyEqual(await collSurplusPool.getCollateral(bob.address), bob_surplus);
     // can claim collateral
-    const bob_balanceBefore_2 = th.toBN(await web3.eth.getBalance(bob));
-    const BOB_GAS_2 = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: bob, gasPrice: GAS_PRICE }),
+    const bob_balanceBefore_2 = th.toBN(await web3.eth.getBalance(bob.address));
+    const BOB_GAS_2 = await th.gasUsed(
+      await borrowerOperations.connect(bob).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const bob_expectedBalance_2 = bob_balanceBefore_2.sub(th.toBN(BOB_GAS_2 * GAS_PRICE));
-    const bob_balanceAfter_2 = th.toBN(await web3.eth.getBalance(bob));
+    const bob_balanceAfter_2 = th.toBN(await web3.eth.getBalance(bob.address));
     th.assertIsApproximatelyEqual(
       bob_balanceAfter_2,
       bob_expectedBalance_2.add(th.toBN(bob_surplus)),
@@ -2137,15 +2178,15 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     await th.redeemCollateral(dennis, contracts, B_netDebt, GAS_PRICE);
     let price = await priceFeed.getPrice();
     const bob_surplus = B_coll.sub(B_netDebt.mul(mv._1e18BN).div(price));
-    th.assertIsApproximatelyEqual(await collSurplusPool.getCollateral(bob), bob_surplus);
+    th.assertIsApproximatelyEqual(await collSurplusPool.getCollateral(bob.address), bob_surplus);
 
     // can claim collateral
-    const bob_balanceBefore = th.toBN(await web3.eth.getBalance(bob));
-    const BOB_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: bob, gasPrice: GAS_PRICE }),
+    const bob_balanceBefore = th.toBN(await web3.eth.getBalance(bob.address));
+    const BOB_GAS = await th.gasUsed(
+      await borrowerOperations.connect(bob).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const bob_expectedBalance = bob_balanceBefore.sub(th.toBN(BOB_GAS * GAS_PRICE));
-    const bob_balanceAfter = th.toBN(await web3.eth.getBalance(bob));
+    const bob_balanceAfter = th.toBN(await web3.eth.getBalance(bob.address));
     th.assertIsApproximatelyEqual(bob_balanceAfter, bob_expectedBalance.add(bob_surplus));
 
     // Bob re-opens the trove, price 200, total debt 250 DebtToken, ICR = 240% (lowest one)
@@ -2159,7 +2200,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: B_totalDebt_2,
       extraParams: { from: alice },
     });
-    await stabilityPool.provideToSP(B_totalDebt_2, ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(B_totalDebt_2, ZERO_ADDRESS);
 
     // price drops to 1FIL:100DebtToken, reducing TCR below 150%
     await priceFeed.setPrice("100000000000000000000");
@@ -2170,30 +2211,30 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode);
 
     // Check Bob's ICR is between 110 and TCR
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
     assert.isTrue(bob_ICR.gt(mv._MCR) && bob_ICR.lt(TCR));
     // debt is increased by fee, due to previous redemption
-    const bob_debt = await troveManager.getTroveDebt(bob);
+    const bob_debt = await troveManager.getTroveDebt(bob.address);
 
     // Liquidate Bob
-    await troveManager.liquidate(bob, { from: owner });
+    await troveManager.connect(bob).liquidate(bob.address);
 
     // check Bob’s collateral surplus
     const bob_remainingCollateral = B_coll_2.sub(
       B_totalDebt_2.mul(th.toBN(dec(11, 17))).div(price),
     );
     th.assertIsApproximatelyEqual(
-      (await collSurplusPool.getCollateral(bob)).toString(),
+      (await collSurplusPool.getCollateral(bob.address)).toString(),
       bob_remainingCollateral.toString(),
     );
 
     // can claim collateral
-    const bob_balanceBefore_2 = th.toBN(await web3.eth.getBalance(bob));
-    const BOB_GAS_2 = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: bob, gasPrice: GAS_PRICE }),
+    const bob_balanceBefore_2 = th.toBN(await web3.eth.getBalance(bob.address));
+    const BOB_GAS_2 = await th.gasUsed(
+      await borrowerOperations.connect(bob).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const bob_expectedBalance_2 = bob_balanceBefore_2.sub(th.toBN(BOB_GAS_2 * GAS_PRICE));
-    const bob_balanceAfter_2 = th.toBN(await web3.eth.getBalance(bob));
+    const bob_balanceAfter_2 = th.toBN(await web3.eth.getBalance(bob.address));
     th.assertIsApproximatelyEqual(
       bob_balanceAfter_2,
       bob_expectedBalance_2.add(th.toBN(bob_remainingCollateral)),
@@ -2235,7 +2276,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Alice deposits DebtToken to Stability Pool
-    await stabilityPool.provideToSP(liquidationAmount, ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(liquidationAmount, ZERO_ADDRESS);
 
     // price drops
     // price drops to 1FIL:90DebtToken, reducing TCR below 150%
@@ -2246,7 +2287,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode_Before);
 
     // check TCR < 150%
-    const _150percent = web3.utils.toBN("1500000000000000000");
+    const _150percent = toBN("1500000000000000000");
     const TCR_Before = await th.getTCR(contracts);
     assert.isTrue(TCR_Before.lt(_150percent));
 
@@ -2264,14 +2305,14 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     Harry       100%
 
     */
-    const alice_ICR = await troveManager.getCurrentICR(alice, price);
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
-    const carol_ICR = await troveManager.getCurrentICR(carol, price);
-    const dennis_ICR = await troveManager.getCurrentICR(dennis, price);
-    const erin_ICR = await troveManager.getCurrentICR(erin, price);
-    const freddy_ICR = await troveManager.getCurrentICR(freddy, price);
-    const greta_ICR = await troveManager.getCurrentICR(greta, price);
-    const harry_ICR = await troveManager.getCurrentICR(harry, price);
+    const alice_ICR = await troveManager.getCurrentICR(alice.address, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
+    const carol_ICR = await troveManager.getCurrentICR(carol.address, price);
+    const dennis_ICR = await troveManager.getCurrentICR(dennis.address, price);
+    const erin_ICR = await troveManager.getCurrentICR(erin.address, price);
+    const freddy_ICR = await troveManager.getCurrentICR(freddy.address, price);
+    const greta_ICR = await troveManager.getCurrentICR(greta.address, price);
+    const harry_ICR = await troveManager.getCurrentICR(harry.address, price);
     const TCR = await th.getTCR(contracts);
 
     // Alice and Bob should have ICR > TCR
@@ -2317,34 +2358,34 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(TCR_After.gt(_150percent));
 
     // get all Troves
-    const alice_Trove = await troveManager.Troves(alice);
-    const bob_Trove = await troveManager.Troves(bob);
-    const carol_Trove = await troveManager.Troves(carol);
-    const dennis_Trove = await troveManager.Troves(dennis);
-    const erin_Trove = await troveManager.Troves(erin);
-    const freddy_Trove = await troveManager.Troves(freddy);
-    const greta_Trove = await troveManager.Troves(greta);
-    const harry_Trove = await troveManager.Troves(harry);
+    const alice_Trove = await troveManager.Troves(alice.address);
+    const bob_Trove = await troveManager.Troves(bob.address);
+    const carol_Trove = await troveManager.Troves(carol.address);
+    const dennis_Trove = await troveManager.Troves(dennis.address);
+    const erin_Trove = await troveManager.Troves(erin.address);
+    const freddy_Trove = await troveManager.Troves(freddy.address);
+    const greta_Trove = await troveManager.Troves(greta.address);
+    const harry_Trove = await troveManager.Troves(harry.address);
 
     // check that Alice, Bob, Carol, & Dennis' Troves remain active
     assert.equal(alice_Trove[3], 1);
     assert.equal(bob_Trove[3], 1);
     assert.equal(carol_Trove[3], 1);
     assert.equal(dennis_Trove[3], 1);
-    assert.isTrue(await sortedTroves.contains(alice));
-    assert.isTrue(await sortedTroves.contains(bob));
-    assert.isTrue(await sortedTroves.contains(carol));
-    assert.isTrue(await sortedTroves.contains(dennis));
+    assert.isTrue(await sortedTroves.contains(alice.address));
+    assert.isTrue(await sortedTroves.contains(bob.address));
+    assert.isTrue(await sortedTroves.contains(carol.address));
+    assert.isTrue(await sortedTroves.contains(dennis.address));
 
     // check all other Troves are liquidated
     assert.equal(erin_Trove[3], 3);
     assert.equal(freddy_Trove[3], 3);
     assert.equal(greta_Trove[3], 3);
     assert.equal(harry_Trove[3], 3);
-    assert.isFalse(await sortedTroves.contains(erin));
-    assert.isFalse(await sortedTroves.contains(freddy));
-    assert.isFalse(await sortedTroves.contains(greta));
-    assert.isFalse(await sortedTroves.contains(harry));
+    assert.isFalse(await sortedTroves.contains(erin.address));
+    assert.isFalse(await sortedTroves.contains(freddy.address));
+    assert.isFalse(await sortedTroves.contains(greta.address));
+    assert.isFalse(await sortedTroves.contains(harry.address));
   });
 
   it("liquidateTroves(): Liquidates Troves until 1) system has left recovery mode AND 2) it reaches a Trove with ICR >= 110%", async () => {
@@ -2382,7 +2423,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Alice deposits DebtToken to Stability Pool
-    await stabilityPool.provideToSP(liquidationAmount, ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(liquidationAmount, ZERO_ADDRESS);
 
     // price drops to 1FIL:85DebtToken, reducing TCR below 150%
     await priceFeed.setPrice("85000000000000000000");
@@ -2394,7 +2435,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode_Before);
 
     // check TCR < 150%
-    const _150percent = web3.utils.toBN("1500000000000000000");
+    const _150percent = toBN("1500000000000000000");
     const TCR_Before = await th.getTCR(contracts);
     assert.isTrue(TCR_Before.lt(_150percent));
 
@@ -2409,12 +2450,12 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     Elisa       102%
     Freddy      102%
     */
-    alice_ICR = await troveManager.getCurrentICR(alice, price);
-    bob_ICR = await troveManager.getCurrentICR(bob, price);
-    carol_ICR = await troveManager.getCurrentICR(carol, price);
-    dennis_ICR = await troveManager.getCurrentICR(dennis, price);
-    erin_ICR = await troveManager.getCurrentICR(erin, price);
-    freddy_ICR = await troveManager.getCurrentICR(freddy, price);
+    alice_ICR = await troveManager.getCurrentICR(alice.address, price);
+    bob_ICR = await troveManager.getCurrentICR(bob.address, price);
+    carol_ICR = await troveManager.getCurrentICR(carol.address, price);
+    dennis_ICR = await troveManager.getCurrentICR(dennis.address, price);
+    erin_ICR = await troveManager.getCurrentICR(erin.address, price);
+    freddy_ICR = await troveManager.getCurrentICR(freddy.address, price);
 
     // Alice should have ICR > 150%
     assert.isTrue(alice_ICR.gt(_150percent));
@@ -2445,16 +2486,16 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(TCR_After.gt(_150percent));
 
     // get all Troves
-    const alice_Trove = await troveManager.Troves(alice);
-    const bob_Trove = await troveManager.Troves(bob);
-    const carol_Trove = await troveManager.Troves(carol);
-    const dennis_Trove = await troveManager.Troves(dennis);
-    const erin_Trove = await troveManager.Troves(erin);
-    const freddy_Trove = await troveManager.Troves(freddy);
+    const alice_Trove = await troveManager.Troves(alice.address);
+    const bob_Trove = await troveManager.Troves(bob.address);
+    const carol_Trove = await troveManager.Troves(carol.address);
+    const dennis_Trove = await troveManager.Troves(dennis.address);
+    const erin_Trove = await troveManager.Troves(erin.address);
+    const freddy_Trove = await troveManager.Troves(freddy.address);
 
     // check that Alice's Trove remains active
     assert.equal(alice_Trove[3], 1);
-    assert.isTrue(await sortedTroves.contains(alice));
+    assert.isTrue(await sortedTroves.contains(alice.address));
 
     // check all other Troves are liquidated
     assert.equal(bob_Trove[3], 3);
@@ -2463,11 +2504,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.equal(erin_Trove[3], 3);
     assert.equal(freddy_Trove[3], 3);
 
-    assert.isFalse(await sortedTroves.contains(bob));
-    assert.isFalse(await sortedTroves.contains(carol));
-    assert.isFalse(await sortedTroves.contains(dennis));
-    assert.isFalse(await sortedTroves.contains(erin));
-    assert.isFalse(await sortedTroves.contains(freddy));
+    assert.isFalse(await sortedTroves.contains(bob.address));
+    assert.isFalse(await sortedTroves.contains(carol.address));
+    assert.isFalse(await sortedTroves.contains(dennis.address));
+    assert.isFalse(await sortedTroves.contains(erin.address));
+    assert.isFalse(await sortedTroves.contains(freddy.address));
   });
 
   it("liquidateTroves(): liquidates only up to the requested number of undercollateralized troves", async () => {
@@ -2488,7 +2529,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     const TCR = await th.getTCR(contracts);
 
-    assert.isTrue(TCR.lte(web3.utils.toBN(dec(150, 18))));
+    assert.isTrue(TCR.lte(toBN(dec(150, 18))));
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // --- TEST ---
@@ -2505,33 +2546,33 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.equal(TroveOwnersArrayLength, "3");
 
     // Check Alice, Bob, Carol troves have been closed
-    const aliceTroveStatus = (await troveManager.getTroveStatus(alice)).toString();
-    const bobTroveStatus = (await troveManager.getTroveStatus(bob)).toString();
-    const carolTroveStatus = (await troveManager.getTroveStatus(carol)).toString();
+    const aliceTroveStatus = (await troveManager.getTroveStatus(alice.address)).toString();
+    const bobTroveStatus = (await troveManager.getTroveStatus(bob.address)).toString();
+    const carolTroveStatus = (await troveManager.getTroveStatus(carol.address)).toString();
 
     assert.equal(aliceTroveStatus, "3");
     assert.equal(bobTroveStatus, "3");
     assert.equal(carolTroveStatus, "3");
 
     //  Check Alice, Bob, and Carol's trove are no longer in the sorted list
-    const alice_isInSortedList = await sortedTroves.contains(alice);
-    const bob_isInSortedList = await sortedTroves.contains(bob);
-    const carol_isInSortedList = await sortedTroves.contains(carol);
+    const alice_isInSortedList = await sortedTroves.contains(alice.address);
+    const bob_isInSortedList = await sortedTroves.contains(bob.address);
+    const carol_isInSortedList = await sortedTroves.contains(carol.address);
 
     assert.isFalse(alice_isInSortedList);
     assert.isFalse(bob_isInSortedList);
     assert.isFalse(carol_isInSortedList);
 
     // Check Dennis, Erin still have active troves
-    const dennisTroveStatus = (await troveManager.getTroveStatus(dennis)).toString();
-    const erinTroveStatus = (await troveManager.getTroveStatus(erin)).toString();
+    const dennisTroveStatus = (await troveManager.getTroveStatus(dennis.address)).toString();
+    const erinTroveStatus = (await troveManager.getTroveStatus(erin.address)).toString();
 
     assert.equal(dennisTroveStatus, "1");
     assert.equal(erinTroveStatus, "1");
 
     // Check Dennis, Erin still in sorted list
-    const dennis_isInSortedList = await sortedTroves.contains(dennis);
-    const erin_isInSortedList = await sortedTroves.contains(erin);
+    const dennis_isInSortedList = await sortedTroves.contains(dennis.address);
+    const erin_isInSortedList = await sortedTroves.contains(erin.address);
 
     assert.isTrue(dennis_isInSortedList);
     assert.isTrue(erin_isInSortedList);
@@ -2561,9 +2602,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     // Confirm A, B, C ICRs are below 110%
 
-    const alice_ICR = await troveManager.getCurrentICR(alice, price);
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
-    const carol_ICR = await troveManager.getCurrentICR(carol, price);
+    const alice_ICR = await troveManager.getCurrentICR(alice.address, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
+    const carol_ICR = await troveManager.getCurrentICR(carol.address, price);
     assert.isTrue(alice_ICR.lte(mv._MCR));
     assert.isTrue(bob_ICR.lte(mv._MCR));
     assert.isTrue(carol_ICR.lte(mv._MCR));
@@ -2574,9 +2615,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     await assertRevert(troveManager.liquidateTroves(0), "TroveManager: nothing to liquidate");
 
     // Check all troves are still in the system
-    assert.isTrue(await sortedTroves.contains(alice));
-    assert.isTrue(await sortedTroves.contains(bob));
-    assert.isTrue(await sortedTroves.contains(carol));
+    assert.isTrue(await sortedTroves.contains(alice.address));
+    assert.isTrue(await sortedTroves.contains(bob.address));
+    assert.isTrue(await sortedTroves.contains(carol.address));
 
     const TCR_After = (await th.getTCR(contracts)).toString();
 
@@ -2603,7 +2644,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     await openTrove({ ICR: toBN(dec(111, 16)), extraParams: { from: freddy } });
 
     // Whale puts some tokens in Stability Pool
-    await stabilityPool.provideToSP(dec(300, 18), ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(dec(300, 18), ZERO_ADDRESS);
 
     // --- TEST ---
 
@@ -2615,31 +2656,31 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Confirm troves A-E are ICR < 110%
-    assert.isTrue((await troveManager.getCurrentICR(alice, price)).lte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(bob, price)).lte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(carol, price)).lte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(erin, price)).lte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(freddy, price)).lte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(alice.address, price)).lte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(bob.address, price)).lte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(carol.address, price)).lte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(erin.address, price)).lte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(freddy.address, price)).lte(mv._MCR));
 
     // Confirm Whale is ICR > 110%
-    assert.isTrue((await troveManager.getCurrentICR(whale, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(whale.address, price)).gte(mv._MCR));
 
     // Liquidate 5 troves
     await troveManager.liquidateTroves(5);
 
     // Confirm troves A-E have been removed from the system
-    assert.isFalse(await sortedTroves.contains(alice));
-    assert.isFalse(await sortedTroves.contains(bob));
-    assert.isFalse(await sortedTroves.contains(carol));
-    assert.isFalse(await sortedTroves.contains(erin));
-    assert.isFalse(await sortedTroves.contains(freddy));
+    assert.isFalse(await sortedTroves.contains(alice.address));
+    assert.isFalse(await sortedTroves.contains(bob.address));
+    assert.isFalse(await sortedTroves.contains(carol.address));
+    assert.isFalse(await sortedTroves.contains(erin.address));
+    assert.isFalse(await sortedTroves.contains(freddy.address));
 
     // Check all troves are now liquidated
-    assert.equal((await troveManager.Troves(alice))[3].toString(), "3");
-    assert.equal((await troveManager.Troves(bob))[3].toString(), "3");
-    assert.equal((await troveManager.Troves(carol))[3].toString(), "3");
-    assert.equal((await troveManager.Troves(erin))[3].toString(), "3");
-    assert.equal((await troveManager.Troves(freddy))[3].toString(), "3");
+    assert.equal((await troveManager.Troves(alice.address))[3].toString(), "3");
+    assert.equal((await troveManager.Troves(bob.address))[3].toString(), "3");
+    assert.equal((await troveManager.Troves(carol.address))[3].toString(), "3");
+    assert.equal((await troveManager.Troves(erin.address))[3].toString(), "3");
+    assert.equal((await troveManager.Troves(freddy.address))[3].toString(), "3");
   });
 
   it("liquidateTroves(): a liquidation sequence containing Pool offsets increases the TCR", async () => {
@@ -2649,7 +2690,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: dec(500, 18),
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(dec(500, 18), ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(dec(500, 18), ZERO_ADDRESS);
 
     await openTrove({ ICR: toBN(dec(300, 16)), extraParams: { from: alice } });
     await openTrove({ ICR: toBN(dec(320, 16)), extraParams: { from: carol } });
@@ -2676,19 +2717,19 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraParams: { from: defaulter_4 },
     });
 
-    assert.isTrue(await sortedTroves.contains(defaulter_1));
-    assert.isTrue(await sortedTroves.contains(defaulter_2));
-    assert.isTrue(await sortedTroves.contains(defaulter_3));
-    assert.isTrue(await sortedTroves.contains(defaulter_4));
+    assert.isTrue(await sortedTroves.contains(defaulter_1.address));
+    assert.isTrue(await sortedTroves.contains(defaulter_2.address));
+    assert.isTrue(await sortedTroves.contains(defaulter_3.address));
+    assert.isTrue(await sortedTroves.contains(defaulter_4.address));
 
     // Price drops
     await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
-    assert.isTrue(await th.ICRbetween100and110(defaulter_1, troveManager, price));
-    assert.isTrue(await th.ICRbetween100and110(defaulter_2, troveManager, price));
-    assert.isTrue(await th.ICRbetween100and110(defaulter_3, troveManager, price));
-    assert.isTrue(await th.ICRbetween100and110(defaulter_4, troveManager, price));
+    assert.isTrue(await th.ICRbetween100and110(defaulter_1.address, troveManager, price));
+    assert.isTrue(await th.ICRbetween100and110(defaulter_2.address, troveManager, price));
+    assert.isTrue(await th.ICRbetween100and110(defaulter_3.address, troveManager, price));
+    assert.isTrue(await th.ICRbetween100and110(defaulter_4.address, troveManager, price));
 
     // Confirm Recovery Mode
     assert.isTrue(await th.checkRecoveryMode(contracts));
@@ -2700,10 +2741,10 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     await troveManager.liquidateTroves(8);
 
-    // assert.isFalse((await sortedTroves.contains(defaulter_1)))
-    // assert.isFalse((await sortedTroves.contains(defaulter_2)))
-    // assert.isFalse((await sortedTroves.contains(defaulter_3)))
-    assert.isFalse(await sortedTroves.contains(defaulter_4));
+    // assert.isFalse((await sortedTroves.contains(defaulter_1.address)))
+    // assert.isFalse((await sortedTroves.contains(defaulter_2.address)))
+    // assert.isFalse((await sortedTroves.contains(defaulter_3.address)))
+    assert.isFalse(await sortedTroves.contains(defaulter_4.address));
 
     // Check Stability Pool has been emptied by the liquidations
     assert.equal((await stabilityPool.getTotalDebtTokenDeposits()).toString(), "0");
@@ -2754,10 +2795,10 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraParams: { from: defaulter_4 },
     });
 
-    assert.isTrue(await sortedTroves.contains(defaulter_1));
-    assert.isTrue(await sortedTroves.contains(defaulter_2));
-    assert.isTrue(await sortedTroves.contains(defaulter_3));
-    assert.isTrue(await sortedTroves.contains(defaulter_4));
+    assert.isTrue(await sortedTroves.contains(defaulter_1.address));
+    assert.isTrue(await sortedTroves.contains(defaulter_2.address));
+    assert.isTrue(await sortedTroves.contains(defaulter_3.address));
+    assert.isTrue(await sortedTroves.contains(defaulter_4.address));
 
     // Price drops
     const price = toBN(dec(100, 18));
@@ -2794,10 +2835,10 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     await troveManager.liquidateTroves(8);
 
     // Check all defaulters have been liquidated
-    assert.isFalse(await sortedTroves.contains(defaulter_1));
-    assert.isFalse(await sortedTroves.contains(defaulter_2));
-    assert.isFalse(await sortedTroves.contains(defaulter_3));
-    assert.isFalse(await sortedTroves.contains(defaulter_4));
+    assert.isFalse(await sortedTroves.contains(defaulter_1.address));
+    assert.isFalse(await sortedTroves.contains(defaulter_2.address));
+    assert.isFalse(await sortedTroves.contains(defaulter_3.address));
+    assert.isFalse(await sortedTroves.contains(defaulter_4.address));
 
     // Check that the liquidation sequence has reduced the TCR
     const TCR_After = await th.getTCR(contracts);
@@ -2836,9 +2877,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     // Confirm Recovery Mode
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
-    const alice_ICR_Before = await troveManager.getCurrentICR(alice, price);
-    const bob_ICR_Before = await troveManager.getCurrentICR(bob, price);
-    const carol_ICR_Before = await troveManager.getCurrentICR(carol, price);
+    const alice_ICR_Before = await troveManager.getCurrentICR(alice.address, price);
+    const bob_ICR_Before = await troveManager.getCurrentICR(bob.address, price);
+    const carol_ICR_Before = await troveManager.getCurrentICR(carol.address, price);
 
     /* Before liquidation: 
     Alice ICR: = (1 * 100 / 50) = 200%
@@ -2851,11 +2892,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(carol_ICR_Before.lte(mv._MCR));
 
     // Liquidate defaulter. 30 DebtToken and 0.3 FIL is distributed uniformly between A, B and C. Each receive 10 DebtToken, 0.1 FIL
-    await troveManager.liquidate(defaulter_1);
+    await troveManager.liquidate(defaulter_1.address);
 
-    const alice_ICR_After = await troveManager.getCurrentICR(alice, price);
-    const bob_ICR_After = await troveManager.getCurrentICR(bob, price);
-    const carol_ICR_After = await troveManager.getCurrentICR(carol, price);
+    const alice_ICR_After = await troveManager.getCurrentICR(alice.address, price);
+    const bob_ICR_After = await troveManager.getCurrentICR(bob.address, price);
+    const carol_ICR_After = await troveManager.getCurrentICR(carol.address, price);
 
     /* After liquidation: 
 
@@ -2870,8 +2911,8 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     /* Though Bob's true ICR (including pending rewards) is below the MCR, 
    check that Bob's raw coll and debt has not changed, and that his "raw" ICR is above the MCR */
-    const bob_Coll = (await troveManager.Troves(bob))[1];
-    const bob_Debt = (await troveManager.Troves(bob))[0];
+    const bob_Coll = (await troveManager.Troves(bob.address))[1];
+    const bob_Debt = (await troveManager.Troves(bob.address))[0];
 
     const bob_rawICR = bob_Coll.mul(th.toBN(dec(100, 18))).div(bob_Debt);
     assert.isTrue(bob_rawICR.gte(mv._MCR));
@@ -2882,14 +2923,14 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     /*  Since there is 0 DebtToken in the stability Pool, A, with ICR >110%, should stay active.
    Check Alice stays active, Carol gets liquidated, and Bob gets liquidated 
    (because his pending rewards bring his ICR < MCR) */
-    assert.isTrue(await sortedTroves.contains(alice));
-    assert.isFalse(await sortedTroves.contains(bob));
-    assert.isFalse(await sortedTroves.contains(carol));
+    assert.isTrue(await sortedTroves.contains(alice.address));
+    assert.isFalse(await sortedTroves.contains(bob.address));
+    assert.isFalse(await sortedTroves.contains(carol.address));
 
     // check trove statuses - A active (1),  B and C liquidated (3)
-    assert.equal((await troveManager.Troves(alice))[3].toString(), "1");
-    assert.equal((await troveManager.Troves(bob))[3].toString(), "3");
-    assert.equal((await troveManager.Troves(carol))[3].toString(), "3");
+    assert.equal((await troveManager.Troves(alice.address))[3].toString(), "1");
+    assert.equal((await troveManager.Troves(bob.address))[3].toString(), "3");
+    assert.equal((await troveManager.Troves(carol.address))[3].toString(), "3");
   });
 
   it("liquidateTroves(): does nothing if all troves have ICR > 110% and Stability Pool is empty", async () => {
@@ -2904,16 +2945,16 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     // Confirm Recovery Mode
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
-    assert.isTrue(await sortedTroves.contains(alice));
-    assert.isTrue(await sortedTroves.contains(bob));
-    assert.isTrue(await sortedTroves.contains(carol));
+    assert.isTrue(await sortedTroves.contains(alice.address));
+    assert.isTrue(await sortedTroves.contains(bob.address));
+    assert.isTrue(await sortedTroves.contains(carol.address));
 
     const TCR_Before = (await th.getTCR(contracts)).toString();
     const listSize_Before = (await sortedTroves.getSize()).toString();
 
-    assert.isTrue((await troveManager.getCurrentICR(alice, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(bob, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(carol, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(alice.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(bob.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(carol.address, price)).gte(mv._MCR));
 
     // Confirm 0 DebtToken in Stability Pool
     assert.equal((await stabilityPool.getTotalDebtTokenDeposits()).toString(), "0");
@@ -2922,9 +2963,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     await assertRevert(troveManager.liquidateTroves(10), "TroveManager: nothing to liquidate");
 
     // Check all troves remain active
-    assert.isTrue(await sortedTroves.contains(alice));
-    assert.isTrue(await sortedTroves.contains(bob));
-    assert.isTrue(await sortedTroves.contains(carol));
+    assert.isTrue(await sortedTroves.contains(alice.address));
+    assert.isTrue(await sortedTroves.contains(bob.address));
+    assert.isTrue(await sortedTroves.contains(carol.address));
 
     const TCR_After = (await th.getTCR(contracts)).toString();
     const listSize_After = (await sortedTroves.getSize()).toString();
@@ -2957,7 +2998,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops, but all troves remain active
     await priceFeed.setPrice(dec(100, 18));
@@ -2967,11 +3008,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Confirm all troves have ICR > MCR
-    assert.isTrue((await troveManager.getCurrentICR(freddy, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(greta, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(alice, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(bob, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(carol, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(freddy.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(greta.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(alice.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(bob.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(carol.address, price)).gte(mv._MCR));
 
     // Confirm DebtToken in Stability Pool
     assert.equal(
@@ -2981,18 +3022,19 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     // Attempt liqudation sequence
     const liquidationTx = await troveManager.liquidateTroves(10);
-    const [liquidatedDebt, liquidatedColl, gasComp] = th.getEmittedLiquidationValues(liquidationTx);
+    const [liquidatedDebt, liquidatedColl, gasComp] =
+      await th.getEmittedLiquidationValues(liquidationTx);
 
     // Check F and G were liquidated
-    assert.isFalse(await sortedTroves.contains(freddy));
-    assert.isFalse(await sortedTroves.contains(greta));
+    assert.isFalse(await sortedTroves.contains(freddy.address));
+    assert.isFalse(await sortedTroves.contains(greta.address));
 
     // Check whale and A-D remain active
-    assert.isTrue(await sortedTroves.contains(alice));
-    assert.isTrue(await sortedTroves.contains(bob));
-    assert.isTrue(await sortedTroves.contains(carol));
-    assert.isTrue(await sortedTroves.contains(dennis));
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(alice.address));
+    assert.isTrue(await sortedTroves.contains(bob.address));
+    assert.isTrue(await sortedTroves.contains(carol.address));
+    assert.isTrue(await sortedTroves.contains(dennis.address));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     // Liquidation event emits coll = (F_debt + G_debt)/price*1.1*0.995, and debt = (F_debt + G_debt)
     th.assertIsApproximatelyEqual(liquidatedDebt, F_totalDebt.add(G_totalDebt));
@@ -3009,32 +3051,32 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     const freddy_remainingCollateral = F_coll.sub(F_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     const greta_remainingCollateral = G_coll.sub(G_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(freddy),
+      await collSurplusPool.getCollateral(freddy.address),
       freddy_remainingCollateral,
     );
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(greta),
+      await collSurplusPool.getCollateral(greta.address),
       greta_remainingCollateral,
     );
 
     // can claim collateral
-    const freddy_balanceBefore = th.toBN(await web3.eth.getBalance(freddy));
-    const FREDDY_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: freddy, gasPrice: GAS_PRICE }),
+    const freddy_balanceBefore = th.toBN(await web3.eth.getBalance(freddy.address));
+    const FREDDY_GAS = await th.gasUsed(
+      await borrowerOperations.connect(freddy).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const freddy_expectedBalance = freddy_balanceBefore.sub(th.toBN(FREDDY_GAS * GAS_PRICE));
-    const freddy_balanceAfter = th.toBN(await web3.eth.getBalance(freddy));
+    const freddy_balanceAfter = th.toBN(await web3.eth.getBalance(freddy.address));
     th.assertIsApproximatelyEqual(
       freddy_balanceAfter,
       freddy_expectedBalance.add(th.toBN(freddy_remainingCollateral)),
     );
 
-    const greta_balanceBefore = th.toBN(await web3.eth.getBalance(greta));
-    const GRETA_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: greta, gasPrice: GAS_PRICE }),
+    const greta_balanceBefore = th.toBN(await web3.eth.getBalance(greta.address));
+    const GRETA_GAS = await th.gasUsed(
+      await borrowerOperations.connect(greta).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const greta_expectedBalance = greta_balanceBefore.sub(th.toBN(GRETA_GAS * GAS_PRICE));
-    const greta_balanceAfter = th.toBN(await web3.eth.getBalance(greta));
+    const greta_balanceAfter = th.toBN(await web3.eth.getBalance(greta.address));
     th.assertIsApproximatelyEqual(
       greta_balanceAfter,
       greta_expectedBalance.add(th.toBN(greta_remainingCollateral)),
@@ -3077,7 +3119,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops, but all troves remain active
     await priceFeed.setPrice(dec(100, 18));
@@ -3087,11 +3129,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Confirm all troves have ICR > MCR
-    assert.isTrue((await troveManager.getCurrentICR(freddy, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(greta, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(alice, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(bob, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(carol, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(freddy.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(greta.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(alice.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(bob.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(carol.address, price)).gte(mv._MCR));
 
     // Confirm DebtToken in Stability Pool
     assert.equal(
@@ -3101,25 +3143,26 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     // Attempt liqudation sequence
     const liquidationTx = await troveManager.liquidateTroves(10);
-    const [liquidatedDebt, liquidatedColl, gasComp] = th.getEmittedLiquidationValues(liquidationTx);
+    const [liquidatedDebt, liquidatedColl, gasComp] =
+      await th.getEmittedLiquidationValues(liquidationTx);
 
     // Check F and G were liquidated
-    assert.isFalse(await sortedTroves.contains(freddy));
-    assert.isFalse(await sortedTroves.contains(greta));
+    assert.isFalse(await sortedTroves.contains(freddy.address));
+    assert.isFalse(await sortedTroves.contains(greta.address));
 
     // Check whale and A-D remain active
-    assert.isTrue(await sortedTroves.contains(alice));
-    assert.isTrue(await sortedTroves.contains(bob));
-    assert.isTrue(await sortedTroves.contains(carol));
-    assert.isTrue(await sortedTroves.contains(dennis));
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(alice.address));
+    assert.isTrue(await sortedTroves.contains(bob.address));
+    assert.isTrue(await sortedTroves.contains(carol.address));
+    assert.isTrue(await sortedTroves.contains(dennis.address));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     // Check A's collateral and debt remain the same
-    const entireColl_A = (await troveManager.Troves(alice))[1].add(
-      await troveManager.getPendingFILReward(alice),
+    const entireColl_A = (await troveManager.Troves(alice.address))[1].add(
+      await troveManager.getPendingFILReward(alice.address),
     );
-    const entireDebt_A = (await troveManager.Troves(alice))[0].add(
-      await troveManager.getPendingDebtReward(alice),
+    const entireDebt_A = (await troveManager.Troves(alice.address))[0].add(
+      await troveManager.getPendingDebtReward(alice.address),
     );
 
     assert.equal(entireColl_A.toString(), A_coll);
@@ -3142,32 +3185,32 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     const freddy_remainingCollateral = F_coll.sub(F_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     const greta_remainingCollateral = G_coll.sub(G_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(freddy),
+      await collSurplusPool.getCollateral(freddy.address),
       freddy_remainingCollateral,
     );
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(greta),
+      await collSurplusPool.getCollateral(greta.address),
       greta_remainingCollateral,
     );
 
     // can claim collateral
-    const freddy_balanceBefore = th.toBN(await web3.eth.getBalance(freddy));
-    const FREDDY_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: freddy, gasPrice: GAS_PRICE }),
+    const freddy_balanceBefore = th.toBN(await web3.eth.getBalance(freddy.address));
+    const FREDDY_GAS = await th.gasUsed(
+      await borrowerOperations.connect(freddy).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const freddy_expectedBalance = freddy_balanceBefore.sub(th.toBN(FREDDY_GAS * GAS_PRICE));
-    const freddy_balanceAfter = th.toBN(await web3.eth.getBalance(freddy));
+    const freddy_balanceAfter = th.toBN(await web3.eth.getBalance(freddy.address));
     th.assertIsApproximatelyEqual(
       freddy_balanceAfter,
       freddy_expectedBalance.add(th.toBN(freddy_remainingCollateral)),
     );
 
-    const greta_balanceBefore = th.toBN(await web3.eth.getBalance(greta));
-    const GRETA_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: greta, gasPrice: GAS_PRICE }),
+    const greta_balanceBefore = th.toBN(await web3.eth.getBalance(greta.address));
+    const GRETA_GAS = await th.gasUsed(
+      await borrowerOperations.connect(greta).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const greta_expectedBalance = greta_balanceBefore.sub(th.toBN(GRETA_GAS * GAS_PRICE));
-    const greta_balanceAfter = th.toBN(await web3.eth.getBalance(greta));
+    const greta_balanceAfter = th.toBN(await web3.eth.getBalance(greta.address));
     th.assertIsApproximatelyEqual(
       greta_balanceAfter,
       greta_expectedBalance.add(th.toBN(greta_remainingCollateral)),
@@ -3195,9 +3238,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.equal((await sortedTroves.getSize()).toString(), "4");
 
     // Check token balances before
-    assert.equal((await debtToken.balanceOf(dennis)).toString(), debtTokenAmountD);
-    assert.equal((await debtToken.balanceOf(erin)).toString(), debtTokenAmountE);
-    assert.equal((await debtToken.balanceOf(freddy)).toString(), debtTokenAmountF);
+    assert.equal((await debtToken.balanceOf(dennis.address)).toString(), debtTokenAmountD);
+    assert.equal((await debtToken.balanceOf(erin.address)).toString(), debtTokenAmountE);
+    assert.equal((await debtToken.balanceOf(freddy.address)).toString(), debtTokenAmountF);
 
     // Price drops
     await priceFeed.setPrice(dec(100, 18));
@@ -3209,17 +3252,17 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     await troveManager.liquidateTroves(10);
 
     // Check Whale remains in the system
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     // Check D, E, F have been removed
-    assert.isFalse(await sortedTroves.contains(dennis));
-    assert.isFalse(await sortedTroves.contains(erin));
-    assert.isFalse(await sortedTroves.contains(freddy));
+    assert.isFalse(await sortedTroves.contains(dennis.address));
+    assert.isFalse(await sortedTroves.contains(erin.address));
+    assert.isFalse(await sortedTroves.contains(freddy.address));
 
     // Check token balances of users whose troves were liquidated, have not changed
-    assert.equal((await debtToken.balanceOf(dennis)).toString(), debtTokenAmountD);
-    assert.equal((await debtToken.balanceOf(erin)).toString(), debtTokenAmountE);
-    assert.equal((await debtToken.balanceOf(freddy)).toString(), debtTokenAmountF);
+    assert.equal((await debtToken.balanceOf(dennis.address)).toString(), debtTokenAmountD);
+    assert.equal((await debtToken.balanceOf(erin.address)).toString(), debtTokenAmountE);
+    assert.equal((await debtToken.balanceOf(freddy.address)).toString(), debtTokenAmountF);
   });
 
   it("liquidateTroves(): Liquidating troves at 100 < ICR < 110 with SP deposits correctly impacts their SP deposit and FIL gain", async () => {
@@ -3229,7 +3272,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: dec(4000, 18),
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(W_debtTokenAmount, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(W_debtTokenAmount, ZERO_ADDRESS);
 
     const {
       debtTokenAmount: A_debtTokenAmount,
@@ -3255,8 +3298,8 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // A, B provide to the SP
-    await stabilityPool.provideToSP(A_debtTokenAmount, ZERO_ADDRESS, { from: alice });
-    await stabilityPool.provideToSP(B_debtTokenAmount, ZERO_ADDRESS, { from: bob });
+    await stabilityPool.connect(alice).provideToSP(A_debtTokenAmount, ZERO_ADDRESS);
+    await stabilityPool.connect(bob).provideToSP(B_debtTokenAmount, ZERO_ADDRESS);
 
     const totalDeposit = W_debtTokenAmount.add(A_debtTokenAmount).add(B_debtTokenAmount);
 
@@ -3273,9 +3316,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.equal((await stabilityPool.getTotalDebtTokenDeposits()).toString(), totalDeposit);
 
     // *** Check A, B, C ICRs 100<ICR<110
-    const alice_ICR = await troveManager.getCurrentICR(alice, price);
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
-    const carol_ICR = await troveManager.getCurrentICR(carol, price);
+    const alice_ICR = await troveManager.getCurrentICR(alice.address, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
+    const carol_ICR = await troveManager.getCurrentICR(carol.address, price);
 
     assert.isTrue(alice_ICR.gte(mv._ICR100) && alice_ICR.lte(mv._MCR));
     assert.isTrue(bob_ICR.gte(mv._ICR100) && bob_ICR.lte(mv._MCR));
@@ -3285,9 +3328,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     await troveManager.liquidateTroves(10);
 
     // Check all defaulters have been liquidated
-    assert.isFalse(await sortedTroves.contains(alice));
-    assert.isFalse(await sortedTroves.contains(bob));
-    assert.isFalse(await sortedTroves.contains(carol));
+    assert.isFalse(await sortedTroves.contains(alice.address));
+    assert.isFalse(await sortedTroves.contains(bob.address));
+    assert.isFalse(await sortedTroves.contains(carol.address));
 
     // check system sized reduced to 1 troves
     assert.equal((await sortedTroves.getSize()).toString(), "1");
@@ -3325,16 +3368,18 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     // Check remaining DebtToken Deposits and FIL gain, for whale and depositors whose troves were liquidated
     const whale_Deposit_After = (
-      await stabilityPool.getCompoundedDebtTokenDeposit(whale)
+      await stabilityPool.getCompoundedDebtTokenDeposit(whale.address)
     ).toString();
     const alice_Deposit_After = (
-      await stabilityPool.getCompoundedDebtTokenDeposit(alice)
+      await stabilityPool.getCompoundedDebtTokenDeposit(alice.address)
     ).toString();
-    const bob_Deposit_After = (await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString();
+    const bob_Deposit_After = (
+      await stabilityPool.getCompoundedDebtTokenDeposit(bob.address)
+    ).toString();
 
-    const whale_FILGain = (await stabilityPool.getDepositorFILGain(whale)).toString();
-    const alice_FILGain = (await stabilityPool.getDepositorFILGain(alice)).toString();
-    const bob_FILGain = (await stabilityPool.getDepositorFILGain(bob)).toString();
+    const whale_FILGain = (await stabilityPool.getDepositorFILGain(whale.address)).toString();
+    const alice_FILGain = (await stabilityPool.getDepositorFILGain(alice.address)).toString();
+    const bob_FILGain = (await stabilityPool.getDepositorFILGain(bob.address)).toString();
 
     const liquidatedDebt = A_totalDebt.add(B_totalDebt).add(C_totalDebt);
     const liquidatedColl = A_coll.add(B_coll).add(C_coll);
@@ -3397,7 +3442,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: dec(400, 18),
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(dec(400, 18), ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(dec(400, 18), ZERO_ADDRESS);
 
     await openTrove({
       ICR: toBN(dec(182, 16)),
@@ -3412,8 +3457,8 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     await openTrove({ ICR: toBN(dec(170, 16)), extraParams: { from: carol } });
 
     // A, B provide 100, 300 to the SP
-    await stabilityPool.provideToSP(dec(100, 18), ZERO_ADDRESS, { from: alice });
-    await stabilityPool.provideToSP(dec(300, 18), ZERO_ADDRESS, { from: bob });
+    await stabilityPool.connect(alice).provideToSP(dec(100, 18), ZERO_ADDRESS);
+    await stabilityPool.connect(bob).provideToSP(dec(300, 18), ZERO_ADDRESS);
 
     assert.equal((await sortedTroves.getSize()).toString(), "4");
 
@@ -3431,17 +3476,17 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.equal(FILinSP_Before, "0");
 
     // *** Check A, B, C ICRs < 100
-    assert.isTrue((await troveManager.getCurrentICR(alice, price)).lte(mv._ICR100));
-    assert.isTrue((await troveManager.getCurrentICR(bob, price)).lte(mv._ICR100));
-    assert.isTrue((await troveManager.getCurrentICR(carol, price)).lte(mv._ICR100));
+    assert.isTrue((await troveManager.getCurrentICR(alice.address, price)).lte(mv._ICR100));
+    assert.isTrue((await troveManager.getCurrentICR(bob.address, price)).lte(mv._ICR100));
+    assert.isTrue((await troveManager.getCurrentICR(carol.address, price)).lte(mv._ICR100));
 
     // Liquidate
     await troveManager.liquidateTroves(10);
 
     // Check all defaulters have been liquidated
-    assert.isFalse(await sortedTroves.contains(alice));
-    assert.isFalse(await sortedTroves.contains(bob));
-    assert.isFalse(await sortedTroves.contains(carol));
+    assert.isFalse(await sortedTroves.contains(alice.address));
+    assert.isFalse(await sortedTroves.contains(bob.address));
+    assert.isFalse(await sortedTroves.contains(carol.address));
 
     // check system sized reduced to 1 troves
     assert.equal((await sortedTroves.getSize()).toString(), "1");
@@ -3454,16 +3499,18 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     // Check remaining DebtToken Deposits and FIL gain, for whale and depositors whose troves were liquidated
     const whale_Deposit_After = (
-      await stabilityPool.getCompoundedDebtTokenDeposit(whale)
+      await stabilityPool.getCompoundedDebtTokenDeposit(whale.address)
     ).toString();
     const alice_Deposit_After = (
-      await stabilityPool.getCompoundedDebtTokenDeposit(alice)
+      await stabilityPool.getCompoundedDebtTokenDeposit(alice.address)
     ).toString();
-    const bob_Deposit_After = (await stabilityPool.getCompoundedDebtTokenDeposit(bob)).toString();
+    const bob_Deposit_After = (
+      await stabilityPool.getCompoundedDebtTokenDeposit(bob.address)
+    ).toString();
 
-    const whale_FILGain_After = (await stabilityPool.getDepositorFILGain(whale)).toString();
-    const alice_FILGain_After = (await stabilityPool.getDepositorFILGain(alice)).toString();
-    const bob_FILGain_After = (await stabilityPool.getDepositorFILGain(bob)).toString();
+    const whale_FILGain_After = (await stabilityPool.getDepositorFILGain(whale.address)).toString();
+    const alice_FILGain_After = (await stabilityPool.getDepositorFILGain(alice.address)).toString();
+    const bob_FILGain_After = (await stabilityPool.getDepositorFILGain(bob.address)).toString();
 
     assert.equal(whale_Deposit_After, dec(400, 18));
     assert.equal(alice_Deposit_After, dec(100, 18));
@@ -3497,7 +3544,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops
     await priceFeed.setPrice(dec(120, 18));
@@ -3508,9 +3555,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check A, B, C, D, E troves are in range 110% < ICR < TCR
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
-    const ICR_B = await troveManager.getCurrentICR(bob, price);
-    const ICR_C = await troveManager.getCurrentICR(carol, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+    const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+    const ICR_C = await troveManager.getCurrentICR(carol.address, price);
 
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
     assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
@@ -3522,12 +3569,12 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     await troveManager.liquidateTroves(10);
 
     // Check A and B closed
-    assert.isFalse(await sortedTroves.contains(alice));
-    assert.isFalse(await sortedTroves.contains(bob));
+    assert.isFalse(await sortedTroves.contains(alice.address));
+    assert.isFalse(await sortedTroves.contains(bob.address));
 
     // Check C remains active
-    assert.isTrue(await sortedTroves.contains(carol));
-    assert.equal((await troveManager.Troves(carol))[3].toString(), "1"); // check Status is active
+    assert.isTrue(await sortedTroves.contains(carol.address));
+    assert.equal((await troveManager.Troves(carol.address))[3].toString(), "1"); // check Status is active
   });
 
   it("liquidateTroves() with a non fullfilled liquidation: non liquidated trove remains in TroveOwners Array", async () => {
@@ -3553,7 +3600,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops
     await priceFeed.setPrice(dec(120, 18));
@@ -3564,9 +3611,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check A, B, C troves are in range 110% < ICR < TCR
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
-    const ICR_B = await troveManager.getCurrentICR(bob, price);
-    const ICR_C = await troveManager.getCurrentICR(carol, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+    const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+    const ICR_C = await troveManager.getCurrentICR(carol.address, price);
 
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
     assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
@@ -3584,7 +3631,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     for (let i = 0; i < arrayLength; i++) {
       const address = (await troveManager.TroveOwners(i)).toString();
-      if (address === carol) {
+      if (address === carol.address) {
         addressFound = true;
         addressIdx = i;
       }
@@ -3593,7 +3640,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(addressFound);
 
     // Check TroveOwners idx on trove struct == idx of address found in TroveOwners array
-    const idxOnStruct = (await troveManager.Troves(carol))[4].toString();
+    const idxOnStruct = (await troveManager.Troves(carol.address))[4].toString();
     assert.equal(addressIdx.toString(), idxOnStruct);
   });
 
@@ -3624,7 +3671,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops
     await priceFeed.setPrice(dec(120, 18));
@@ -3635,11 +3682,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check A, B, C, D, E troves are in range 110% < ICR < TCR
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
-    const ICR_B = await troveManager.getCurrentICR(bob, price);
-    const ICR_C = await troveManager.getCurrentICR(carol, price);
-    const ICR_D = await troveManager.getCurrentICR(dennis, price);
-    const ICR_E = await troveManager.getCurrentICR(erin, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+    const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+    const ICR_C = await troveManager.getCurrentICR(carol.address, price);
+    const ICR_D = await troveManager.getCurrentICR(dennis.address, price);
+    const ICR_E = await troveManager.getCurrentICR(erin.address, price);
 
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
     assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
@@ -3653,18 +3700,19 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
      but it will be enough to liquidate Dennis. Afterwards the pool will be empty,
      so Erin won’t liquidated. */
     const tx = await troveManager.liquidateTroves(10);
-    console.log("gasUsed: ", tx.receipt.gasUsed);
+    const receipt = await tx.wait();
+    console.log("gasUsed: ", receipt.gasUsed);
 
     // Check A, B and D are closed
-    assert.isFalse(await sortedTroves.contains(alice));
-    assert.isFalse(await sortedTroves.contains(bob));
-    console.log(await sortedTroves.contains(carol));
-    assert.isFalse(await sortedTroves.contains(dennis));
+    assert.isFalse(await sortedTroves.contains(alice.address));
+    assert.isFalse(await sortedTroves.contains(bob.address));
+    console.log(await sortedTroves.contains(carol.address));
+    assert.isFalse(await sortedTroves.contains(dennis.address));
 
     // Check whale, C and E stay active
-    assert.isTrue(await sortedTroves.contains(whale));
-    assert.isTrue(await sortedTroves.contains(carol));
-    assert.isTrue(await sortedTroves.contains(erin));
+    assert.isTrue(await sortedTroves.contains(whale.address));
+    assert.isTrue(await sortedTroves.contains(carol.address));
+    assert.isTrue(await sortedTroves.contains(erin.address));
   });
 
   it("liquidateTroves() with a non fullfilled liquidation: still can liquidate further troves after the non-liquidated, non emptied pool", async () => {
@@ -3694,7 +3742,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops
     await priceFeed.setPrice(dec(120, 18));
@@ -3705,11 +3753,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check A, B, C, D, E troves are in range 110% < ICR < TCR
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
-    const ICR_B = await troveManager.getCurrentICR(bob, price);
-    const ICR_C = await troveManager.getCurrentICR(carol, price);
-    const ICR_D = await troveManager.getCurrentICR(dennis, price);
-    const ICR_E = await troveManager.getCurrentICR(erin, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+    const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+    const ICR_C = await troveManager.getCurrentICR(carol.address, price);
+    const ICR_D = await troveManager.getCurrentICR(dennis.address, price);
+    const ICR_E = await troveManager.getCurrentICR(erin.address, price);
 
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
     assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
@@ -3725,17 +3773,18 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
      Note that, compared to the previous test, this one will make 1 more loop iteration,
      so it will consume more gas. */
     const tx = await troveManager.liquidateTroves(10);
-    console.log("gasUsed: ", tx.receipt.gasUsed);
+    const receipt = await tx.wait();
+    console.log("gasUsed: ", receipt.gasUsed);
 
     // Check A, B and D are closed
-    assert.isFalse(await sortedTroves.contains(alice));
-    assert.isFalse(await sortedTroves.contains(bob));
-    assert.isFalse(await sortedTroves.contains(dennis));
+    assert.isFalse(await sortedTroves.contains(alice.address));
+    assert.isFalse(await sortedTroves.contains(bob.address));
+    assert.isFalse(await sortedTroves.contains(dennis.address));
 
     // Check whale, C and E stay active
-    assert.isTrue(await sortedTroves.contains(whale));
-    assert.isTrue(await sortedTroves.contains(carol));
-    assert.isTrue(await sortedTroves.contains(erin));
+    assert.isTrue(await sortedTroves.contains(whale.address));
+    assert.isTrue(await sortedTroves.contains(carol.address));
+    assert.isTrue(await sortedTroves.contains(erin.address));
   });
 
   it("liquidateTroves() with a non fullfilled liquidation: total liquidated coll and debt is correct", async () => {
@@ -3761,7 +3810,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops
     await priceFeed.setPrice(dec(120, 18));
@@ -3772,9 +3821,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check A, B, C troves are in range 110% < ICR < TCR
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
-    const ICR_B = await troveManager.getCurrentICR(bob, price);
-    const ICR_C = await troveManager.getCurrentICR(carol, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+    const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+    const ICR_C = await troveManager.getCurrentICR(carol.address, price);
 
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
     assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
@@ -3825,7 +3874,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops
     await priceFeed.setPrice(dec(120, 18));
@@ -3836,9 +3885,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check A, B, C troves are in range 110% < ICR < TCR
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
-    const ICR_B = await troveManager.getCurrentICR(bob, price);
-    const ICR_C = await troveManager.getCurrentICR(carol, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+    const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+    const ICR_C = await troveManager.getCurrentICR(carol.address, price);
 
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
     assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
@@ -3850,7 +3899,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     const liquidationTx = await troveManager.liquidateTroves(10);
 
     const [liquidatedDebt, liquidatedColl, collGasComp, debtTokenGasComp] =
-      th.getEmittedLiquidationValues(liquidationTx);
+      await th.getEmittedLiquidationValues(liquidationTx);
 
     th.assertIsApproximatelyEqual(liquidatedDebt, A_totalDebt.add(B_totalDebt));
     const equivalentColl = A_totalDebt.add(B_totalDebt)
@@ -3867,20 +3916,20 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     const alice_remainingCollateral = A_coll.sub(A_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     const bob_remainingCollateral = B_coll.sub(B_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(alice),
+      await collSurplusPool.getCollateral(alice.address),
       alice_remainingCollateral,
     );
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(bob),
+      await collSurplusPool.getCollateral(bob.address),
       bob_remainingCollateral,
     );
 
     // can claim collateral
-    const alice_balanceBefore = th.toBN(await web3.eth.getBalance(alice));
-    const ALICE_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: alice, gasPrice: GAS_PRICE }),
+    const alice_balanceBefore = th.toBN(await web3.eth.getBalance(alice.address));
+    const ALICE_GAS = await th.gasUsed(
+      await borrowerOperations.connect(alice).claimCollateral({ gasPrice: GAS_PRICE }),
     );
-    const alice_balanceAfter = th.toBN(await web3.eth.getBalance(alice));
+    const alice_balanceAfter = th.toBN(await web3.eth.getBalance(alice.address));
     th.assertIsApproximatelyEqual(
       alice_balanceAfter,
       alice_balanceBefore.add(
@@ -3888,11 +3937,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       ),
     );
 
-    const bob_balanceBefore = th.toBN(await web3.eth.getBalance(bob));
-    const BOB_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: bob, gasPrice: GAS_PRICE }),
+    const bob_balanceBefore = th.toBN(await web3.eth.getBalance(bob.address));
+    const BOB_GAS = await th.gasUsed(
+      await borrowerOperations.connect(bob).claimCollateral({ gasPrice: GAS_PRICE }),
     );
-    const bob_balanceAfter = th.toBN(await web3.eth.getBalance(bob));
+    const bob_balanceAfter = th.toBN(await web3.eth.getBalance(bob.address));
     th.assertIsApproximatelyEqual(
       bob_balanceAfter,
       bob_balanceBefore.add(th.toBN(bob_remainingCollateral).sub(th.toBN(BOB_GAS * GAS_PRICE))),
@@ -3922,7 +3971,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops
     await priceFeed.setPrice(dec(120, 18));
@@ -3933,9 +3982,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check A, B, C troves are in range 110% < ICR < TCR
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
-    const ICR_B = await troveManager.getCurrentICR(bob, price);
-    const ICR_C_Before = await troveManager.getCurrentICR(carol, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+    const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+    const ICR_C_Before = await troveManager.getCurrentICR(carol.address, price);
 
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
     assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
@@ -3946,7 +3995,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     That leaves 50 DebtToken in the Pool to absorb exactly half of Carol's debt (100) */
     await troveManager.liquidateTroves(10);
 
-    const ICR_C_After = await troveManager.getCurrentICR(carol, price);
+    const ICR_C_After = await troveManager.getCurrentICR(carol.address, price);
     assert.equal(ICR_C_Before.toString(), ICR_C_After);
   });
 
@@ -3989,7 +4038,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Alice deposits DebtToken to Stability Pool
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // price drops to 1FIL:85DebtToken, reducing TCR below 150%
     await priceFeed.setPrice("85000000000000000000");
@@ -4001,7 +4050,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode_Before);
 
     // check TCR < 150%
-    const _150percent = web3.utils.toBN("1500000000000000000");
+    const _150percent = toBN("1500000000000000000");
     const TCR_Before = await th.getTCR(contracts);
     assert.isTrue(TCR_Before.lt(_150percent));
 
@@ -4016,12 +4065,12 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     Elisa       102%
     Freddy      102%
     */
-    alice_ICR = await troveManager.getCurrentICR(alice, price);
-    bob_ICR = await troveManager.getCurrentICR(bob, price);
-    carol_ICR = await troveManager.getCurrentICR(carol, price);
-    dennis_ICR = await troveManager.getCurrentICR(dennis, price);
-    erin_ICR = await troveManager.getCurrentICR(erin, price);
-    freddy_ICR = await troveManager.getCurrentICR(freddy, price);
+    alice_ICR = await troveManager.getCurrentICR(alice.address, price);
+    bob_ICR = await troveManager.getCurrentICR(bob.address, price);
+    carol_ICR = await troveManager.getCurrentICR(carol.address, price);
+    dennis_ICR = await troveManager.getCurrentICR(dennis.address, price);
+    erin_ICR = await troveManager.getCurrentICR(erin.address, price);
+    freddy_ICR = await troveManager.getCurrentICR(freddy.address, price);
 
     // Alice should have ICR > 150%
     assert.isTrue(alice_ICR.gt(_150percent));
@@ -4038,7 +4087,14 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     Only Alice should remain active - all others should be closed. */
 
     // call batchLiquidateTroves
-    await troveManager.batchLiquidateTroves([alice, bob, carol, dennis, erin, freddy]);
+    await troveManager.batchLiquidateTroves([
+      alice.address,
+      bob.address,
+      carol.address,
+      dennis.address,
+      erin.address,
+      freddy.address,
+    ]);
 
     // check system is no longer in Recovery Mode
     const recoveryMode_After = await th.checkRecoveryMode(contracts);
@@ -4049,16 +4105,16 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(TCR_After.gt(_150percent));
 
     // get all Troves
-    const alice_Trove = await troveManager.Troves(alice);
-    const bob_Trove = await troveManager.Troves(bob);
-    const carol_Trove = await troveManager.Troves(carol);
-    const dennis_Trove = await troveManager.Troves(dennis);
-    const erin_Trove = await troveManager.Troves(erin);
-    const freddy_Trove = await troveManager.Troves(freddy);
+    const alice_Trove = await troveManager.Troves(alice.address);
+    const bob_Trove = await troveManager.Troves(bob.address);
+    const carol_Trove = await troveManager.Troves(carol.address);
+    const dennis_Trove = await troveManager.Troves(dennis.address);
+    const erin_Trove = await troveManager.Troves(erin.address);
+    const freddy_Trove = await troveManager.Troves(freddy.address);
 
     // check that Alice's Trove remains active
     assert.equal(alice_Trove[3], 1);
-    assert.isTrue(await sortedTroves.contains(alice));
+    assert.isTrue(await sortedTroves.contains(alice.address));
 
     // check all other Troves are liquidated
     assert.equal(bob_Trove[3], 3);
@@ -4067,11 +4123,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.equal(erin_Trove[3], 3);
     assert.equal(freddy_Trove[3], 3);
 
-    assert.isFalse(await sortedTroves.contains(bob));
-    assert.isFalse(await sortedTroves.contains(carol));
-    assert.isFalse(await sortedTroves.contains(dennis));
-    assert.isFalse(await sortedTroves.contains(erin));
-    assert.isFalse(await sortedTroves.contains(freddy));
+    assert.isFalse(await sortedTroves.contains(bob.address));
+    assert.isFalse(await sortedTroves.contains(carol.address));
+    assert.isFalse(await sortedTroves.contains(dennis.address));
+    assert.isFalse(await sortedTroves.contains(erin.address));
+    assert.isFalse(await sortedTroves.contains(freddy.address));
   });
 
   it("batchLiquidateTroves(): Liquidates all troves with ICR < 110%, transitioning Recovery -> Normal Mode", async () => {
@@ -4117,7 +4173,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Alice deposits DebtToken to Stability Pool
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // price drops to 1FIL:85DebtToken, reducing TCR below 150%
     await priceFeed.setPrice("85000000000000000000");
@@ -4129,7 +4185,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode_Before);
 
     // check TCR < 150%
-    const _150percent = web3.utils.toBN("1500000000000000000");
+    const _150percent = toBN("1500000000000000000");
     const TCR_Before = await th.getTCR(contracts);
     assert.isTrue(TCR_Before.lt(_150percent));
 
@@ -4144,12 +4200,12 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     Elisa       102%
     Freddy      102%
     */
-    const alice_ICR = await troveManager.getCurrentICR(alice, price);
-    const bob_ICR = await troveManager.getCurrentICR(bob, price);
-    const carol_ICR = await troveManager.getCurrentICR(carol, price);
-    const dennis_ICR = await troveManager.getCurrentICR(dennis, price);
-    const erin_ICR = await troveManager.getCurrentICR(erin, price);
-    const freddy_ICR = await troveManager.getCurrentICR(freddy, price);
+    const alice_ICR = await troveManager.getCurrentICR(alice.address, price);
+    const bob_ICR = await troveManager.getCurrentICR(bob.address, price);
+    const carol_ICR = await troveManager.getCurrentICR(carol.address, price);
+    const dennis_ICR = await troveManager.getCurrentICR(dennis.address, price);
+    const erin_ICR = await troveManager.getCurrentICR(erin.address, price);
+    const freddy_ICR = await troveManager.getCurrentICR(freddy.address, price);
 
     // Alice should have ICR > 150%
     assert.isTrue(alice_ICR.gt(_150percent));
@@ -4166,7 +4222,14 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     Only Alice should remain active - all others should be closed. */
 
     // call batchLiquidateTroves
-    await troveManager.batchLiquidateTroves([bob, carol, dennis, erin, freddy, alice]);
+    await troveManager.batchLiquidateTroves([
+      bob.address,
+      carol.address,
+      dennis.address,
+      erin.address,
+      freddy.address,
+      alice.address,
+    ]);
 
     // check system is no longer in Recovery Mode
     const recoveryMode_After = await th.checkRecoveryMode(contracts);
@@ -4177,16 +4240,16 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(TCR_After.gt(_150percent));
 
     // get all Troves
-    const alice_Trove = await troveManager.Troves(alice);
-    const bob_Trove = await troveManager.Troves(bob);
-    const carol_Trove = await troveManager.Troves(carol);
-    const dennis_Trove = await troveManager.Troves(dennis);
-    const erin_Trove = await troveManager.Troves(erin);
-    const freddy_Trove = await troveManager.Troves(freddy);
+    const alice_Trove = await troveManager.Troves(alice.address);
+    const bob_Trove = await troveManager.Troves(bob.address);
+    const carol_Trove = await troveManager.Troves(carol.address);
+    const dennis_Trove = await troveManager.Troves(dennis.address);
+    const erin_Trove = await troveManager.Troves(erin.address);
+    const freddy_Trove = await troveManager.Troves(freddy.address);
 
     // check that Alice's Trove remains active
     assert.equal(alice_Trove[3], 1);
-    assert.isTrue(await sortedTroves.contains(alice));
+    assert.isTrue(await sortedTroves.contains(alice.address));
 
     // check all other Troves are liquidated
     assert.equal(bob_Trove[3], 3);
@@ -4195,11 +4258,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.equal(erin_Trove[3], 3);
     assert.equal(freddy_Trove[3], 3);
 
-    assert.isFalse(await sortedTroves.contains(bob));
-    assert.isFalse(await sortedTroves.contains(carol));
-    assert.isFalse(await sortedTroves.contains(dennis));
-    assert.isFalse(await sortedTroves.contains(erin));
-    assert.isFalse(await sortedTroves.contains(freddy));
+    assert.isFalse(await sortedTroves.contains(bob.address));
+    assert.isFalse(await sortedTroves.contains(carol.address));
+    assert.isFalse(await sortedTroves.contains(dennis.address));
+    assert.isFalse(await sortedTroves.contains(erin.address));
+    assert.isFalse(await sortedTroves.contains(freddy.address));
   });
 
   it("batchLiquidateTroves(): Liquidates all troves with ICR < 110%, transitioning Normal -> Recovery Mode", async () => {
@@ -4244,12 +4307,12 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     });
 
     // Alice deposits DebtToken to Stability Pool
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: alice });
+    await stabilityPool.connect(alice).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // to compensate borrowing fee
-    await debtToken.transfer(alice, A_totalDebt, { from: whale });
+    await debtToken.connect(whale).transfer(alice.address, A_totalDebt);
     // Alice closes trove
-    await borrowerOperations.closeTrove({ from: alice });
+    await borrowerOperations.connect(alice).closeTrove();
 
     // price drops to 1FIL:85DebtToken, reducing TCR below 150%
     await priceFeed.setPrice("85000000000000000000");
@@ -4261,7 +4324,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(recoveryMode_Before);
 
     // check TCR < 150%
-    const _150percent = web3.utils.toBN("1500000000000000000");
+    const _150percent = toBN("1500000000000000000");
     const TCR_Before = await th.getTCR(contracts);
     assert.isTrue(TCR_Before.lt(_150percent));
 
@@ -4276,12 +4339,12 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     Elisa       102%
     Freddy      102%
     */
-    alice_ICR = await troveManager.getCurrentICR(alice, price);
-    bob_ICR = await troveManager.getCurrentICR(bob, price);
-    carol_ICR = await troveManager.getCurrentICR(carol, price);
-    dennis_ICR = await troveManager.getCurrentICR(dennis, price);
-    erin_ICR = await troveManager.getCurrentICR(erin, price);
-    freddy_ICR = await troveManager.getCurrentICR(freddy, price);
+    alice_ICR = await troveManager.getCurrentICR(alice.address, price);
+    bob_ICR = await troveManager.getCurrentICR(bob.address, price);
+    carol_ICR = await troveManager.getCurrentICR(carol.address, price);
+    dennis_ICR = await troveManager.getCurrentICR(dennis.address, price);
+    erin_ICR = await troveManager.getCurrentICR(erin.address, price);
+    freddy_ICR = await troveManager.getCurrentICR(freddy.address, price);
 
     // Alice should have ICR > 150%
     assert.isTrue(alice_ICR.gt(_150percent));
@@ -4298,7 +4361,15 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     Only Alice should remain active - all others should be closed. */
 
     // call batchLiquidateTroves
-    await troveManager.batchLiquidateTroves([alice, bob, bob, carol, dennis, erin, freddy]);
+    await troveManager.batchLiquidateTroves([
+      alice.address,
+      bob.address,
+      bob.address,
+      carol.address,
+      dennis.address,
+      erin.address,
+      freddy.address,
+    ]);
 
     // check system is no longer in Recovery Mode
     const recoveryMode_After = await th.checkRecoveryMode(contracts);
@@ -4309,12 +4380,12 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(TCR_After.gt(_150percent));
 
     // get all Troves
-    const alice_Trove = await troveManager.Troves(alice);
-    const bob_Trove = await troveManager.Troves(bob);
-    const carol_Trove = await troveManager.Troves(carol);
-    const dennis_Trove = await troveManager.Troves(dennis);
-    const erin_Trove = await troveManager.Troves(erin);
-    const freddy_Trove = await troveManager.Troves(freddy);
+    const alice_Trove = await troveManager.Troves(alice.address);
+    const bob_Trove = await troveManager.Troves(bob.address);
+    const carol_Trove = await troveManager.Troves(carol.address);
+    const dennis_Trove = await troveManager.Troves(dennis.address);
+    const erin_Trove = await troveManager.Troves(erin.address);
+    const freddy_Trove = await troveManager.Troves(freddy.address);
 
     // check that Alice's Trove is closed
     assert.equal(alice_Trove[3], 2);
@@ -4326,11 +4397,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.equal(erin_Trove[3], 3);
     assert.equal(freddy_Trove[3], 3);
 
-    assert.isFalse(await sortedTroves.contains(bob));
-    assert.isFalse(await sortedTroves.contains(carol));
-    assert.isFalse(await sortedTroves.contains(dennis));
-    assert.isFalse(await sortedTroves.contains(erin));
-    assert.isFalse(await sortedTroves.contains(freddy));
+    assert.isFalse(await sortedTroves.contains(bob.address));
+    assert.isFalse(await sortedTroves.contains(carol.address));
+    assert.isFalse(await sortedTroves.contains(dennis.address));
+    assert.isFalse(await sortedTroves.contains(erin.address));
+    assert.isFalse(await sortedTroves.contains(freddy.address));
   });
 
   it("batchLiquidateTroves() with a non fullfilled liquidation: non liquidated trove remains active", async () => {
@@ -4356,7 +4427,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops
     await priceFeed.setPrice(dec(120, 18));
@@ -4367,24 +4438,24 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check A, B, C troves are in range 110% < ICR < TCR
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
-    const ICR_B = await troveManager.getCurrentICR(bob, price);
-    const ICR_C = await troveManager.getCurrentICR(carol, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+    const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+    const ICR_C = await troveManager.getCurrentICR(carol.address, price);
 
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
     assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
     assert.isTrue(ICR_C.gt(mv._MCR) && ICR_C.lt(TCR));
 
-    const trovesToLiquidate = [alice, bob, carol];
+    const trovesToLiquidate = [alice.address, bob.address, carol.address];
     await troveManager.batchLiquidateTroves(trovesToLiquidate);
 
     // Check A and B closed
-    assert.isFalse(await sortedTroves.contains(alice));
-    assert.isFalse(await sortedTroves.contains(bob));
+    assert.isFalse(await sortedTroves.contains(alice.address));
+    assert.isFalse(await sortedTroves.contains(bob.address));
 
     // Check C remains active
-    assert.isTrue(await sortedTroves.contains(carol));
-    assert.equal((await troveManager.Troves(carol))[3].toString(), "1"); // check Status is active
+    assert.isTrue(await sortedTroves.contains(carol.address));
+    assert.equal((await troveManager.Troves(carol.address))[3].toString(), "1"); // check Status is active
   });
 
   it("batchLiquidateTroves() with a non fullfilled liquidation: non liquidated trove remains in Trove Owners array", async () => {
@@ -4410,7 +4481,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops
     await priceFeed.setPrice(dec(120, 18));
@@ -4421,15 +4492,15 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check A, B, C troves are in range 110% < ICR < TCR
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
-    const ICR_B = await troveManager.getCurrentICR(bob, price);
-    const ICR_C = await troveManager.getCurrentICR(carol, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+    const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+    const ICR_C = await troveManager.getCurrentICR(carol.address, price);
 
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
     assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
     assert.isTrue(ICR_C.gt(mv._MCR) && ICR_C.lt(TCR));
 
-    const trovesToLiquidate = [alice, bob, carol];
+    const trovesToLiquidate = [alice.address, bob.address, carol.address];
     await troveManager.batchLiquidateTroves(trovesToLiquidate);
 
     // Check C is in Trove owners array
@@ -4439,7 +4510,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     for (let i = 0; i < arrayLength; i++) {
       const address = (await troveManager.TroveOwners(i)).toString();
-      if (address === carol) {
+      if (address === carol.address) {
         addressFound = true;
         addressIdx = i;
       }
@@ -4448,7 +4519,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(addressFound);
 
     // Check TroveOwners idx on trove struct == idx of address found in TroveOwners array
-    const idxOnStruct = (await troveManager.Troves(carol))[4].toString();
+    const idxOnStruct = (await troveManager.Troves(carol.address))[4].toString();
     assert.equal(addressIdx.toString(), idxOnStruct);
   });
 
@@ -4479,7 +4550,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops
     await priceFeed.setPrice(dec(120, 18));
@@ -4490,11 +4561,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check A, B, C, D, E troves are in range 110% < ICR < TCR
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
-    const ICR_B = await troveManager.getCurrentICR(bob, price);
-    const ICR_C = await troveManager.getCurrentICR(carol, price);
-    const ICR_D = await troveManager.getCurrentICR(dennis, price);
-    const ICR_E = await troveManager.getCurrentICR(erin, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+    const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+    const ICR_C = await troveManager.getCurrentICR(carol.address, price);
+    const ICR_D = await troveManager.getCurrentICR(dennis.address, price);
+    const ICR_E = await troveManager.getCurrentICR(erin.address, price);
 
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
     assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
@@ -4506,19 +4577,26 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
      That leaves 97 DebtToken in the Pool that won’t be enough to absorb Carol,
      but it will be enough to liquidate Dennis. Afterwards the pool will be empty,
      so Erin won’t liquidated. */
-    const trovesToLiquidate = [alice, bob, carol, dennis, erin];
+    const trovesToLiquidate = [
+      alice.address,
+      bob.address,
+      carol.address,
+      dennis.address,
+      erin.address,
+    ];
     const tx = await troveManager.batchLiquidateTroves(trovesToLiquidate);
-    console.log("gasUsed: ", tx.receipt.gasUsed);
+    const receipt = await tx.wait();
+    console.log("gasUsed: ", receipt.gasUsed);
 
     // Check A, B and D are closed
-    assert.isFalse(await sortedTroves.contains(alice));
-    assert.isFalse(await sortedTroves.contains(bob));
-    assert.isFalse(await sortedTroves.contains(dennis));
+    assert.isFalse(await sortedTroves.contains(alice.address));
+    assert.isFalse(await sortedTroves.contains(bob.address));
+    assert.isFalse(await sortedTroves.contains(dennis.address));
 
     // Check whale, C, D and E stay active
-    assert.isTrue(await sortedTroves.contains(whale));
-    assert.isTrue(await sortedTroves.contains(carol));
-    assert.isTrue(await sortedTroves.contains(erin));
+    assert.isTrue(await sortedTroves.contains(whale.address));
+    assert.isTrue(await sortedTroves.contains(carol.address));
+    assert.isTrue(await sortedTroves.contains(erin.address));
   });
 
   it("batchLiquidateTroves() with a non fullfilled liquidation: still can liquidate further troves after the non-liquidated, non emptied pool", async () => {
@@ -4548,7 +4626,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops
     await priceFeed.setPrice(dec(120, 18));
@@ -4559,11 +4637,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check A, B, C, D, E troves are in range 110% < ICR < TCR
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
-    const ICR_B = await troveManager.getCurrentICR(bob, price);
-    const ICR_C = await troveManager.getCurrentICR(carol, price);
-    const ICR_D = await troveManager.getCurrentICR(dennis, price);
-    const ICR_E = await troveManager.getCurrentICR(erin, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+    const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+    const ICR_C = await troveManager.getCurrentICR(carol.address, price);
+    const ICR_D = await troveManager.getCurrentICR(dennis.address, price);
+    const ICR_E = await troveManager.getCurrentICR(erin.address, price);
 
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
     assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
@@ -4577,19 +4655,26 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
      so Erin won’t liquidated.
      Note that, compared to the previous test, this one will make 1 more loop iteration,
      so it will consume more gas. */
-    const trovesToLiquidate = [alice, bob, carol, dennis, erin];
+    const trovesToLiquidate = [
+      alice.address,
+      bob.address,
+      carol.address,
+      dennis.address,
+      erin.address,
+    ];
     const tx = await troveManager.batchLiquidateTroves(trovesToLiquidate);
-    console.log("gasUsed: ", tx.receipt.gasUsed);
+    const receipt = await tx.wait();
+    console.log("gasUsed: ", receipt.gasUsed);
 
     // Check A, B and D are closed
-    assert.isFalse(await sortedTroves.contains(alice));
-    assert.isFalse(await sortedTroves.contains(bob));
-    assert.isFalse(await sortedTroves.contains(dennis));
+    assert.isFalse(await sortedTroves.contains(alice.address));
+    assert.isFalse(await sortedTroves.contains(bob.address));
+    assert.isFalse(await sortedTroves.contains(dennis.address));
 
     // Check whale, C, D and E stay active
-    assert.isTrue(await sortedTroves.contains(whale));
-    assert.isTrue(await sortedTroves.contains(carol));
-    assert.isTrue(await sortedTroves.contains(erin));
+    assert.isTrue(await sortedTroves.contains(whale.address));
+    assert.isTrue(await sortedTroves.contains(carol.address));
+    assert.isTrue(await sortedTroves.contains(erin.address));
   });
 
   it("batchLiquidateTroves() with a non fullfilled liquidation: total liquidated coll and debt is correct", async () => {
@@ -4621,7 +4706,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops
     await priceFeed.setPrice(dec(120, 18));
@@ -4632,9 +4717,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check A, B, C, D, E troves are in range 110% < ICR < TCR
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
-    const ICR_B = await troveManager.getCurrentICR(bob, price);
-    const ICR_C = await troveManager.getCurrentICR(carol, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+    const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+    const ICR_C = await troveManager.getCurrentICR(carol.address, price);
 
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
     assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
@@ -4643,7 +4728,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     const entireSystemCollBefore = await troveManager.getEntireSystemColl();
     const entireSystemDebtBefore = await troveManager.getEntireSystemDebt();
 
-    const trovesToLiquidate = [alice, bob, carol];
+    const trovesToLiquidate = [alice.address, bob.address, carol.address];
     await troveManager.batchLiquidateTroves(trovesToLiquidate);
 
     // Expect system debt reduced by 203 DebtToken and system coll by 2 FIL
@@ -4683,7 +4768,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops
     await priceFeed.setPrice(dec(120, 18));
@@ -4694,19 +4779,19 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check A, B, C troves are in range 110% < ICR < TCR
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
-    const ICR_B = await troveManager.getCurrentICR(bob, price);
-    const ICR_C = await troveManager.getCurrentICR(carol, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+    const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+    const ICR_C = await troveManager.getCurrentICR(carol.address, price);
 
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
     assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
     assert.isTrue(ICR_C.gt(mv._MCR) && ICR_C.lt(TCR));
 
-    const trovesToLiquidate = [alice, bob, carol];
+    const trovesToLiquidate = [alice.address, bob.address, carol.address];
     const liquidationTx = await troveManager.batchLiquidateTroves(trovesToLiquidate);
 
     const [liquidatedDebt, liquidatedColl, collGasComp, debtTokenGasComp] =
-      th.getEmittedLiquidationValues(liquidationTx);
+      await th.getEmittedLiquidationValues(liquidationTx);
 
     th.assertIsApproximatelyEqual(liquidatedDebt, A_totalDebt.add(B_totalDebt));
     const equivalentColl = A_totalDebt.add(B_totalDebt)
@@ -4723,27 +4808,27 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     const alice_remainingCollateral = A_coll.sub(A_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     const bob_remainingCollateral = B_coll.sub(B_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(alice),
+      await collSurplusPool.getCollateral(alice.address),
       alice_remainingCollateral,
     );
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(bob),
+      await collSurplusPool.getCollateral(bob.address),
       bob_remainingCollateral,
     );
 
     // can claim collateral
-    const alice_balanceBefore = th.toBN(await web3.eth.getBalance(alice));
-    const ALICE_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: alice, gasPrice: GAS_PRICE }),
+    const alice_balanceBefore = th.toBN(await web3.eth.getBalance(alice.address));
+    const ALICE_GAS = await th.gasUsed(
+      await borrowerOperations.connect(alice).claimCollateral({ gasPrice: GAS_PRICE }),
     );
-    const alice_balanceAfter = th.toBN(await web3.eth.getBalance(alice));
+    const alice_balanceAfter = th.toBN(await web3.eth.getBalance(alice.address));
     //th.assertIsApproximatelyEqual(alice_balanceAfter, alice_balanceBefore.add(th.toBN(alice_remainingCollateral).sub(th.toBN(ALICE_GAS * GAS_PRICE))))
 
-    const bob_balanceBefore = th.toBN(await web3.eth.getBalance(bob));
-    const BOB_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: bob, gasPrice: GAS_PRICE }),
+    const bob_balanceBefore = th.toBN(await web3.eth.getBalance(bob.address));
+    const BOB_GAS = await th.gasUsed(
+      await borrowerOperations.connect(bob).claimCollateral({ gasPrice: GAS_PRICE }),
     );
-    const bob_balanceAfter = th.toBN(await web3.eth.getBalance(bob));
+    const bob_balanceAfter = th.toBN(await web3.eth.getBalance(bob.address));
     th.assertIsApproximatelyEqual(
       bob_balanceAfter,
       bob_balanceBefore.add(th.toBN(bob_remainingCollateral).sub(th.toBN(BOB_GAS * GAS_PRICE))),
@@ -4773,7 +4858,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops
     await priceFeed.setPrice(dec(120, 18));
@@ -4784,18 +4869,18 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check A, B, C troves are in range 110% < ICR < TCR
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
-    const ICR_B = await troveManager.getCurrentICR(bob, price);
-    const ICR_C_Before = await troveManager.getCurrentICR(carol, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+    const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+    const ICR_C_Before = await troveManager.getCurrentICR(carol.address, price);
 
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
     assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
     assert.isTrue(ICR_C_Before.gt(mv._MCR) && ICR_C_Before.lt(TCR));
 
-    const trovesToLiquidate = [alice, bob, carol];
+    const trovesToLiquidate = [alice.address, bob.address, carol.address];
     await troveManager.batchLiquidateTroves(trovesToLiquidate);
 
-    const ICR_C_After = await troveManager.getCurrentICR(carol, price);
+    const ICR_C_After = await troveManager.getCurrentICR(carol.address, price);
     assert.equal(ICR_C_Before.toString(), ICR_C_After);
   });
 
@@ -4834,7 +4919,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops
     await priceFeed.setPrice(dec(120, 18));
@@ -4844,10 +4929,10 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check troves A-D are in range 110% < ICR < TCR
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
-    const ICR_B = await troveManager.getCurrentICR(bob, price);
-    const ICR_C = await troveManager.getCurrentICR(carol, price);
-    const ICR_D = await troveManager.getCurrentICR(dennis, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+    const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+    const ICR_C = await troveManager.getCurrentICR(carol.address, price);
+    const ICR_D = await troveManager.getCurrentICR(dennis.address, price);
     const TCR = await th.getTCR(contracts);
 
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
@@ -4858,22 +4943,23 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     // Troves are ordered by ICR, low to high: A, B, C, D.
 
     // Liquidate out of ICR order: D, B, C. A (lowest ICR) not included.
-    const trovesToLiquidate = [dennis, bob, carol];
+    const trovesToLiquidate = [dennis.address, bob.address, carol.address];
 
     const liquidationTx = await troveManager.batchLiquidateTroves(trovesToLiquidate);
+    const receipt = await liquidationTx.wait();
 
     // Check transaction succeeded
-    assert.isTrue(liquidationTx.receipt.status);
+    assert.equal(receipt.status, 1);
 
     // Confirm troves D, B, C removed
-    assert.isFalse(await sortedTroves.contains(dennis));
-    assert.isFalse(await sortedTroves.contains(bob));
-    assert.isFalse(await sortedTroves.contains(carol));
+    assert.isFalse(await sortedTroves.contains(dennis.address));
+    assert.isFalse(await sortedTroves.contains(bob.address));
+    assert.isFalse(await sortedTroves.contains(carol.address));
 
     // Confirm troves have status 'liquidated' (Status enum element idx 3)
-    assert.equal((await troveManager.Troves(dennis))[3], "3");
-    assert.equal((await troveManager.Troves(dennis))[3], "3");
-    assert.equal((await troveManager.Troves(dennis))[3], "3");
+    assert.equal((await troveManager.Troves(dennis.address))[3], "3");
+    assert.equal((await troveManager.Troves(dennis.address))[3], "3");
+    assert.equal((await troveManager.Troves(dennis.address))[3], "3");
   });
 
   it("batchLiquidateTroves(), with 110% < ICR < TCR, and StabilityPool empty: doesn't liquidate any troves", async () => {
@@ -4891,9 +4977,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraParams: { from: dennis },
     });
 
-    const bobColl_Before = (await troveManager.Troves(bob))[1];
-    const carolColl_Before = (await troveManager.Troves(carol))[1];
-    const dennisColl_Before = (await troveManager.Troves(dennis))[1];
+    const bobColl_Before = (await troveManager.Troves(bob.address))[1];
+    const carolColl_Before = (await troveManager.Troves(carol.address))[1];
+    const dennisColl_Before = (await troveManager.Troves(dennis.address))[1];
 
     await openTrove({ ICR: toBN(dec(228, 16)), extraParams: { from: erin } });
     await openTrove({ ICR: toBN(dec(230, 16)), extraParams: { from: freddy } });
@@ -4907,9 +4993,9 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Check troves A-D are in range 110% < ICR < TCR
-    const ICR_A = await troveManager.getCurrentICR(alice, price);
-    const ICR_B = await troveManager.getCurrentICR(bob, price);
-    const ICR_C = await troveManager.getCurrentICR(carol, price);
+    const ICR_A = await troveManager.getCurrentICR(alice.address, price);
+    const ICR_B = await troveManager.getCurrentICR(bob.address, price);
+    const ICR_C = await troveManager.getCurrentICR(carol.address, price);
 
     assert.isTrue(ICR_A.gt(mv._MCR) && ICR_A.lt(TCR));
     assert.isTrue(ICR_B.gt(mv._MCR) && ICR_B.lt(TCR));
@@ -4917,41 +5003,41 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     // Troves are ordered by ICR, low to high: A, B, C, D.
     // Liquidate out of ICR order: D, B, C. A (lowest ICR) not included.
-    const trovesToLiquidate = [dennis, bob, carol];
+    const trovesToLiquidate = [dennis.address, bob.address, carol.address];
     await assertRevert(
       troveManager.batchLiquidateTroves(trovesToLiquidate),
       "TroveManager: nothing to liquidate",
     );
 
     // Confirm troves D, B, C remain in system
-    assert.isTrue(await sortedTroves.contains(dennis));
-    assert.isTrue(await sortedTroves.contains(bob));
-    assert.isTrue(await sortedTroves.contains(carol));
+    assert.isTrue(await sortedTroves.contains(dennis.address));
+    assert.isTrue(await sortedTroves.contains(bob.address));
+    assert.isTrue(await sortedTroves.contains(carol.address));
 
     // Confirm troves have status 'active' (Status enum element idx 1)
-    assert.equal((await troveManager.Troves(dennis))[3], "1");
-    assert.equal((await troveManager.Troves(dennis))[3], "1");
-    assert.equal((await troveManager.Troves(dennis))[3], "1");
+    assert.equal((await troveManager.Troves(dennis.address))[3], "1");
+    assert.equal((await troveManager.Troves(dennis.address))[3], "1");
+    assert.equal((await troveManager.Troves(dennis.address))[3], "1");
 
     // Confirm D, B, C coll & debt have not changed
-    const dennisDebt_After = (await troveManager.Troves(dennis))[0].add(
-      await troveManager.getPendingDebtReward(dennis),
+    const dennisDebt_After = (await troveManager.Troves(dennis.address))[0].add(
+      await troveManager.getPendingDebtReward(dennis.address),
     );
-    const bobDebt_After = (await troveManager.Troves(bob))[0].add(
-      await troveManager.getPendingDebtReward(bob),
+    const bobDebt_After = (await troveManager.Troves(bob.address))[0].add(
+      await troveManager.getPendingDebtReward(bob.address),
     );
-    const carolDebt_After = (await troveManager.Troves(carol))[0].add(
-      await troveManager.getPendingDebtReward(carol),
+    const carolDebt_After = (await troveManager.Troves(carol.address))[0].add(
+      await troveManager.getPendingDebtReward(carol.address),
     );
 
-    const dennisColl_After = (await troveManager.Troves(dennis))[1].add(
-      await troveManager.getPendingFILReward(dennis),
+    const dennisColl_After = (await troveManager.Troves(dennis.address))[1].add(
+      await troveManager.getPendingFILReward(dennis.address),
     );
-    const bobColl_After = (await troveManager.Troves(bob))[1].add(
-      await troveManager.getPendingFILReward(bob),
+    const bobColl_After = (await troveManager.Troves(bob.address))[1].add(
+      await troveManager.getPendingFILReward(bob.address),
     );
-    const carolColl_After = (await troveManager.Troves(carol))[1].add(
-      await troveManager.getPendingFILReward(carol),
+    const carolColl_After = (await troveManager.Troves(carol.address))[1].add(
+      await troveManager.getPendingFILReward(carol.address),
     );
 
     assert.isTrue(dennisColl_After.eq(dennisColl_Before));
@@ -5014,7 +5100,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops, but all troves remain active
     await priceFeed.setPrice(dec(110, 18));
@@ -5024,22 +5110,22 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     // Confirm Recovery Mode
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
-    const G_collBefore = (await troveManager.Troves(G))[1];
-    const G_debtBefore = (await troveManager.Troves(G))[0];
-    const H_collBefore = (await troveManager.Troves(H))[1];
-    const H_debtBefore = (await troveManager.Troves(H))[0];
-    const I_collBefore = (await troveManager.Troves(I))[1];
-    const I_debtBefore = (await troveManager.Troves(I))[0];
+    const G_collBefore = (await troveManager.Troves(G.address))[1];
+    const G_debtBefore = (await troveManager.Troves(G.address))[0];
+    const H_collBefore = (await troveManager.Troves(H.address))[1];
+    const H_debtBefore = (await troveManager.Troves(H.address))[0];
+    const I_collBefore = (await troveManager.Troves(I.address))[1];
+    const I_debtBefore = (await troveManager.Troves(I.address))[0];
 
-    const ICR_A = await troveManager.getCurrentICR(A, price);
-    const ICR_B = await troveManager.getCurrentICR(B, price);
-    const ICR_C = await troveManager.getCurrentICR(C, price);
-    const ICR_D = await troveManager.getCurrentICR(D, price);
-    const ICR_E = await troveManager.getCurrentICR(E, price);
-    const ICR_F = await troveManager.getCurrentICR(F, price);
-    const ICR_G = await troveManager.getCurrentICR(G, price);
-    const ICR_H = await troveManager.getCurrentICR(H, price);
-    const ICR_I = await troveManager.getCurrentICR(I, price);
+    const ICR_A = await troveManager.getCurrentICR(A.address, price);
+    const ICR_B = await troveManager.getCurrentICR(B.address, price);
+    const ICR_C = await troveManager.getCurrentICR(C.address, price);
+    const ICR_D = await troveManager.getCurrentICR(D.address, price);
+    const ICR_E = await troveManager.getCurrentICR(E.address, price);
+    const ICR_F = await troveManager.getCurrentICR(F.address, price);
+    const ICR_G = await troveManager.getCurrentICR(G.address, price);
+    const ICR_H = await troveManager.getCurrentICR(H.address, price);
+    const ICR_I = await troveManager.getCurrentICR(I.address, price);
 
     // Check A-C are in range 100-110
     assert.isTrue(ICR_A.gte(mv._ICR100) && ICR_A.lt(mv._MCR));
@@ -5058,47 +5144,54 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
 
     // Attempt to liquidate only troves with ICR > TCR%
     await assertRevert(
-      troveManager.batchLiquidateTroves([G, H, I]),
+      troveManager.batchLiquidateTroves([G.address, H.address, I.address]),
       "TroveManager: nothing to liquidate",
     );
 
     // Check G, H, I remain in system
-    assert.isTrue(await sortedTroves.contains(G));
-    assert.isTrue(await sortedTroves.contains(H));
-    assert.isTrue(await sortedTroves.contains(I));
+    assert.isTrue(await sortedTroves.contains(G.address));
+    assert.isTrue(await sortedTroves.contains(H.address));
+    assert.isTrue(await sortedTroves.contains(I.address));
 
     // Check G, H, I coll and debt have not changed
-    assert.equal(G_collBefore.eq(await troveManager.Troves(G))[1]);
-    assert.equal(G_debtBefore.eq(await troveManager.Troves(G))[0]);
-    assert.equal(H_collBefore.eq(await troveManager.Troves(H))[1]);
-    assert.equal(H_debtBefore.eq(await troveManager.Troves(H))[0]);
-    assert.equal(I_collBefore.eq(await troveManager.Troves(I))[1]);
-    assert.equal(I_debtBefore.eq(await troveManager.Troves(I))[0]);
+    assert.equal(G_collBefore.toString(), (await troveManager.Troves(G.address))[1].toString());
+    assert.equal(G_debtBefore.toString(), (await troveManager.Troves(G.address))[0].toString());
+    assert.equal(H_collBefore.toString(), (await troveManager.Troves(H.address))[1].toString());
+    assert.equal(H_debtBefore.toString(), (await troveManager.Troves(H.address))[0].toString());
+    assert.equal(I_collBefore.toString(), (await troveManager.Troves(I.address))[1].toString());
+    assert.equal(I_debtBefore.toString(), (await troveManager.Troves(I.address))[0].toString());
 
     // Confirm Recovery Mode
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Attempt to liquidate a variety of troves with SP covering whole batch.
     // Expect A, C, D to be liquidated, and G, H, I to remain in system
-    await troveManager.batchLiquidateTroves([C, D, G, H, A, I]);
+    await troveManager.batchLiquidateTroves([
+      C.address,
+      D.address,
+      G.address,
+      H.address,
+      A.address,
+      I.address,
+    ]);
 
     // Confirm A, C, D liquidated
-    assert.isFalse(await sortedTroves.contains(C));
-    assert.isFalse(await sortedTroves.contains(A));
-    assert.isFalse(await sortedTroves.contains(D));
+    assert.isFalse(await sortedTroves.contains(C.address));
+    assert.isFalse(await sortedTroves.contains(A.address));
+    assert.isFalse(await sortedTroves.contains(D.address));
 
     // Check G, H, I remain in system
-    assert.isTrue(await sortedTroves.contains(G));
-    assert.isTrue(await sortedTroves.contains(H));
-    assert.isTrue(await sortedTroves.contains(I));
+    assert.isTrue(await sortedTroves.contains(G.address));
+    assert.isTrue(await sortedTroves.contains(H.address));
+    assert.isTrue(await sortedTroves.contains(I.address));
 
     // Check coll and debt have not changed
-    assert.equal(G_collBefore.eq(await troveManager.Troves(G))[1]);
-    assert.equal(G_debtBefore.eq(await troveManager.Troves(G))[0]);
-    assert.equal(H_collBefore.eq(await troveManager.Troves(H))[1]);
-    assert.equal(H_debtBefore.eq(await troveManager.Troves(H))[0]);
-    assert.equal(I_collBefore.eq(await troveManager.Troves(I))[1]);
-    assert.equal(I_debtBefore.eq(await troveManager.Troves(I))[0]);
+    assert.equal(G_collBefore.toString(), (await troveManager.Troves(G.address))[1].toString());
+    assert.equal(G_debtBefore.toString(), (await troveManager.Troves(G.address))[0].toString());
+    assert.equal(H_collBefore.toString(), (await troveManager.Troves(H.address))[1].toString());
+    assert.equal(H_debtBefore.toString(), (await troveManager.Troves(H.address))[0].toString());
+    assert.equal(I_collBefore.toString(), (await troveManager.Troves(I.address))[1].toString());
+    assert.equal(I_debtBefore.toString(), (await troveManager.Troves(I.address))[0].toString());
 
     // Confirm Recovery Mode
     assert.isTrue(await th.checkRecoveryMode(contracts));
@@ -5106,11 +5199,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     // Whale withdraws entire deposit, and re-deposits 132 DebtToken
     // Increasing the price for a moment to avoid pending liquidations to block withdrawal
     await priceFeed.setPrice(dec(200, 18));
-    await stabilityPool.withdrawFromSP(spDeposit, { from: whale });
+    await stabilityPool.connect(whale).withdrawFromSP(spDeposit);
     await priceFeed.setPrice(dec(110, 18));
-    await stabilityPool.provideToSP(B_totalDebt.add(toBN(dec(50, 18))), ZERO_ADDRESS, {
-      from: whale,
-    });
+    await stabilityPool
+      .connect(whale)
+      .provideToSP(B_totalDebt.add(toBN(dec(50, 18))), ZERO_ADDRESS);
 
     // B and E are still in range 110-TCR.
     // Attempt to liquidate B, G, H, I, E.
@@ -5118,11 +5211,17 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     // but not E as there are not enough funds in Stability Pool
 
     const stabilityBefore = await stabilityPool.getTotalDebtTokenDeposits();
-    const dEbtBefore = (await troveManager.Troves(E))[0];
+    const dEbtBefore = (await troveManager.Troves(E.address))[0];
 
-    await troveManager.batchLiquidateTroves([B, G, H, I, E]);
+    await troveManager.batchLiquidateTroves([
+      B.address,
+      G.address,
+      H.address,
+      I.address,
+      E.address,
+    ]);
 
-    const dEbtAfter = (await troveManager.Troves(E))[0];
+    const dEbtAfter = (await troveManager.Troves(E.address))[0];
     const stabilityAfter = await stabilityPool.getTotalDebtTokenDeposits();
 
     const stabilityDelta = stabilityBefore.sub(stabilityAfter);
@@ -5132,21 +5231,21 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.equal(dEbtDelta.toString(), "0");
 
     // Confirm B removed and E active
-    assert.isFalse(await sortedTroves.contains(B));
-    assert.isTrue(await sortedTroves.contains(E));
+    assert.isFalse(await sortedTroves.contains(B.address));
+    assert.isTrue(await sortedTroves.contains(E.address));
 
     // Check G, H, I remain in system
-    assert.isTrue(await sortedTroves.contains(G));
-    assert.isTrue(await sortedTroves.contains(H));
-    assert.isTrue(await sortedTroves.contains(I));
+    assert.isTrue(await sortedTroves.contains(G.address));
+    assert.isTrue(await sortedTroves.contains(H.address));
+    assert.isTrue(await sortedTroves.contains(I.address));
 
     // Check coll and debt have not changed
-    assert.equal(G_collBefore.eq(await troveManager.Troves(G))[1]);
-    assert.equal(G_debtBefore.eq(await troveManager.Troves(G))[0]);
-    assert.equal(H_collBefore.eq(await troveManager.Troves(H))[1]);
-    assert.equal(H_debtBefore.eq(await troveManager.Troves(H))[0]);
-    assert.equal(I_collBefore.eq(await troveManager.Troves(I))[1]);
-    assert.equal(I_debtBefore.eq(await troveManager.Troves(I))[0]);
+    assert.equal(G_collBefore.toString(), (await troveManager.Troves(G.address))[1].toString());
+    assert.equal(G_debtBefore.toString(), (await troveManager.Troves(G.address))[0].toString());
+    assert.equal(H_collBefore.toString(), (await troveManager.Troves(H.address))[1].toString());
+    assert.equal(H_debtBefore.toString(), (await troveManager.Troves(H.address))[0].toString());
+    assert.equal(I_collBefore.toString(), (await troveManager.Troves(I.address))[1].toString());
+    assert.equal(I_debtBefore.toString(), (await troveManager.Troves(I.address))[0].toString());
   });
 
   it("batchLiquidateTroves(): emits liquidation event with correct values when all troves have ICR > 110% and Stability Pool covers a subset of troves", async () => {
@@ -5173,7 +5272,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops, but all troves remain active
     await priceFeed.setPrice(dec(100, 18));
@@ -5183,11 +5282,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Confirm all troves have ICR > MCR
-    assert.isTrue((await troveManager.getCurrentICR(freddy, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(greta, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(alice, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(bob, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(carol, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(freddy.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(greta.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(alice.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(bob.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(carol.address, price)).gte(mv._MCR));
 
     // Confirm DebtToken in Stability Pool
     assert.equal(
@@ -5195,22 +5294,31 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       spDeposit.toString(),
     );
 
-    const trovesToLiquidate = [freddy, greta, alice, bob, carol, dennis, whale];
+    const trovesToLiquidate = [
+      freddy.address,
+      greta.address,
+      alice.address,
+      bob.address,
+      carol.address,
+      dennis.address,
+      whale.address,
+    ];
 
     // Attempt liqudation sequence
     const liquidationTx = await troveManager.batchLiquidateTroves(trovesToLiquidate);
-    const [liquidatedDebt, liquidatedColl, gasComp] = th.getEmittedLiquidationValues(liquidationTx);
+    const [liquidatedDebt, liquidatedColl, gasComp] =
+      await th.getEmittedLiquidationValues(liquidationTx);
 
     // Check F and G were liquidated
-    assert.isFalse(await sortedTroves.contains(freddy));
-    assert.isFalse(await sortedTroves.contains(greta));
+    assert.isFalse(await sortedTroves.contains(freddy.address));
+    assert.isFalse(await sortedTroves.contains(greta.address));
 
     // Check whale and A-D remain active
-    assert.isTrue(await sortedTroves.contains(alice));
-    assert.isTrue(await sortedTroves.contains(bob));
-    assert.isTrue(await sortedTroves.contains(carol));
-    assert.isTrue(await sortedTroves.contains(dennis));
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(alice.address));
+    assert.isTrue(await sortedTroves.contains(bob.address));
+    assert.isTrue(await sortedTroves.contains(carol.address));
+    assert.isTrue(await sortedTroves.contains(dennis.address));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     // Liquidation event emits coll = (F_debt + G_debt)/price*1.1*0.995, and debt = (F_debt + G_debt)
     th.assertIsApproximatelyEqual(liquidatedDebt, F_totalDebt.add(G_totalDebt));
@@ -5227,32 +5335,32 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     const freddy_remainingCollateral = F_coll.sub(F_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     const greta_remainingCollateral = G_coll.sub(G_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(freddy),
+      await collSurplusPool.getCollateral(freddy.address),
       freddy_remainingCollateral,
     );
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(greta),
+      await collSurplusPool.getCollateral(greta.address),
       greta_remainingCollateral,
     );
 
     // can claim collateral
-    const freddy_balanceBefore = th.toBN(await web3.eth.getBalance(freddy));
-    const FREDDY_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: freddy, gasPrice: GAS_PRICE }),
+    const freddy_balanceBefore = th.toBN(await web3.eth.getBalance(freddy.address));
+    const FREDDY_GAS = await th.gasUsed(
+      await borrowerOperations.connect(freddy).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const freddy_expectedBalance = freddy_balanceBefore.sub(th.toBN(FREDDY_GAS * GAS_PRICE));
-    const freddy_balanceAfter = th.toBN(await web3.eth.getBalance(freddy));
+    const freddy_balanceAfter = th.toBN(await web3.eth.getBalance(freddy.address));
     th.assertIsApproximatelyEqual(
       freddy_balanceAfter,
       freddy_expectedBalance.add(th.toBN(freddy_remainingCollateral)),
     );
 
-    const greta_balanceBefore = th.toBN(await web3.eth.getBalance(greta));
-    const GRETA_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: greta, gasPrice: GAS_PRICE }),
+    const greta_balanceBefore = th.toBN(await web3.eth.getBalance(greta.address));
+    const GRETA_GAS = await th.gasUsed(
+      await borrowerOperations.connect(greta).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const greta_expectedBalance = greta_balanceBefore.sub(th.toBN(GRETA_GAS * GAS_PRICE));
-    const greta_balanceAfter = th.toBN(await web3.eth.getBalance(greta));
+    const greta_balanceAfter = th.toBN(await web3.eth.getBalance(greta.address));
     th.assertIsApproximatelyEqual(
       greta_balanceAfter,
       greta_expectedBalance.add(th.toBN(greta_remainingCollateral)),
@@ -5286,7 +5394,7 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       extraDebtTokenAmount: spDeposit,
       extraParams: { from: whale },
     });
-    await stabilityPool.provideToSP(spDeposit, ZERO_ADDRESS, { from: whale });
+    await stabilityPool.connect(whale).provideToSP(spDeposit, ZERO_ADDRESS);
 
     // Price drops, but all troves remain active
     await priceFeed.setPrice(dec(100, 18));
@@ -5296,11 +5404,11 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     assert.isTrue(await th.checkRecoveryMode(contracts));
 
     // Confirm all troves have ICR > MCR
-    assert.isTrue((await troveManager.getCurrentICR(freddy, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(greta, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(alice, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(bob, price)).gte(mv._MCR));
-    assert.isTrue((await troveManager.getCurrentICR(carol, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(freddy.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(greta.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(alice.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(bob.address, price)).gte(mv._MCR));
+    assert.isTrue((await troveManager.getCurrentICR(carol.address, price)).gte(mv._MCR));
 
     // Confirm DebtToken in Stability Pool
     assert.equal(
@@ -5308,29 +5416,38 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
       spDeposit.toString(),
     );
 
-    const trovesToLiquidate = [freddy, greta, alice, bob, carol, dennis, whale];
+    const trovesToLiquidate = [
+      freddy.address,
+      greta.address,
+      alice.address,
+      bob.address,
+      carol.address,
+      dennis.address,
+      whale.address,
+    ];
 
     // Attempt liqudation sequence
     const liquidationTx = await troveManager.batchLiquidateTroves(trovesToLiquidate);
-    const [liquidatedDebt, liquidatedColl, gasComp] = th.getEmittedLiquidationValues(liquidationTx);
+    const [liquidatedDebt, liquidatedColl, gasComp] =
+      await th.getEmittedLiquidationValues(liquidationTx);
 
     // Check F and G were liquidated
-    assert.isFalse(await sortedTroves.contains(freddy));
-    assert.isFalse(await sortedTroves.contains(greta));
+    assert.isFalse(await sortedTroves.contains(freddy.address));
+    assert.isFalse(await sortedTroves.contains(greta.address));
 
     // Check whale and A-D remain active
-    assert.isTrue(await sortedTroves.contains(alice));
-    assert.isTrue(await sortedTroves.contains(bob));
-    assert.isTrue(await sortedTroves.contains(carol));
-    assert.isTrue(await sortedTroves.contains(dennis));
-    assert.isTrue(await sortedTroves.contains(whale));
+    assert.isTrue(await sortedTroves.contains(alice.address));
+    assert.isTrue(await sortedTroves.contains(bob.address));
+    assert.isTrue(await sortedTroves.contains(carol.address));
+    assert.isTrue(await sortedTroves.contains(dennis.address));
+    assert.isTrue(await sortedTroves.contains(whale.address));
 
     // Check A's collateral and debt are the same
-    const entireColl_A = (await troveManager.Troves(alice))[1].add(
-      await troveManager.getPendingFILReward(alice),
+    const entireColl_A = (await troveManager.Troves(alice.address))[1].add(
+      await troveManager.getPendingFILReward(alice.address),
     );
-    const entireDebt_A = (await troveManager.Troves(alice))[0].add(
-      await troveManager.getPendingDebtReward(alice),
+    const entireDebt_A = (await troveManager.Troves(alice.address))[0].add(
+      await troveManager.getPendingDebtReward(alice.address),
     );
 
     assert.equal(entireColl_A.toString(), A_coll);
@@ -5353,32 +5470,32 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
     const freddy_remainingCollateral = F_coll.sub(F_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     const greta_remainingCollateral = G_coll.sub(G_totalDebt.mul(th.toBN(dec(11, 17))).div(price));
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(freddy),
+      await collSurplusPool.getCollateral(freddy.address),
       freddy_remainingCollateral,
     );
     th.assertIsApproximatelyEqual(
-      await collSurplusPool.getCollateral(greta),
+      await collSurplusPool.getCollateral(greta.address),
       greta_remainingCollateral,
     );
 
     // can claim collateral
-    const freddy_balanceBefore = th.toBN(await web3.eth.getBalance(freddy));
-    const FREDDY_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: freddy, gasPrice: GAS_PRICE }),
+    const freddy_balanceBefore = th.toBN(await web3.eth.getBalance(freddy.address));
+    const FREDDY_GAS = await th.gasUsed(
+      await borrowerOperations.connect(freddy).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const freddy_expectedBalance = freddy_balanceBefore.sub(th.toBN(FREDDY_GAS * GAS_PRICE));
-    const freddy_balanceAfter = th.toBN(await web3.eth.getBalance(freddy));
+    const freddy_balanceAfter = th.toBN(await web3.eth.getBalance(freddy.address));
     th.assertIsApproximatelyEqual(
       freddy_balanceAfter,
       freddy_expectedBalance.add(th.toBN(freddy_remainingCollateral)),
     );
 
-    const greta_balanceBefore = th.toBN(await web3.eth.getBalance(greta));
-    const GRETA_GAS = th.gasUsed(
-      await borrowerOperations.claimCollateral({ from: greta, gasPrice: GAS_PRICE }),
+    const greta_balanceBefore = th.toBN(await web3.eth.getBalance(greta.address));
+    const GRETA_GAS = await th.gasUsed(
+      await borrowerOperations.connect(greta).claimCollateral({ gasPrice: GAS_PRICE }),
     );
     const greta_expectedBalance = greta_balanceBefore.sub(th.toBN(GRETA_GAS * GAS_PRICE));
-    const greta_balanceAfter = th.toBN(await web3.eth.getBalance(greta));
+    const greta_balanceAfter = th.toBN(await web3.eth.getBalance(greta.address));
     th.assertIsApproximatelyEqual(
       greta_balanceAfter,
       greta_expectedBalance.add(th.toBN(greta_remainingCollateral)),
@@ -5386,4 +5503,4 @@ contract("TroveManager - in Recovery Mode", async (accounts) => {
   });
 });
 
-contract("Reset chain state", async (accounts) => {});
+contract("Reset chain state", async () => {});

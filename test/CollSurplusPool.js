@@ -1,6 +1,5 @@
 const deploymentHelper = require("../utils/deploymentHelpers.js");
 const testHelpers = require("../utils/testHelpers.js");
-const NonPayable = artifacts.require("NonPayable.sol");
 
 const th = testHelpers.TestHelper;
 const dec = th.dec;
@@ -8,13 +7,9 @@ const toBN = th.toBN;
 const mv = testHelpers.MoneyValues;
 const timeValues = testHelpers.TimeValues;
 
-const TroveManagerTester = artifacts.require("TroveManagerTester");
-const DebtToken = artifacts.require("DebtToken");
-
-contract("CollSurplusPool", async (accounts) => {
-  const [owner, A, B, C, D, E] = accounts;
-
-  const [bountyAddress, lpRewardsAddress, multisig] = accounts.slice(997, 1000);
+contract("CollSurplusPool", async () => {
+  let owner, A, B, C, D, E;
+  let bountyAddress, lpRewardsAddress, multisig;
 
   let borrowerOperations;
   let priceFeed;
@@ -22,27 +17,59 @@ contract("CollSurplusPool", async (accounts) => {
 
   let contracts;
 
-  const getOpenTroveDebtTokenAmount = async (totalDebt) =>
-    th.getOpenTroveDebtTokenAmount(contracts, totalDebt);
   const openTrove = async (params) => th.openTrove(contracts, params);
 
+  before(async () => {
+    const signers = await ethers.getSigners();
+
+    [owner, A, B, C, D, E] = signers;
+    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+  });
+
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    contracts.troveManager = await TroveManagerTester.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    contracts.debtToken = await DebtToken.new();
-    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress,
-      lpRewardsAddress,
-      multisig,
+    await hre.network.provider.send("hardhat_reset");
+
+    const transactionCount = await owner.getTransactionCount();
+    const cpTesterContracts = await deploymentHelper.computeContractAddresses(
+      owner.address,
+      transactionCount,
+      5,
+    );
+    const cpContracts = await deploymentHelper.computeCoreProtocolContracts(
+      owner.address,
+      transactionCount + 5,
+    );
+
+    // Overwrite contracts with computed tester addresses
+    cpContracts.troveManager = cpTesterContracts[2];
+    cpContracts.debtToken = cpTesterContracts[4];
+
+    const troveManagerTester = await deploymentHelper.deployTroveManagerTester(
+      th.GAS_COMPENSATION,
+      th.MIN_NET_DEBT,
+      cpContracts,
+    );
+    const debtTokenTester = await deploymentHelper.deployDebtTokenTester(cpContracts);
+
+    contracts = await deploymentHelper.deployProtocolCore(
+      th.GAS_COMPENSATION,
+      th.MIN_NET_DEBT,
+      cpContracts,
+    );
+
+    contracts.troveManager = troveManagerTester;
+    contracts.debtToken = debtTokenTester;
+
+    await deploymentHelper.deployProtocolTokenContracts(
+      bountyAddress.address,
+      lpRewardsAddress.address,
+      multisig.address,
+      cpContracts,
     );
 
     priceFeed = contracts.priceFeedTestnet;
     collSurplusPool = contracts.collSurplusPool;
     borrowerOperations = contracts.borrowerOperations;
-
-    await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
-    await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
-    await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
   });
 
   it("CollSurplusPool::getFIL(): Returns the FIL balance of the CollSurplusPool after redemption", async () => {
@@ -73,20 +100,21 @@ contract("CollSurplusPool", async (accounts) => {
 
   it("CollSurplusPool: claimColl(): Reverts if caller is not Borrower Operations", async () => {
     await th.assertRevert(
-      collSurplusPool.claimColl(A, { from: A }),
+      collSurplusPool.connect(A).claimColl(A.address),
       "CollSurplusPool: Caller is not Borrower Operations",
     );
   });
 
   it("CollSurplusPool: claimColl(): Reverts if nothing to claim", async () => {
     await th.assertRevert(
-      borrowerOperations.claimCollateral({ from: A }),
+      borrowerOperations.connect(A).claimCollateral(),
       "CollSurplusPool: No collateral available to claim",
     );
   });
 
   it("CollSurplusPool: claimColl(): Reverts if owner cannot receive FIL surplus", async () => {
-    const nonPayable = await NonPayable.new();
+    const nonPayableFactory = await ethers.getContractFactory("NonPayable");
+    const nonPayable = await nonPayableFactory.deploy();
 
     const price = toBN(dec(100, 18));
     await priceFeed.setPrice(price);
@@ -98,8 +126,8 @@ contract("CollSurplusPool", async (accounts) => {
     const openTroveData = th.getTransactionData("openTrove(uint256,uint256,address,address)", [
       "0xde0b6b3a7640000",
       web3.utils.toHex(B_debtTokenAmount),
-      B,
-      B,
+      B.address,
+      B.address,
     ]);
     await nonPayable.forward(borrowerOperations.address, openTroveData, { value: B_coll });
     await openTrove({
@@ -125,17 +153,17 @@ contract("CollSurplusPool", async (accounts) => {
 
   it("CollSurplusPool: reverts trying to send FIL to it", async () => {
     await th.assertRevert(
-      web3.eth.sendTransaction({ from: A, to: collSurplusPool.address, value: 1 }),
+      web3.eth.sendTransaction({ from: A.address, to: collSurplusPool.address, value: 1 }),
       "CollSurplusPool: Caller is not Active Pool",
     );
   });
 
   it("CollSurplusPool: accountSurplus: reverts if caller is not Trove Manager", async () => {
     await th.assertRevert(
-      collSurplusPool.accountSurplus(A, 1),
+      collSurplusPool.accountSurplus(A.address, 1),
       "CollSurplusPool: Caller is not TroveManager",
     );
   });
 });
 
-contract("Reset chain state", async (accounts) => {});
+contract("Reset chain state", async () => {});

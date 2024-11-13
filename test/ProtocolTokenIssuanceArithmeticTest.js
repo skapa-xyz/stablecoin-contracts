@@ -1,8 +1,5 @@
-const Decimal = require("decimal.js");
 const deploymentHelper = require("../utils/deploymentHelpers.js");
-const { BNConverter } = require("../utils/BNConverter.js");
 const testHelpers = require("../utils/testHelpers.js");
-const StabilityPool = artifacts.require("./StabilityPool.sol");
 
 const th = testHelpers.TestHelper;
 const timeValues = testHelpers.TimeValues;
@@ -34,38 +31,49 @@ const repeatedlyIssueProtocolToken = async (stabilityPool, timeBetweenIssuances,
   }
 };
 
-contract("ProtocolToken community issuance arithmetic tests", async (accounts) => {
-  let contracts;
+contract("ProtocolToken community issuance arithmetic tests", async () => {
   let borrowerOperations;
   let communityIssuanceTester;
   let protocolToken;
   let stabilityPool;
 
-  const [owner, alice, frontEnd_1] = accounts;
+  let owner, alice, frontEnd_1;
 
-  const [bountyAddress, lpRewardsAddress, multisig] = accounts.slice(997, 1000);
+  let bountyAddress, lpRewardsAddress, multisig;
 
-  before(async () => {});
+  before(async () => {
+    const signers = await ethers.getSigners();
+
+    [owner, alice, frontEnd_1] = signers;
+    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+  });
 
   beforeEach(async () => {
-    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
-      bountyAddress,
-      lpRewardsAddress,
-      multisig,
+    await hre.network.provider.send("hardhat_reset");
+
+    const transactionCount = await owner.getTransactionCount();
+    const cpContracts = await deploymentHelper.computeCoreProtocolContracts(
+      owner.address,
+      transactionCount + 1,
     );
-    contracts.stabilityPool = await StabilityPool.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    contracts = await deploymentHelper.deployDebtToken(contracts);
+
+    const contracts = await deploymentHelper.deployProtocolCore(
+      th.GAS_COMPENSATION,
+      th.MIN_NET_DEBT,
+      cpContracts,
+    );
+    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
+      bountyAddress.address,
+      lpRewardsAddress.address,
+      multisig.address,
+      cpContracts,
+    );
 
     stabilityPool = contracts.stabilityPool;
     borrowerOperations = contracts.borrowerOperations;
 
     protocolToken = protocolTokenContracts.protocolToken;
     communityIssuanceTester = protocolTokenContracts.communityIssuance;
-
-    await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
-    await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
-    await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
   });
 
   // Accuracy tests
@@ -255,7 +263,7 @@ contract("ProtocolToken community issuance arithmetic tests", async (accounts) =
     await th.fastForwardTime(duration, web3.currentProvider);
 
     const issuanceFraction = await communityIssuanceTester.getCumulativeIssuanceFraction();
-    const expectedIssuanceFraction = 289528188821766000;
+    const expectedIssuanceFraction = "289528188821766000";
 
     const absError = th.toBN(expectedIssuanceFraction).sub(issuanceFraction);
     // console.log(

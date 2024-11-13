@@ -1,9 +1,8 @@
-const ProtocolMathTester = artifacts.require("./ProtocolMathTester.sol");
-
-contract("ProtocolMathTester", async (accounts) => {
+contract("ProtocolMathTester", async () => {
   let protocolMathTester;
   beforeEach("deploy tester", async () => {
-    protocolMathTester = await ProtocolMathTester.new();
+    const protocolMathTesterFactory = await ethers.getContractFactory("ProtocolMathTester");
+    protocolMathTester = await protocolMathTesterFactory.deploy();
   });
 
   const checkFunction = async (func, cond, params) => {

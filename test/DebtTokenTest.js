@@ -71,10 +71,12 @@ const getPermitDigest = (
   );
 };
 
-contract("DebtToken", async (accounts) => {
-  const [owner, alice, bob, carol, dennis] = accounts;
+contract("DebtToken", async () => {
+  let owner, alice, bob, carol, dennis;
 
-  const [bountyAddress, lpRewardsAddress, multisig] = accounts.slice(997, 1000);
+  let bountyAddress, lpRewardsAddress, multisig;
+
+  let approve;
 
   // the second account our hardhatenv creates (for Alice) from `hardhatAccountsList2k.js`
   const alicePrivateKey = "0xeaa445c85f7b438dEd6e831d06a4eD0CEBDc2f8527f84Fcda6EBB5fCfAd4C0e9";
@@ -89,22 +91,53 @@ contract("DebtToken", async (accounts) => {
   let tokenName;
   let tokenVersion;
 
+  before(async () => {
+    const signers = await ethers.getSigners();
+
+    [owner, alice, bob, carol, dennis] = signers;
+    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+
+    approve = {
+      owner: alice,
+      spender: bob,
+      value: 1,
+    };
+  });
+
   const testCorpus = ({ withProxy = false }) => {
     beforeEach(async () => {
-      const contracts = await deploymentHelper.deployTesterContracts(
+      await hre.network.provider.send("hardhat_reset");
+
+      const transactionCount = await owner.getTransactionCount();
+      const cpTesterContracts = await deploymentHelper.computeContractAddresses(
+        owner.address,
+        transactionCount,
+        3,
+      );
+      const cpContracts = await deploymentHelper.computeCoreProtocolContracts(
+        owner.address,
+        transactionCount + 3,
+      );
+
+      // Overwrite contracts with computed tester addresses
+      cpContracts.debtToken = cpTesterContracts[2];
+
+      debtTokenTester = await deploymentHelper.deployDebtTokenTester(cpContracts);
+
+      const contracts = await deploymentHelper.deployProtocolCore(
         GAS_COMPENSATION,
         MIN_NET_DEBT,
+        cpContracts,
       );
 
-      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
-        bountyAddress,
-        lpRewardsAddress,
-        multisig,
-      );
+      contracts.debtToken = debtTokenTester;
 
-      await deploymentHelper.connectCoreContracts(contracts, protocolTokenContracts);
-      await deploymentHelper.connectProtocolTokenContracts(protocolTokenContracts);
-      await deploymentHelper.connectProtocolTokenContractsToCore(protocolTokenContracts, contracts);
+      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
+        bountyAddress.address,
+        lpRewardsAddress.address,
+        multisig.address,
+        cpContracts,
+      );
 
       debtTokenOriginal = contracts.debtToken;
       if (withProxy) {
@@ -127,22 +160,28 @@ contract("DebtToken", async (accounts) => {
       // mint some tokens
       if (withProxy) {
         await debtTokenOriginal.unprotectedMint(
-          debtTokenTester.getProxyAddressFromUser(alice),
+          debtTokenTester.getProxyAddressFromUser(alice.address),
           150,
         );
-        await debtTokenOriginal.unprotectedMint(debtTokenTester.getProxyAddressFromUser(bob), 100);
-        await debtTokenOriginal.unprotectedMint(debtTokenTester.getProxyAddressFromUser(carol), 50);
+        await debtTokenOriginal.unprotectedMint(
+          debtTokenTester.getProxyAddressFromUser(bob.address),
+          100,
+        );
+        await debtTokenOriginal.unprotectedMint(
+          debtTokenTester.getProxyAddressFromUser(carol.address),
+          50,
+        );
       } else {
-        await debtTokenOriginal.unprotectedMint(alice, 150);
-        await debtTokenOriginal.unprotectedMint(bob, 100);
-        await debtTokenOriginal.unprotectedMint(carol, 50);
+        await debtTokenOriginal.unprotectedMint(alice.address, 150);
+        await debtTokenOriginal.unprotectedMint(bob.address, 100);
+        await debtTokenOriginal.unprotectedMint(carol.address, 50);
       }
     });
 
     it("balanceOf(): gets the balance of the account", async () => {
-      const aliceBalance = (await debtTokenTester.balanceOf(alice)).toNumber();
-      const bobBalance = (await debtTokenTester.balanceOf(bob)).toNumber();
-      const carolBalance = (await debtTokenTester.balanceOf(carol)).toNumber();
+      const aliceBalance = (await debtTokenTester.balanceOf(alice.address)).toNumber();
+      const bobBalance = (await debtTokenTester.balanceOf(bob.address)).toNumber();
+      const carolBalance = (await debtTokenTester.balanceOf(carol.address)).toNumber();
 
       assert.equal(aliceBalance, 150);
       assert.equal(bobBalance, 100);
@@ -170,122 +209,122 @@ contract("DebtToken", async (accounts) => {
     });
 
     it("allowance(): returns an account's spending allowance for another account's balance", async () => {
-      await debtTokenTester.approve(alice, 100, { from: bob });
+      await debtTokenTester.connect(bob).approve(alice.address, 100);
 
-      const allowance_A = await debtTokenTester.allowance(bob, alice);
-      const allowance_D = await debtTokenTester.allowance(bob, dennis);
+      const allowance_A = await debtTokenTester.allowance(bob.address, alice.address);
+      const allowance_D = await debtTokenTester.allowance(bob.address, dennis.address);
 
       assert.equal(allowance_A, 100);
       assert.equal(allowance_D, "0");
     });
 
     it("approve(): approves an account to spend the specified amount", async () => {
-      const allowance_A_before = await debtTokenTester.allowance(bob, alice);
+      const allowance_A_before = await debtTokenTester.allowance(bob.address, alice.address);
       assert.equal(allowance_A_before, "0");
 
-      await debtTokenTester.approve(alice, 100, { from: bob });
+      await debtTokenTester.connect(bob).approve(alice.address, 100);
 
-      const allowance_A_after = await debtTokenTester.allowance(bob, alice);
+      const allowance_A_after = await debtTokenTester.allowance(bob.address, alice.address);
       assert.equal(allowance_A_after, 100);
     });
 
     if (!withProxy) {
       it("approve(): reverts when spender param is address(0)", async () => {
-        const txPromise = debtTokenTester.approve(ZERO_ADDRESS, 100, { from: bob });
+        const txPromise = debtTokenTester.connect(bob).approve(ZERO_ADDRESS, 100);
         await assertAssert(txPromise);
       });
 
       it("approve(): reverts when owner param is address(0)", async () => {
-        const txPromise = debtTokenTester.callInternalApprove(ZERO_ADDRESS, alice, dec(1000, 18), {
-          from: bob,
-        });
+        const txPromise = debtTokenTester
+          .connect(bob)
+          .callInternalApprove(ZERO_ADDRESS, alice.address, dec(1000, 18));
         await assertAssert(txPromise);
       });
     }
 
     it("transferFrom(): successfully transfers from an account which is it approved to transfer from", async () => {
-      const allowance_A_0 = await debtTokenTester.allowance(bob, alice);
+      const allowance_A_0 = await debtTokenTester.allowance(bob.address, alice.address);
       assert.equal(allowance_A_0, "0");
 
-      await debtTokenTester.approve(alice, 50, { from: bob });
+      await debtTokenTester.connect(bob).approve(alice.address, 50);
 
       // Check A's allowance of Bob's funds has increased
-      const allowance_A_1 = await debtTokenTester.allowance(bob, alice);
+      const allowance_A_1 = await debtTokenTester.allowance(bob.address, alice.address);
       assert.equal(allowance_A_1, 50);
 
-      assert.equal(await debtTokenTester.balanceOf(carol), 50);
+      assert.equal(await debtTokenTester.balanceOf(carol.address), 50);
 
       // Alice transfers from bob to Carol, using up her allowance
-      await debtTokenTester.transferFrom(bob, carol, 50, { from: alice });
-      assert.equal(await debtTokenTester.balanceOf(carol), 100);
+      await debtTokenTester.connect(alice).transferFrom(bob.address, carol.address, 50);
+      assert.equal(await debtTokenTester.balanceOf(carol.address), 100);
 
       // Check A's allowance of Bob's funds has decreased
-      const allowance_A_2 = await debtTokenTester.allowance(bob, alice);
+      const allowance_A_2 = await debtTokenTester.allowance(bob.address, alice.address);
       assert.equal(allowance_A_2, "0");
 
       // Check bob's balance has decreased
-      assert.equal(await debtTokenTester.balanceOf(bob), 50);
+      assert.equal(await debtTokenTester.balanceOf(bob.address), 50);
 
       // Alice tries to transfer more tokens from bob's account to carol than she's allowed
-      const txPromise = debtTokenTester.transferFrom(bob, carol, 50, { from: alice });
+      const txPromise = debtTokenTester.connect(alice).transferFrom(bob.address, carol.address, 50);
       await assertRevert(txPromise);
     });
 
     it("transfer(): increases the recipient's balance by the correct amount", async () => {
-      assert.equal(await debtTokenTester.balanceOf(alice), 150);
+      assert.equal(await debtTokenTester.balanceOf(alice.address), 150);
 
-      await debtTokenTester.transfer(alice, 37, { from: bob });
+      await debtTokenTester.connect(bob).transfer(alice.address, 37);
 
-      assert.equal(await debtTokenTester.balanceOf(alice), 187);
+      assert.equal(await debtTokenTester.balanceOf(alice.address), 187);
     });
 
     it("transfer(): reverts if amount exceeds sender's balance", async () => {
-      assert.equal(await debtTokenTester.balanceOf(bob), 100);
+      assert.equal(await debtTokenTester.balanceOf(bob.address), 100);
 
-      const txPromise = debtTokenTester.transfer(alice, 101, { from: bob });
+      const txPromise = debtTokenTester.connect(bob).transfer(alice.address, 101);
       await assertRevert(txPromise);
     });
 
     it("transfer(): transferring to a blacklisted address reverts", async () => {
-      await assertRevert(debtTokenTester.transfer(debtTokenTester.address, 1, { from: alice }));
-      await assertRevert(debtTokenTester.transfer(ZERO_ADDRESS, 1, { from: alice }));
-      await assertRevert(debtTokenTester.transfer(troveManager.address, 1, { from: alice }));
-      await assertRevert(debtTokenTester.transfer(stabilityPool.address, 1, { from: alice }));
-      await assertRevert(debtTokenTester.transfer(borrowerOperations.address, 1, { from: alice }));
+      await assertRevert(debtTokenTester.connect(alice).transfer(debtTokenTester.address, 1));
+      await assertRevert(debtTokenTester.connect(alice).transfer(ZERO_ADDRESS, 1));
+      await assertRevert(debtTokenTester.connect(alice).transfer(troveManager.address, 1));
+      await assertRevert(debtTokenTester.connect(alice).transfer(stabilityPool.address, 1));
+      await assertRevert(debtTokenTester.connect(alice).transfer(borrowerOperations.address, 1));
     });
 
     if (!withProxy) {
       it("mint(): issues correct amount of tokens to the given address", async () => {
-        const alice_balanceBefore = await debtTokenTester.balanceOf(alice);
+        const alice_balanceBefore = await debtTokenTester.balanceOf(alice.address);
         assert.equal(alice_balanceBefore, 150);
 
-        await debtTokenTester.unprotectedMint(alice, 100);
+        await debtTokenTester.unprotectedMint(alice.address, 100);
 
-        const alice_BalanceAfter = await debtTokenTester.balanceOf(alice);
+        const alice_BalanceAfter = await debtTokenTester.balanceOf(alice.address);
         assert.equal(alice_BalanceAfter, 250);
       });
 
       it("burn(): burns correct amount of tokens from the given address", async () => {
-        const alice_balanceBefore = await debtTokenTester.balanceOf(alice);
+        const alice_balanceBefore = await debtTokenTester.balanceOf(alice.address);
         assert.equal(alice_balanceBefore, 150);
 
-        await debtTokenTester.unprotectedBurn(alice, 70);
+        await debtTokenTester.unprotectedBurn(alice.address, 70);
 
-        const alice_BalanceAfter = await debtTokenTester.balanceOf(alice);
+        const alice_BalanceAfter = await debtTokenTester.balanceOf(alice.address);
         assert.equal(alice_BalanceAfter, 80);
       });
 
       // TODO: Rewrite this test - it should check the actual debtTokenTester's balance.
       it("sendToPool(): changes balances of Stability pool and user by the correct amounts", async () => {
         const stabilityPool_BalanceBefore = await debtTokenTester.balanceOf(stabilityPool.address);
-        const bob_BalanceBefore = await debtTokenTester.balanceOf(bob);
+        const bob_BalanceBefore = await debtTokenTester.balanceOf(bob.address);
         assert.equal(stabilityPool_BalanceBefore, 0);
         assert.equal(bob_BalanceBefore, 100);
 
-        await debtTokenTester.unprotectedSendToPool(bob, stabilityPool.address, 75);
+        await debtTokenTester.unprotectedSendToPool(bob.address, stabilityPool.address, 75);
 
         const stabilityPool_BalanceAfter = await debtTokenTester.balanceOf(stabilityPool.address);
-        const bob_BalanceAfter = await debtTokenTester.balanceOf(bob);
+        const bob_BalanceAfter = await debtTokenTester.balanceOf(bob.address);
         assert.equal(stabilityPool_BalanceAfter, 75);
         assert.equal(bob_BalanceAfter, 25);
       });
@@ -296,25 +335,25 @@ contract("DebtToken", async (accounts) => {
 
         /// --- TEST ---
         const stabilityPool_BalanceBefore = await debtTokenTester.balanceOf(stabilityPool.address);
-        const bob_BalanceBefore = await debtTokenTester.balanceOf(bob);
+        const bob_BalanceBefore = await debtTokenTester.balanceOf(bob.address);
         assert.equal(stabilityPool_BalanceBefore, 100);
         assert.equal(bob_BalanceBefore, 100);
 
-        await debtTokenTester.unprotectedReturnFromPool(stabilityPool.address, bob, 75);
+        await debtTokenTester.unprotectedReturnFromPool(stabilityPool.address, bob.address, 75);
 
         const stabilityPool_BalanceAfter = await debtTokenTester.balanceOf(stabilityPool.address);
-        const bob_BalanceAfter = await debtTokenTester.balanceOf(bob);
+        const bob_BalanceAfter = await debtTokenTester.balanceOf(bob.address);
         assert.equal(stabilityPool_BalanceAfter, 25);
         assert.equal(bob_BalanceAfter, 175);
       });
     }
 
     it("transfer(): transferring to a blacklisted address reverts", async () => {
-      await assertRevert(debtTokenTester.transfer(debtTokenTester.address, 1, { from: alice }));
-      await assertRevert(debtTokenTester.transfer(ZERO_ADDRESS, 1, { from: alice }));
-      await assertRevert(debtTokenTester.transfer(troveManager.address, 1, { from: alice }));
-      await assertRevert(debtTokenTester.transfer(stabilityPool.address, 1, { from: alice }));
-      await assertRevert(debtTokenTester.transfer(borrowerOperations.address, 1, { from: alice }));
+      await assertRevert(debtTokenTester.connect(alice).transfer(debtTokenTester.address, 1));
+      await assertRevert(debtTokenTester.connect(alice).transfer(ZERO_ADDRESS, 1));
+      await assertRevert(debtTokenTester.connect(alice).transfer(troveManager.address, 1));
+      await assertRevert(debtTokenTester.connect(alice).transfer(stabilityPool.address, 1));
+      await assertRevert(debtTokenTester.connect(alice).transfer(borrowerOperations.address, 1));
     });
 
     // EIP2612 tests
@@ -337,18 +376,13 @@ contract("DebtToken", async (accounts) => {
       });
 
       it("Initial nonce for a given address is 0", async function () {
-        assert.equal(toBN(await debtTokenTester.nonces(alice)).toString(), "0");
+        assert.equal(toBN(await debtTokenTester.nonces(alice.address)).toString(), "0");
       });
 
       // Create the approval tx data
-      const approve = {
-        owner: alice,
-        spender: bob,
-        value: 1,
-      };
 
       const buildPermitTx = async (deadline) => {
-        const nonce = (await debtTokenTester.nonces(approve.owner)).toString();
+        const nonce = (await debtTokenTester.nonces(approve.owner.address)).toString();
 
         // Get the EIP712 digest
         const digest = getPermitDigest(
@@ -356,8 +390,8 @@ contract("DebtToken", async (accounts) => {
           debtTokenTester.address,
           chainId,
           tokenVersion,
-          approve.owner,
-          approve.spender,
+          approve.owner.address,
+          approve.spender.address,
           approve.value,
           nonce,
           deadline,
@@ -366,8 +400,8 @@ contract("DebtToken", async (accounts) => {
         const { v, r, s } = sign(digest, alicePrivateKey);
 
         const tx = debtTokenTester.permit(
-          approve.owner,
-          approve.spender,
+          approve.owner.address,
+          approve.spender.address,
           approve.value,
           deadline,
           v,
@@ -383,20 +417,28 @@ contract("DebtToken", async (accounts) => {
 
         // Approve it
         const { v, r, s, tx } = await buildPermitTx(deadline);
-        const receipt = await tx;
-        const event = receipt.logs[0];
+        const receipt = await (await tx).wait();
+        const event = receipt.events[0];
 
         // Check that approval was successful
         assert.equal(event.event, "Approval");
-        assert.equal(await debtTokenTester.nonces(approve.owner), 1);
+        assert.equal(await debtTokenTester.nonces(approve.owner.address), 1);
         assert.equal(
-          await debtTokenTester.allowance(approve.owner, approve.spender),
+          await debtTokenTester.allowance(approve.owner.address, approve.spender.address),
           approve.value,
         );
 
         // Check that we can not use re-use the same signature, since the user's nonce has been incremented (replay protection)
         await assertRevert(
-          debtTokenTester.permit(approve.owner, approve.spender, approve.value, deadline, v, r, s),
+          debtTokenTester.permit(
+            approve.owner.address,
+            approve.spender.address,
+            approve.value,
+            deadline,
+            v,
+            r,
+            s,
+          ),
           "DebtToken: invalid signature",
         );
 
@@ -404,7 +446,7 @@ contract("DebtToken", async (accounts) => {
         await assertAssert(
           debtTokenTester.permit(
             "0x0000000000000000000000000000000000000000",
-            approve.spender,
+            approve.spender.address,
             approve.value,
             deadline,
             "0x99",
@@ -427,8 +469,8 @@ contract("DebtToken", async (accounts) => {
         const { v, r, s } = await buildPermitTx(deadline);
 
         const tx = debtTokenTester.permit(
-          carol,
-          approve.spender,
+          carol.address,
+          approve.spender.address,
           approve.value,
           deadline,
           v,
@@ -449,4 +491,4 @@ contract("DebtToken", async (accounts) => {
   });
 });
 
-contract("Reset chain state", async (accounts) => {});
+contract("Reset chain state", async () => {});

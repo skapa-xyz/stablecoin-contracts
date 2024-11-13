@@ -1,13 +1,9 @@
 const deploymentHelper = require("../utils/deploymentHelpers.js");
 const { TestHelper: th, MoneyValues: mv } = require("../utils/testHelpers.js");
 
-const ProtocolBase = artifacts.require("./ProtocolBase.sol");
-const BorrowerOperationsTester = artifacts.require("./BorrowerOperationsTester.sol");
-
-contract("All functions with onlyOwner modifier", async (accounts) => {
-  const [owner, alice, bob] = accounts;
-
-  const [bountyAddress, lpRewardsAddress, multisig] = accounts.slice(997, 1000);
+contract("All functions with onlyOwner modifier", async () => {
+  let owner, alice, bob;
+  let bountyAddress, lpRewardsAddress, multisig;
 
   let contracts;
   let debtToken;
@@ -24,16 +20,30 @@ contract("All functions with onlyOwner modifier", async (accounts) => {
   let lockupContractFactory;
 
   before(async () => {
-    contracts = await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    contracts.borrowerOperations = await BorrowerOperationsTester.new(
+    await hre.network.provider.send("hardhat_reset");
+
+    const signers = await ethers.getSigners();
+
+    [owner, alice, bob] = signers;
+    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+
+    const transactionCount = await owner.getTransactionCount();
+    const cpContracts = await deploymentHelper.computeCoreProtocolContracts(
+      owner.address,
+      transactionCount + 1,
+    );
+
+    contracts = await deploymentHelper.deployProtocolCore(
       th.GAS_COMPENSATION,
       th.MIN_NET_DEBT,
+      cpContracts,
     );
-    contracts = await deploymentHelper.deployDebtToken(contracts);
+
     const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress,
-      lpRewardsAddress,
-      multisig,
+      bountyAddress.address,
+      lpRewardsAddress.address,
+      multisig.address,
+      cpContracts,
     );
 
     debtToken = contracts.debtToken;
@@ -50,146 +60,74 @@ contract("All functions with onlyOwner modifier", async (accounts) => {
     lockupContractFactory = protocolTokenContracts.lockupContractFactory;
   });
 
-  const testZeroAddress = async (contract, params, method = "setAddresses", skip = 0) => {
-    await testWrongAddress(
-      contract,
-      params,
-      th.ZERO_ADDRESS,
-      method,
-      skip,
-      "Account cannot be zero address",
-    );
-  };
-  const testNonContractAddress = async (contract, params, method = "setAddresses", skip = 0) => {
-    await testWrongAddress(contract, params, bob, method, skip, "Account code size cannot be zero");
-  };
-  const testWrongAddress = async (contract, params, address, method, skip, message) => {
-    for (let i = skip; i < params.length; i++) {
-      const newParams = [...params];
-      newParams[i] = address;
-      await th.assertRevert(contract[method](...newParams, { from: owner }), message);
-    }
-  };
-
-  const testSetAddresses = async (contract, numberOfAddresses) => {
-    const dumbContract = await ProtocolBase.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+  const testInitialize = async (contract, numberOfAddresses) => {
+    const protocolBaseFactory = await ethers.getContractFactory("ProtocolBase");
+    const dumbContract = await protocolBaseFactory.deploy(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     const params = Array(numberOfAddresses).fill(dumbContract.address);
 
-    // Attempt call from alice
-    await th.assertRevert(contract.setAddresses(...params, { from: alice }));
-
-    // Attempt to use zero address
-    await testZeroAddress(contract, params);
-    // Attempt to use non contract
-    await testNonContractAddress(contract, params);
-
-    // Owner can successfully set any address
-    const txOwner = await contract.setAddresses(...params, { from: owner });
-    assert.isTrue(txOwner.receipt.status);
-    // fails if called twice
-    await th.assertRevert(contract.setAddresses(...params, { from: owner }));
+    // fails if called
+    await th.assertRevert(contract.connect(owner).initialize(...params));
   };
 
-  describe("TroveManager", async (accounts) => {
-    it("setAddresses(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
-      await testSetAddresses(troveManager, 11);
+  describe("TroveManager", async () => {
+    it("initialize(): reverts when called", async () => {
+      await testInitialize(troveManager, 11);
     });
   });
 
-  describe("BorrowerOperations", async (accounts) => {
-    it("setAddresses(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
-      await testSetAddresses(borrowerOperations, 10);
+  describe("BorrowerOperations", async () => {
+    it("initialize(): reverts when called", async () => {
+      await testInitialize(borrowerOperations, 10);
     });
   });
 
-  describe("DefaultPool", async (accounts) => {
-    it("setAddresses(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
-      await testSetAddresses(defaultPool, 2);
+  describe("DefaultPool", async () => {
+    it("initialize(): reverts when called", async () => {
+      await testInitialize(defaultPool, 2);
     });
   });
 
-  describe("StabilityPool", async (accounts) => {
-    it("setAddresses(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
-      await testSetAddresses(stabilityPool, 7);
+  describe("StabilityPool", async () => {
+    it("initialize(): reverts when called", async () => {
+      await testInitialize(stabilityPool, 7);
     });
   });
 
-  describe("ActivePool", async (accounts) => {
-    it("setAddresses(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
-      await testSetAddresses(activePool, 4);
+  describe("ActivePool", async () => {
+    it("initialize(): reverts when called", async () => {
+      await testInitialize(activePool, 4);
     });
   });
 
-  describe("SortedTroves", async (accounts) => {
-    it("setParams(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
-      const dumbContract = await ProtocolBase.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+  describe("SortedTroves", async () => {
+    it("setParams(): reverts when called", async () => {
+      const protocolBaseFactory = await ethers.getContractFactory("ProtocolBase");
+      const dumbContract = await protocolBaseFactory.deploy(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+      // const dumbContract = await ProtocolBase.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
       const params = [10000001, dumbContract.address, dumbContract.address];
 
-      // Attempt call from alice
-      await th.assertRevert(sortedTroves.setParams(...params, { from: alice }));
-
-      // Attempt to use zero address
-      await testZeroAddress(sortedTroves, params, "setParams", 1);
-      // Attempt to use non contract
-      await testNonContractAddress(sortedTroves, params, "setParams", 1);
-
-      // Owner can successfully set params
-      const txOwner = await sortedTroves.setParams(...params, { from: owner });
-      assert.isTrue(txOwner.receipt.status);
-
-      // fails if called twice
-      await th.assertRevert(sortedTroves.setParams(...params, { from: owner }));
+      // fails if called
+      await th.assertRevert(sortedTroves.initialize(...params));
     });
   });
 
-  describe("CommunityIssuance", async (accounts) => {
-    it("setAddresses(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
+  describe("CommunityIssuance", async () => {
+    it("initialize(): reverts when called", async () => {
       const params = [protocolToken.address, stabilityPool.address];
-      await th.assertRevert(communityIssuance.setAddresses(...params, { from: alice }));
-
-      // Attempt to use zero address
-      await testZeroAddress(communityIssuance, params);
-      // Attempt to use non contract
-      await testNonContractAddress(communityIssuance, params);
-
-      // Owner can successfully set any address
-      const txOwner = await communityIssuance.setAddresses(...params, { from: owner });
-
-      assert.isTrue(txOwner.receipt.status);
-      // fails if called twice
-      await th.assertRevert(communityIssuance.setAddresses(...params, { from: owner }));
+      // fails if called
+      await th.assertRevert(communityIssuance.initialize(...params));
     });
   });
 
-  describe("ProtocolTokenStaking", async (accounts) => {
-    it("setAddresses(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
-      await testSetAddresses(protocolTokenStaking, 5);
+  describe("ProtocolTokenStaking", async () => {
+    it("initialize(): reverts when called", async () => {
+      await testInitialize(protocolTokenStaking, 5);
     });
   });
 
-  describe("LockupContractFactory", async (accounts) => {
-    it("setProtocolTokenAddress(): reverts when called by non-owner, with wrong address, or twice", async () => {
-      await th.assertRevert(
-        lockupContractFactory.setProtocolTokenAddress(protocolToken.address, { from: alice }),
-      );
-
-      const params = [protocolToken.address];
-
-      // Attempt to use zero address
-      await testZeroAddress(lockupContractFactory, params, "setProtocolTokenAddress");
-      // Attempt to use non contract
-      await testNonContractAddress(lockupContractFactory, params, "setProtocolTokenAddress");
-
-      // Owner can successfully set any address
-      const txOwner = await lockupContractFactory.setProtocolTokenAddress(protocolToken.address, {
-        from: owner,
-      });
-
-      assert.isTrue(txOwner.receipt.status);
-      // fails if called twice
-      await th.assertRevert(
-        lockupContractFactory.setProtocolTokenAddress(protocolToken.address, { from: owner }),
-      );
+  describe("LockupContractFactory", async () => {
+    it("initialize(): reverts when called", async () => {
+      await th.assertRevert(lockupContractFactory.initialize(protocolToken.address));
     });
   });
 });
