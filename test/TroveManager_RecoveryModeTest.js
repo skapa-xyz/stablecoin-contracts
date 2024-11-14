@@ -2726,10 +2726,10 @@ contract("TroveManager - in Recovery Mode", async () => {
     await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
-    assert.isTrue(await th.ICRbetween100and110(defaulter_1.address, troveManager, price));
-    assert.isTrue(await th.ICRbetween100and110(defaulter_2.address, troveManager, price));
-    assert.isTrue(await th.ICRbetween100and110(defaulter_3.address, troveManager, price));
-    assert.isTrue(await th.ICRbetween100and110(defaulter_4.address, troveManager, price));
+    assert.isTrue(await th.ICRbetween100and110(defaulter_1, troveManager, price));
+    assert.isTrue(await th.ICRbetween100and110(defaulter_2, troveManager, price));
+    assert.isTrue(await th.ICRbetween100and110(defaulter_3, troveManager, price));
+    assert.isTrue(await th.ICRbetween100and110(defaulter_4, troveManager, price));
 
     // Confirm Recovery Mode
     assert.isTrue(await th.checkRecoveryMode(contracts));

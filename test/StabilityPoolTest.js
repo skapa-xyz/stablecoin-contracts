@@ -2922,7 +2922,7 @@ contract("StabilityPool", async () => {
       // FIL drops, defaulters are in liquidation range
       await priceFeed.setPrice(dec(105, 18));
       const price = await priceFeed.getPrice();
-      assert.isTrue(await th.ICRbetween100and110(defaulter_1.address, troveManager, price));
+      assert.isTrue(await th.ICRbetween100and110(defaulter_1, troveManager, price));
 
       await th.fastForwardTime(timeValues.MINUTES_IN_ONE_WEEK, web3.currentProvider);
 
@@ -2931,7 +2931,7 @@ contract("StabilityPool", async () => {
       assert.isFalse(await sortedTroves.contains(defaulter_1.address));
 
       // Check d2 is undercollateralized
-      assert.isTrue(await th.ICRbetween100and110(defaulter_2.address, troveManager, price));
+      assert.isTrue(await th.ICRbetween100and110(defaulter_2, troveManager, price));
       assert.isTrue(await sortedTroves.contains(defaulter_2.address));
 
       const A_FILBalBefore = toBN(await web3.eth.getBalance(A.address));
@@ -4621,7 +4621,7 @@ contract("StabilityPool", async () => {
       assert.isTrue(await th.checkRecoveryMode(contracts));
 
       // Check defaulter 1 has ICR: 100% < ICR < 110%.
-      assert.isTrue(await th.ICRbetween100and110(defaulter_1.address, troveManager, price));
+      assert.isTrue(await th.ICRbetween100and110(defaulter_1, troveManager, price));
 
       const alice_Collateral_Before = (await troveManager.Troves(alice.address))[1];
       const bob_Collateral_Before = (await troveManager.Troves(bob.address))[1];
