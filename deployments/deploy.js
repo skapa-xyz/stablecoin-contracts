@@ -29,9 +29,9 @@ async function deploy(configParams) {
   // Computed contracts address
   // Note: This contract list order is the same as the order in which the contracts are deployed.
   // This is necessary for the deployment helper to compute the correct addresses.
-  const contractList = [
-    "tellorCaller",
-    "pythCaller",
+  const contractList = ["tellorCaller", "pythCaller"];
+
+  const proxyContractList = [
     "priceFeed",
     "sortedTroves",
     "troveManager",
@@ -48,14 +48,30 @@ async function deploy(configParams) {
     "lockupContractFactory",
     "communityIssuance",
     "protocolToken",
-    "multiTroveGetter",
   ];
 
-  const addressList = await mdh.computeContractAddresses(contractList.length);
-  const cpContracts = contractList.reduce((acc, contract) => {
-    acc[contract] = deploymentState[contract]?.address || addressList.shift();
-    return acc;
-  }, {});
+  const addressList = await mdh.computeContractAddresses(
+    contractList.length + proxyContractList.length * 2,
+  );
+  console.log("addressList:", addressList);
+
+  const cpContracts = {
+    ...contractList.reduce((acc, contract) => {
+      acc[contract] = deploymentState[contract]?.address || addressList.shift();
+      return acc;
+    }, {}),
+    ...proxyContractList.reduce((acc, contract) => {
+      if (deploymentState[contract]) {
+        acc[contract] = deploymentState[contract].address;
+      } else {
+        addressList.shift(); // skip implementation contract
+        acc[contract] = addressList.shift();
+      }
+      return acc;
+    }, {}),
+  };
+
+  console.log("cpContracts:", cpContracts);
 
   // Deploy core logic contracts
   const coreContracts = await mdh.deployProtocolCoreMainnet(deploymentState, cpContracts);
@@ -77,12 +93,7 @@ async function deploy(configParams) {
   await mdh.checkContractAddresses(protocolTokenContracts, cpContracts);
 
   // Deploy a read-only multi-trove getter
-  const multiTroveGetter = await mdh.deployMultiTroveGetterMainnet(
-    coreContracts,
-    deploymentState,
-    cpContracts,
-  );
-  await mdh.checkContractAddresses({ multiTroveGetter }, cpContracts);
+  await mdh.deployMultiTroveGetterMainnet(deploymentState, cpContracts);
 
   // Get UniswapV2Factory instance at its deployed address
   const uniswapExits = !!configParams.externalAddrs.UNISWAP_V2_FACTORY;

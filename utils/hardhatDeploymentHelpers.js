@@ -50,8 +50,10 @@ class HardhatDeploymentHelper {
       );
     }
 
+    console.log(`Deploying ${name} contract...`);
+
     const contract = await factory.deploy(...constructorArgs);
-    await contract.deployed();
+    await contract.deployTransaction.wait();
 
     deploymentState[name] = {
       address: contract.address,
@@ -81,11 +83,15 @@ class HardhatDeploymentHelper {
       );
     }
 
+    console.log(`Deploying ${name} contract...`);
+
     const contract = await this.hre.upgrades.deployProxy(factory, initializationArgs, {
       unsafeAllow: ["constructor", "state-variable-immutable"],
       constructorArgs: constructorArgs,
+      redeployImplementation: "always",
+      timeout: 3000000,
     });
-    await contract.deployed();
+    await contract.deployTransaction.wait();
 
     deploymentState[name] = {
       address: contract.address,
@@ -369,7 +375,7 @@ class HardhatDeploymentHelper {
     return unipool;
   }
 
-  async deployMultiTroveGetterMainnet(protocolCore, deploymentState, cpContracts) {
+  async deployMultiTroveGetterMainnet(deploymentState, cpContracts) {
     const multiTroveGetterFactory = await this.getFactory("MultiTroveGetter");
     const multiTroveGetterParams = [cpContracts.troveManager, cpContracts.sortedTroves];
     const multiTroveGetter = await this.loadOrDeploy(
