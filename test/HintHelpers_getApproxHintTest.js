@@ -9,7 +9,6 @@ let latestRandomSeed = 31337;
 contract("HintHelpers", async () => {
   let signers;
   let owner;
-  let bountyAddress, lpRewardsAddress, multisig;
 
   let sortedTroves;
   let troveManager;
@@ -85,9 +84,7 @@ contract("HintHelpers", async () => {
     await hre.network.provider.send("hardhat_reset");
 
     signers = await ethers.getSigners();
-
     [owner] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
 
     const transactionCount = await owner.getTransactionCount();
     const cpTesterContracts = await deploymentHelper.computeContractAddresses(
@@ -120,12 +117,7 @@ contract("HintHelpers", async () => {
     contracts.troveManager = troveManagerTester;
     contracts.debtToken = debtTokenTester;
 
-    await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress.address,
-      lpRewardsAddress.address,
-      multisig.address,
-      cpContracts,
-    );
+    await deploymentHelper.deployProtocolTokenContracts(cpContracts);
 
     sortedTroves = contracts.sortedTroves;
     troveManager = contracts.troveManager;

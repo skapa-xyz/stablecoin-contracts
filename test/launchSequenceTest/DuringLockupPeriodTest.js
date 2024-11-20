@@ -20,13 +20,12 @@ contract("During the initial lockup period", async () => {
     G,
     H,
     I;
-  let bountyAddress, lpRewardsAddress, multisig;
+  let lpRewardsAddress, multisig;
 
   const SECONDS_IN_ONE_MONTH = timeValues.SECONDS_IN_ONE_MONTH;
   const SECONDS_IN_364_DAYS = timeValues.SECONDS_IN_ONE_DAY * 364;
 
   let protocolTokenContracts;
-  let coreContracts;
 
   let protocolTokenStaking;
   let protocolToken;
@@ -74,7 +73,7 @@ contract("During the initial lockup period", async () => {
       H,
       I,
     ] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [lpRewardsAddress, multisig] = signers.slice(998, 1000);
   });
 
   beforeEach(async () => {
@@ -86,17 +85,18 @@ contract("During the initial lockup period", async () => {
       deployer.address,
       transactionCount + 1,
     );
-    coreContracts = await deploymentHelper.deployProtocolCore(
-      th.GAS_COMPENSATION,
-      th.MIN_NET_DEBT,
-      cpContracts,
-    );
-    protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
-      bountyAddress.address,
-      lpRewardsAddress.address,
-      multisig.address,
-      cpContracts,
-    );
+    await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT, cpContracts);
+    protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(cpContracts);
+
+    const allocation = [
+      { address: multisig.address, amount: toBN(dec(67000000, 18)) },
+      { address: lpRewardsAddress.address, amount: toBN(dec(1000000, 18)) },
+      {
+        address: protocolTokenContracts.communityIssuance.address,
+        amount: toBN(dec(32000000, 18)),
+      },
+    ];
+    await deploymentHelper.allocateProtocolToken(protocolTokenContracts, allocation);
 
     protocolTokenStaking = protocolTokenContracts.protocolTokenStaking;
     protocolToken = protocolTokenContracts.protocolToken;
@@ -160,175 +160,7 @@ contract("During the initial lockup period", async () => {
   });
 
   describe("ProtocolToken transfer during first year after ProtocolToken deployment", async () => {
-    // --- Deployer transfer restriction, 1st year ---
-    it("Multisig can not transfer ProtocolToken to a LC that was deployed directly", async () => {
-      const _lockupContractFactory = await ethers.getContractFactory("LockupContract");
-
-      // Multisig deploys LC_A
-      const LC_A = await _lockupContractFactory
-        .connect(multisig)
-        .deploy(protocolToken.address, A.address, oneYearFromSystemDeployment);
-
-      // Account F deploys LC_B
-      const LC_B = await _lockupContractFactory
-        .connect(F)
-        .deploy(protocolToken.address, B.address, oneYearFromSystemDeployment);
-
-      // ProtocolToken deployer deploys LC_C
-      const LC_C = await _lockupContractFactory
-        .connect(deployer)
-        .deploy(protocolToken.address, A.address, oneYearFromSystemDeployment);
-
-      // Multisig attempts ProtocolToken transfer to LC_A
-      try {
-        const protocolTokenTransferTx_A = await protocolToken
-          .connect(multisig)
-          .transfer(LC_A.address, dec(1, 18));
-        const receipt = await protocolTokenTransferTx_A.wait();
-        assert.isFalse(receipt.status);
-      } catch (error) {
-        assert.include(
-          error.message,
-          "ProtocolToken: recipient must be a LockupContract registered in the Factory",
-        );
-      }
-
-      // Multisig attempts ProtocolToken transfer to LC_B
-      try {
-        const protocolTokenTransferTx_B = await protocolToken
-          .connect(multisig)
-          .transfer(LC_B.address, dec(1, 18));
-        const receipt = await protocolTokenTransferTx_B.wait();
-        assert.isFalse(receipt.status);
-      } catch (error) {
-        assert.include(
-          error.message,
-          "ProtocolToken: recipient must be a LockupContract registered in the Factory",
-        );
-      }
-
-      try {
-        const protocolTokenTransferTx_C = await protocolToken
-          .connect(multisig)
-          .transfer(LC_C.address, dec(1, 18));
-        const receipt = await protocolTokenTransferTx_C.wait();
-        assert.isFalse(receipt.status);
-      } catch (error) {
-        assert.include(
-          error.message,
-          "ProtocolToken: recipient must be a LockupContract registered in the Factory",
-        );
-      }
-    });
-
-    it("Multisig can not transfer to an EOA or protocol system contracts", async () => {
-      // Multisig attempts ProtocolToken transfer to EOAs
-      const protocolTokenTransferTxPromise_1 = protocolToken
-        .connect(multisig)
-        .transfer(A.address, dec(1, 18));
-      const protocolTokenTransferTxPromise_2 = protocolToken
-        .connect(multisig)
-        .transfer(B.address, dec(1, 18));
-      await assertRevert(protocolTokenTransferTxPromise_1);
-      await assertRevert(protocolTokenTransferTxPromise_2);
-
-      // Multisig attempts ProtocolToken transfer to core protocol contracts
-      for (const contract of Object.keys(coreContracts)) {
-        const protocolTokenTransferTxPromise = protocolToken
-          .connect(multisig)
-          .transfer(coreContracts[contract].address, dec(1, 18));
-        await assertRevert(
-          protocolTokenTransferTxPromise,
-          "ProtocolToken: recipient must be a LockupContract registered in the Factory",
-        );
-      }
-
-      // Multisig attempts ProtocolToken transfer to ProtocolToken contracts (excluding LCs)
-      for (const contract of Object.keys(protocolTokenContracts)) {
-        const protocolTokenTransferTxPromise = protocolToken
-          .connect(multisig)
-          .transfer(protocolTokenContracts[contract].address, dec(1, 18));
-        await assertRevert(
-          protocolTokenTransferTxPromise,
-          "ProtocolToken: recipient must be a LockupContract registered in the Factory",
-        );
-      }
-    });
-
-    // --- Deployer approval restriction, 1st year ---
-    it("Multisig can not approve any EOA or protocol system contract to spend their ProtocolToken", async () => {
-      // Multisig attempts to approve EOAs to spend ProtocolToken
-      const protocolTokenApproveTxPromise_1 = protocolToken
-        .connect(multisig)
-        .approve(A.address, dec(1, 18));
-      const protocolTokenApproveTxPromise_2 = protocolToken
-        .connect(multisig)
-        .approve(B.address, dec(1, 18));
-      await assertRevert(
-        protocolTokenApproveTxPromise_1,
-        "ProtocolToken: caller must not be the multisig",
-      );
-      await assertRevert(
-        protocolTokenApproveTxPromise_2,
-        "ProtocolToken: caller must not be the multisig",
-      );
-
-      // Multisig attempts to approve protocol contracts to spend ProtocolToken
-      for (const contract of Object.keys(coreContracts)) {
-        const protocolTokenApproveTxPromise = protocolToken
-          .connect(multisig)
-          .approve(coreContracts[contract].address, dec(1, 18));
-        await assertRevert(
-          protocolTokenApproveTxPromise,
-          "ProtocolToken: caller must not be the multisig",
-        );
-      }
-
-      // Multisig attempts to approve ProtocolToken contracts to spend ProtocolToken (excluding LCs)
-      for (const contract of Object.keys(protocolTokenContracts)) {
-        const protocolTokenApproveTxPromise = protocolToken
-          .connect(multisig)
-          .approve(protocolTokenContracts[contract].address, dec(1, 18));
-        await assertRevert(
-          protocolTokenApproveTxPromise,
-          "ProtocolToken: caller must not be the multisig",
-        );
-      }
-    });
-
-    // --- Multisig transferFrom restriction, 1st year ---
-    it("Multisig can not be the sender in a transferFrom() call", async () => {
-      // EOAs attempt to use multisig as sender in a transferFrom()
-      const protocolTokenTransferFromTxPromise_1 = protocolToken
-        .connect(A)
-        .transferFrom(multisig.address, A.address, dec(1, 18));
-      const protocolTokenTransferFromTxPromise_2 = protocolToken
-        .connect(B)
-        .transferFrom(multisig.address, C.address, dec(1, 18));
-      await assertRevert(
-        protocolTokenTransferFromTxPromise_1,
-        "ProtocolToken: sender must not be the multisig",
-      );
-      await assertRevert(
-        protocolTokenTransferFromTxPromise_2,
-        "ProtocolToken: sender must not be the multisig",
-      );
-    });
-
-    //  --- staking, 1st year ---
-    it("Multisig can not stake their ProtocolToken in the staking contract", async () => {
-      const ProtocolTokenStakingTxPromise_1 = protocolTokenStaking
-        .connect(multisig)
-        .stake(dec(1, 18));
-      await assertRevert(
-        ProtocolTokenStakingTxPromise_1,
-        "ProtocolToken: sender must not be the multisig",
-      );
-    });
-
-    // --- Anyone else ---
-
-    it("Anyone (other than Multisig) can transfer ProtocolToken to LCs deployed by anyone through the Factory", async () => {
+    it("Anyone can transfer ProtocolToken to LCs deployed by anyone through the Factory", async () => {
       // Start D, E, F with some ProtocolToken
       await protocolToken.unprotectedMint(D.address, dec(1, 24));
       await protocolToken.unprotectedMint(E.address, dec(2, 24));
@@ -366,7 +198,7 @@ contract("During the initial lockup period", async () => {
       assert.equal(await protocolToken.balanceOf(LCAddress_C), dec(3, 24));
     });
 
-    it("Anyone (other than Multisig) can transfer ProtocolToken to LCs deployed by anyone directly", async () => {
+    it("Anyone can transfer ProtocolToken to LCs deployed by anyone directly", async () => {
       // Start D, E, F with some ProtocolToken
       await protocolToken.unprotectedMint(D.address, dec(1, 24));
       await protocolToken.unprotectedMint(E.address, dec(2, 24));
@@ -401,7 +233,7 @@ contract("During the initial lockup period", async () => {
       assert.equal(await protocolToken.balanceOf(LC_C.address), dec(3, 24));
     });
 
-    it("Anyone (other than multisig) can transfer to an EOA", async () => {
+    it("Anyone can transfer to an EOA", async () => {
       // Start D, E, F with some ProtocolToken
       await protocolToken.unprotectedMint(D.address, dec(1, 24));
       await protocolToken.unprotectedMint(E.address, dec(2, 24));
@@ -427,7 +259,7 @@ contract("During the initial lockup period", async () => {
       assert.equal(receipt_3.status, 1);
     });
 
-    it("Anyone (other than multisig) can approve any EOA or to spend their ProtocolToken", async () => {
+    it("Anyone can approve any EOA or to spend their ProtocolToken", async () => {
       // EOAs approve EOAs to spend ProtocolToken
       const protocolTokenApproveTx_1 = await protocolToken
         .connect(F)
@@ -442,7 +274,7 @@ contract("During the initial lockup period", async () => {
       assert.equal(receipt_2.status, 1);
     });
 
-    it("Anyone (other than multisig) can be the sender in a transferFrom() call", async () => {
+    it("Anyone can be the sender in a transferFrom() call", async () => {
       // Fund A, B
       await protocolToken.unprotectedMint(A.address, dec(1, 18));
       await protocolToken.unprotectedMint(B.address, dec(1, 18));

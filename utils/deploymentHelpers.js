@@ -245,12 +245,7 @@ class DeploymentHelper {
     return testerContracts;
   }
 
-  static async deployProtocolTokenContracts(
-    bountyAddress,
-    lpRewardsAddress,
-    multisigAddress,
-    cpContracts,
-  ) {
+  static async deployProtocolTokenContracts(cpContracts) {
     const protocolTokenStakingFactory = await this.getFactory("ProtocolTokenStaking");
     const lockupContractFactoryFactory = await this.getFactory("LockupContractFactory");
     const communityIssuanceFactory = await this.getFactory("CommunityIssuance");
@@ -271,12 +266,7 @@ class DeploymentHelper {
       cpContracts.stabilityPool,
     ]);
     const protocolToken = await this.deployProxy(protocolTokenFactory, [
-      cpContracts.communityIssuance,
       cpContracts.protocolTokenStaking,
-      cpContracts.lockupContractFactory,
-      bountyAddress,
-      lpRewardsAddress,
-      multisigAddress,
     ]);
 
     const protocolTokenContracts = {
@@ -288,12 +278,7 @@ class DeploymentHelper {
     return protocolTokenContracts;
   }
 
-  static async deployProtocolTokenTesterContracts(
-    bountyAddress,
-    lpRewardsAddress,
-    multisigAddress,
-    cpContracts,
-  ) {
+  static async deployProtocolTokenTesterContracts(cpContracts) {
     const protocolTokenStakingFactory = await this.getFactory("ProtocolTokenStaking");
     const lockupContractFactoryFactory = await this.getFactory("LockupContractFactory");
     const communityIssuanceFactory = await this.getFactory("CommunityIssuanceTester");
@@ -314,12 +299,7 @@ class DeploymentHelper {
       cpContracts.stabilityPool,
     ]);
     const protocolToken = await this.deployProxy(protocolTokenFactory, [
-      communityIssuance.address,
       protocolTokenStaking.address,
-      lockupContractFactory.address,
-      bountyAddress,
-      lpRewardsAddress,
-      multisigAddress,
     ]);
 
     const protocolTokenContracts = {
@@ -575,6 +555,14 @@ class DeploymentHelper {
       protocolTokenContracts.protocolToken.address,
       coreContracts.stabilityPool.address,
     );
+  }
+
+  static async allocateProtocolToken(protocolTokenContracts, allocation) {
+    const accounts = allocation.map((a) => a.address);
+    const amounts = allocation.map((a) => a.amount);
+
+    await protocolTokenContracts.protocolToken.allocate(accounts, amounts);
+    await protocolTokenContracts.communityIssuance.updateProtocolTokenSupplyCap();
   }
 
   static async computeContractAddresses(deployer, transactionCount, count) {

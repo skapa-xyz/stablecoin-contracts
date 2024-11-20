@@ -19,14 +19,13 @@ const assertRevert = th.assertRevert;
 
 contract("ProtocolToken", async () => {
   let owner, A, B, C, D;
-  let bountyAddress, lpRewardsAddress, multisig;
+  let lpRewardsAddress, multisig;
   let approve;
 
   const A_PrivateKey = "0xeaa445c85f7b438dEd6e831d06a4eD0CEBDc2f8527f84Fcda6EBB5fCfAd4C0e9";
 
   let protocolTokenTester;
   let protocolTokenStaking;
-  let communityIssuance;
 
   let tokenName;
   let tokenVersion;
@@ -136,7 +135,7 @@ contract("ProtocolToken", async () => {
     const signers = await ethers.getSigners();
 
     [owner, A, B, C, D] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [lpRewardsAddress, multisig] = signers.slice(998, 1000);
 
     // Create the approval tx data, for use in permit()
     approve = {
@@ -155,21 +154,22 @@ contract("ProtocolToken", async () => {
       transactionCount + 1,
     );
 
-    const contracts = await deploymentHelper.deployProtocolCore(
-      th.GAS_COMPENSATION,
-      th.MIN_NET_DEBT,
-      cpContracts,
-    );
-    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
-      bountyAddress.address,
-      lpRewardsAddress.address,
-      multisig.address,
-      cpContracts,
-    );
+    await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT, cpContracts);
+    const protocolTokenContracts =
+      await deploymentHelper.deployProtocolTokenTesterContracts(cpContracts);
+
+    const allocation = [
+      { address: multisig.address, amount: toBN(dec(67000000, 18)) },
+      { address: lpRewardsAddress.address, amount: toBN(dec(1000000, 18)) },
+      {
+        address: protocolTokenContracts.communityIssuance.address,
+        amount: toBN(dec(32000000, 18)),
+      },
+    ];
+    await deploymentHelper.allocateProtocolToken(protocolTokenContracts, allocation);
 
     protocolTokenStaking = protocolTokenContracts.protocolTokenStaking;
     protocolTokenTester = protocolTokenContracts.protocolToken;
-    communityIssuance = protocolTokenContracts.communityIssuance;
 
     tokenName = await protocolTokenTester.name();
     tokenVersion = await protocolTokenTester.version();
@@ -310,7 +310,6 @@ contract("ProtocolToken", async () => {
 
     await assertRevert(protocolTokenTester.connect(A).transfer(protocolTokenTester.address, 1));
     await assertRevert(protocolTokenTester.connect(A).transfer(ZERO_ADDRESS, 1));
-    await assertRevert(protocolTokenTester.connect(A).transfer(communityIssuance.address, 1));
     await assertRevert(protocolTokenTester.connect(A).transfer(protocolTokenStaking.address, 1));
   });
 

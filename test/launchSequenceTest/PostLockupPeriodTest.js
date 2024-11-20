@@ -23,7 +23,7 @@ contract("After the initial lockup period has passed", async () => {
     H,
     I,
     J;
-  let bountyAddress, lpRewardsAddress, multisig;
+  let lpRewardsAddress, multisig;
 
   const SECONDS_IN_ONE_DAY = timeValues.SECONDS_IN_ONE_DAY;
   const SECONDS_IN_ONE_MONTH = timeValues.SECONDS_IN_ONE_MONTH;
@@ -82,7 +82,7 @@ contract("After the initial lockup period has passed", async () => {
       I,
       J,
     ] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [lpRewardsAddress, multisig] = signers.slice(998, 1000);
   });
 
   beforeEach(async () => {
@@ -99,12 +99,17 @@ contract("After the initial lockup period has passed", async () => {
       th.MIN_NET_DEBT,
       cpContracts,
     );
-    protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
-      bountyAddress.address,
-      lpRewardsAddress.address,
-      multisig.address,
-      cpContracts,
-    );
+    protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(cpContracts);
+
+    const allocation = [
+      { address: multisig.address, amount: toBN(dec(67000000, 18)) },
+      { address: lpRewardsAddress.address, amount: toBN(dec(1000000, 18)) },
+      {
+        address: protocolTokenContracts.communityIssuance.address,
+        amount: toBN(dec(32000000, 18)),
+      },
+    ];
+    await deploymentHelper.allocateProtocolToken(protocolTokenContracts, allocation);
 
     protocolTokenStaking = protocolTokenContracts.protocolTokenStaking;
     protocolToken = protocolTokenContracts.protocolToken;

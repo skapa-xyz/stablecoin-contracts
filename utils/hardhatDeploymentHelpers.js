@@ -334,14 +334,7 @@ class HardhatDeploymentHelper {
       protocolTokenFactory,
       "protocolToken",
       deploymentState,
-      [
-        cpContracts.communityIssuance,
-        cpContracts.protocolTokenStaking,
-        cpContracts.lockupContractFactory,
-        bountyAddress,
-        lpRewardsAddress,
-        multisigAddress,
-      ],
+      [cpContracts.protocolTokenStaking],
     );
 
     if (!this.configParams.ETHERSCAN_BASE_URL) {

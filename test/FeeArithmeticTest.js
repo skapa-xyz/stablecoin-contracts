@@ -15,7 +15,6 @@ contract("Fee arithmetic tests", async () => {
   let mathTester;
 
   let owner;
-  let bountyAddress, lpRewardsAddress, multisig;
 
   // see: https://docs.google.com/spreadsheets/d/1RbD8VGzq7xFgeK1GOkz_9bbKVIx-xkOz0VsVelnUFdc/edit#gid=0
   // Results array, maps seconds to expected hours passed output (rounded down to nearest hour).
@@ -201,10 +200,7 @@ contract("Fee arithmetic tests", async () => {
       params: [],
     });
 
-    const signers = await ethers.getSigners();
-
-    [owner] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [owner] = await ethers.getSigners();
   });
 
   beforeEach(async () => {
@@ -234,12 +230,7 @@ contract("Fee arithmetic tests", async () => {
     );
 
     await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT, cpContracts);
-    await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress.address,
-      lpRewardsAddress.address,
-      multisig.address,
-      cpContracts,
-    );
+    await deploymentHelper.deployProtocolTokenContracts(cpContracts);
   });
 
   it("minutesPassedSinceLastFeeOp(): returns minutes passed for no time increase", async () => {

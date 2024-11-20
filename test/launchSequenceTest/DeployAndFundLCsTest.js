@@ -7,7 +7,7 @@ const { dec, toBN, assertRevert } = th;
 
 contract("Deploying and funding One Year Lockup Contracts", async () => {
   let deployer, A, B, C, D, E, F, G, H, I, J;
-  let bountyAddress, lpRewardsAddress, multisig;
+  let lpRewardsAddress, multisig;
 
   let protocolTokenContracts;
 
@@ -27,7 +27,7 @@ contract("Deploying and funding One Year Lockup Contracts", async () => {
     const signers = await ethers.getSigners();
 
     [deployer, A, B, C, D, E, F, G, H, I, J] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [lpRewardsAddress, multisig] = signers.slice(998, 1000);
   });
 
   beforeEach(async () => {
@@ -40,12 +40,17 @@ contract("Deploying and funding One Year Lockup Contracts", async () => {
       transactionCount + 1,
     );
     await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT, cpContracts);
-    protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress.address,
-      lpRewardsAddress.address,
-      multisig.address,
-      cpContracts,
-    );
+    protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(cpContracts);
+
+    const allocation = [
+      { address: multisig.address, amount: toBN(dec(67000000, 18)) },
+      { address: lpRewardsAddress.address, amount: toBN(dec(1000000, 18)) },
+      {
+        address: protocolTokenContracts.communityIssuance.address,
+        amount: toBN(dec(32000000, 18)),
+      },
+    ];
+    await deploymentHelper.allocateProtocolToken(protocolTokenContracts, allocation);
 
     protocolToken = protocolTokenContracts.protocolToken;
     lockupContractFactory = protocolTokenContracts.lockupContractFactory;

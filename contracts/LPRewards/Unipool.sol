@@ -80,6 +80,7 @@ contract Unipool is LPTokenWrapper, OwnableUpgradeable, CheckContract, IUnipool 
 
     uint256 public periodFinish;
     uint256 public rewardRate;
+    uint256 public initialReward;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
     mapping(address => uint256) public userRewardPerTokenPaid;
@@ -92,7 +93,7 @@ contract Unipool is LPTokenWrapper, OwnableUpgradeable, CheckContract, IUnipool 
     event Withdrawn(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward);
 
-    function initialize() external {
+    function initialize() external initializer {
         __Ownable_init();
 
         periodFinish = 0;
@@ -112,7 +113,7 @@ contract Unipool is LPTokenWrapper, OwnableUpgradeable, CheckContract, IUnipool 
         protocolToken = IProtocolToken(_protocolTokenAddress);
         duration = _duration;
 
-        _notifyRewardAmount(protocolToken.getLpRewardsEntitlement(), _duration);
+        _notifyRewardAmount(protocolToken.balanceOf(address(this)), _duration);
 
         emit ProtocolTokenAddressChanged(_protocolTokenAddress);
         emit UniTokenAddressChanged(_uniTokenAddress);
@@ -193,11 +194,11 @@ contract Unipool is LPTokenWrapper, OwnableUpgradeable, CheckContract, IUnipool 
     // Used only on initialization, sets the reward rate and the end time for the program
     function _notifyRewardAmount(uint256 _reward, uint256 _duration) internal {
         assert(_reward > 0);
-        assert(_reward == protocolToken.balanceOf(address(this)));
         assert(periodFinish == 0);
 
         _updateReward();
 
+        initialReward = _reward;
         rewardRate = _reward.div(_duration);
 
         lastUpdateTime = block.timestamp;

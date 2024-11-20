@@ -12,7 +12,6 @@ const GAS_PRICE = 10000000;
 contract("Gas compensation tests", async () => {
   let signers;
   let owner, liquidator, alice, bob, carol, dennis, erin, flyn, harriet, whale;
-  let bountyAddress, lpRewardsAddress, multisig;
 
   let priceFeed;
   let troveManager;
@@ -33,9 +32,7 @@ contract("Gas compensation tests", async () => {
 
   before(async () => {
     signers = await ethers.getSigners();
-
     [owner, liquidator, alice, bob, carol, dennis, erin, flyn, harriet, whale] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
   });
 
   beforeEach(async () => {
@@ -76,12 +73,7 @@ contract("Gas compensation tests", async () => {
     contracts.troveManager = troveManagerTester;
     contracts.borrowerOperations = borrowerOperationsTester;
 
-    await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress.address,
-      lpRewardsAddress.address,
-      multisig.address,
-      cpContracts,
-    );
+    await deploymentHelper.deployProtocolTokenContracts(cpContracts);
 
     priceFeed = contracts.priceFeedTestnet;
     sortedTroves = contracts.sortedTroves;

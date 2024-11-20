@@ -17,19 +17,16 @@ contract(
   "Access Control: Protocol functions with the caller restricted to protocol contract(s)",
   async () => {
     let owner, alice, bob, carol;
-    let bountyAddress, lpRewardsAddress, multisig;
+    let lpRewardsAddress, multisig;
 
     let coreContracts;
 
-    let priceFeed;
     let debtToken;
     let sortedTroves;
     let troveManager;
-    let nameRegistry;
     let activePool;
     let stabilityPool;
     let defaultPool;
-    let functionCaller;
     let borrowerOperations;
 
     let protocolTokenStaking;
@@ -41,7 +38,7 @@ contract(
       const signers = await ethers.getSigners();
 
       [owner, alice, bob, carol] = signers;
-      [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+      [lpRewardsAddress, multisig] = signers.slice(998, 1000);
 
       const transactionCount = await owner.getTransactionCount();
       const cpTesterContracts = await deploymentHelper.computeContractAddresses(
@@ -71,25 +68,28 @@ contract(
         cpContracts,
       );
 
-      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
-        bountyAddress.address,
-        lpRewardsAddress.address,
-        multisig.address,
-        cpContracts,
-      );
+      const protocolTokenContracts =
+        await deploymentHelper.deployProtocolTokenTesterContracts(cpContracts);
+
+      const allocation = [
+        { address: multisig.address, amount: toBN(dec(67000000, 18)) },
+        { address: lpRewardsAddress.address, amount: toBN(dec(1000000, 18)) },
+        {
+          address: protocolTokenContracts.communityIssuance.address,
+          amount: toBN(dec(32000000, 18)),
+        },
+      ];
+      await deploymentHelper.allocateProtocolToken(protocolTokenContracts, allocation);
 
       coreContracts.troveManager = troveManagerTester;
       coreContracts.debtToken = debtTokenTester;
 
-      priceFeed = coreContracts.priceFeed;
       debtToken = coreContracts.debtToken;
       sortedTroves = coreContracts.sortedTroves;
       troveManager = coreContracts.troveManager;
-      nameRegistry = coreContracts.nameRegistry;
       activePool = coreContracts.activePool;
       stabilityPool = coreContracts.stabilityPool;
       defaultPool = coreContracts.defaultPool;
-      functionCaller = coreContracts.functionCaller;
       borrowerOperations = coreContracts.borrowerOperations;
 
       protocolTokenStaking = protocolTokenContracts.protocolTokenStaking;
@@ -97,7 +97,7 @@ contract(
       communityIssuance = protocolTokenContracts.communityIssuance;
       lockupContractFactory = protocolTokenContracts.lockupContractFactory;
 
-      for (signer of signers.slice(0, 10)) {
+      for (const signer of signers.slice(0, 10)) {
         await th.openTrove(coreContracts, {
           extraDebtTokenAmount: toBN(dec(20000, 18)),
           ICR: toBN(dec(2, 18)),

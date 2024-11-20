@@ -13,10 +13,6 @@ contract ProtocolTokenTester is ProtocolToken {
 
     function unprotectedSendToProtocolTokenStaking(address _sender, uint256 _amount) external {
         // No check for the caller here
-
-        if (_isFirstYear()) {
-            _requireSenderIsNotMultisig(_sender);
-        }
         _transfer(_sender, protocolTokenStakingAddress, _amount);
     }
 

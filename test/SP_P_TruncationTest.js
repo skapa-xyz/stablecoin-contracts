@@ -7,7 +7,6 @@ const toBN = th.toBN;
 
 contract("StabilityPool Scale Factor issue tests", async () => {
   let owner, whale, A, B, C, D, E, F, F1, F2, F3;
-  let bountyAddress, lpRewardsAddress, multisig;
 
   let contracts;
 
@@ -27,10 +26,7 @@ contract("StabilityPool Scale Factor issue tests", async () => {
     (await getOpenTroveDebtTokenAmount(dec(desiredDebt, 18))).add(th.toBN(1));
 
   before(async () => {
-    const signers = await ethers.getSigners();
-
-    [owner, whale, A, B, C, D, E, F, F1, F2, F3] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [owner, whale, A, B, C, D, E, F, F1, F2, F3] = await ethers.getSigners();
   });
 
   describe("Scale Factor issue tests", async () => {
@@ -65,12 +61,7 @@ contract("StabilityPool Scale Factor issue tests", async () => {
         cpContracts,
       );
 
-      await deploymentHelper.deployProtocolTokenTesterContracts(
-        bountyAddress.address,
-        lpRewardsAddress.address,
-        multisig.address,
-        cpContracts,
-      );
+      await deploymentHelper.deployProtocolTokenTesterContracts(cpContracts);
 
       contracts.troveManager = troveManagerTester;
       contracts.debtToken = debtTokenTester;

@@ -31,21 +31,20 @@ const repeatedlyIssueProtocolToken = async (stabilityPool, timeBetweenIssuances,
   }
 };
 
-contract("ProtocolToken community issuance arithmetic tests", async () => {
+contract("ProtocolToken - Community issuance arithmetic tests", async () => {
   let borrowerOperations;
   let communityIssuanceTester;
   let protocolToken;
   let stabilityPool;
 
   let owner, alice, frontEnd_1;
-
-  let bountyAddress, lpRewardsAddress, multisig;
+  let lpRewardsAddress, multisig;
 
   before(async () => {
     const signers = await ethers.getSigners();
 
     [owner, alice, frontEnd_1] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [lpRewardsAddress, multisig] = signers.slice(998, 1000);
   });
 
   beforeEach(async () => {
@@ -62,12 +61,18 @@ contract("ProtocolToken community issuance arithmetic tests", async () => {
       th.MIN_NET_DEBT,
       cpContracts,
     );
-    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
-      bountyAddress.address,
-      lpRewardsAddress.address,
-      multisig.address,
-      cpContracts,
-    );
+    const protocolTokenContracts =
+      await deploymentHelper.deployProtocolTokenTesterContracts(cpContracts);
+
+    const allocation = [
+      { address: multisig.address, amount: th.toBN(th.dec(67000000, 18)) },
+      { address: lpRewardsAddress.address, amount: th.toBN(th.dec(1000000, 18)) },
+      {
+        address: protocolTokenContracts.communityIssuance.address,
+        amount: th.toBN(th.dec(32000000, 18)),
+      },
+    ];
+    await deploymentHelper.allocateProtocolToken(protocolTokenContracts, allocation);
 
     stabilityPool = contracts.stabilityPool;
     borrowerOperations = contracts.borrowerOperations;
@@ -112,9 +117,9 @@ contract("ProtocolToken community issuance arithmetic tests", async () => {
 
   // using the result of this to advance time by the desired amount from the deployment time, whether or not some extra time has passed in the meanwhile
   const getDuration = async (expectedDuration) => {
-    const deploymentTime = (await communityIssuanceTester.deploymentTime()).toNumber();
+    const supplyStartTime = (await communityIssuanceTester.supplyStartTime()).toNumber();
     const currentTime = await th.getLatestBlockTimestamp(web3);
-    const duration = Math.max(expectedDuration - (currentTime - deploymentTime), 0);
+    const duration = Math.max(expectedDuration - (currentTime - supplyStartTime), 0);
 
     return duration;
   };

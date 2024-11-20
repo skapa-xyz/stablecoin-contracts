@@ -4,7 +4,6 @@ const { toBN, dec, ZERO_ADDRESS } = th;
 
 contract("TroveManager - in Recovery Mode - back to normal mode in 1 tx", async () => {
   let owner, alice, bob, carol, whale;
-  let bountyAddress, lpRewardsAddress, multisig;
 
   let contracts;
   let troveManager;
@@ -15,10 +14,7 @@ contract("TroveManager - in Recovery Mode - back to normal mode in 1 tx", async 
   const openTrove = async (params) => th.openTrove(contracts, params);
 
   before(async () => {
-    const signers = await ethers.getSigners();
-
-    [owner, alice, bob, carol, whale] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [owner, alice, bob, carol, whale] = await ethers.getSigners();
   });
 
   beforeEach(async () => {
@@ -55,12 +51,7 @@ contract("TroveManager - in Recovery Mode - back to normal mode in 1 tx", async 
     contracts.troveManager = troveManagerTester;
     contracts.debtToken = debtTokenTester;
 
-    await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress.address,
-      lpRewardsAddress.address,
-      multisig.address,
-      cpContracts,
-    );
+    await deploymentHelper.deployProtocolTokenContracts(cpContracts);
 
     troveManager = contracts.troveManager;
     stabilityPool = contracts.stabilityPool;

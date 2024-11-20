@@ -5,6 +5,7 @@ const { TestHelper } = require("../utils/testHelpers.js");
 const deploymentHelper = require("../utils/deploymentHelpers.js");
 
 const { assertRevert } = TestHelper;
+const dec = TestHelper.dec;
 const toBN = TestHelper.toBN;
 
 const _1e18 = toBN("10").pow(toBN("18"));
@@ -51,20 +52,31 @@ contract("Unipool", function () {
     that.pool = await deploymentHelper.deployProxy(unipoolFactory);
 
     const dumbContract = await nonPayableFactory.deploy();
-    const communityIssuance = await deploymentHelper.deployProxy(communityIssuanceFactory, [
-      dumbContract.address,
+    that.protocolToken = await deploymentHelper.deployProxy(protocolTokenFactory, [
       dumbContract.address,
     ]);
-    that.protocolToken = await deploymentHelper.deployProxy(protocolTokenFactory, [
-      communityIssuance.address,
+    const communityIssuance = await deploymentHelper.deployProxy(communityIssuanceFactory, [
+      that.protocolToken.address,
       dumbContract.address,
-      dumbContract.address,
-      bountyAddress.address,
-      that.pool.address,
-      multisig,
     ]);
 
-    that.lpRewardsEntitlement = await that.protocolToken.getLpRewardsEntitlement();
+    const allocation = [
+      { address: multisig, amount: toBN(dec(67000000, 18)) },
+      { address: that.pool.address, amount: toBN(dec(1000000, 18)) },
+      {
+        address: communityIssuance.address,
+        amount: toBN(dec(32000000, 18)),
+      },
+    ];
+
+    await deploymentHelper.allocateProtocolToken(
+      { protocolToken: that.protocolToken, communityIssuance },
+      allocation,
+    );
+
+    // that.lpRewardsEntitlement = await that.protocolToken.getLpRewardsEntitlement();
+    that.lpRewardsEntitlement = await that.protocolToken.balanceOf(that.pool.address);
+
     that.DURATION = toBN(6 * 7 * 24 * 60 * 60); // 6 weeks
     that.rewardRate = that.lpRewardsEntitlement.div(that.DURATION);
 

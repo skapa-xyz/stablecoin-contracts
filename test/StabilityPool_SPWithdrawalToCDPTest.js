@@ -25,7 +25,6 @@ contract("StabilityPool - Withdrawal of stability deposit - Reward calculations"
     D,
     E,
     F;
-  let bountyAddress, lpRewardsAddress, multisig;
 
   let contracts;
 
@@ -65,7 +64,6 @@ contract("StabilityPool - Withdrawal of stability deposit - Reward calculations"
       E,
       F,
     ] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
   });
 
   describe("Stability Pool Withdrawal", async () => {
@@ -100,12 +98,7 @@ contract("StabilityPool - Withdrawal of stability deposit - Reward calculations"
 
       contracts.troveManager = troveManagerTester;
 
-      await deploymentHelper.deployProtocolTokenContracts(
-        bountyAddress.address,
-        lpRewardsAddress.address,
-        multisig.address,
-        cpContracts,
-      );
+      await deploymentHelper.deployProtocolTokenContracts(cpContracts);
 
       priceFeed = contracts.priceFeedTestnet;
       debtToken = contracts.debtToken;

@@ -28,12 +28,11 @@ contract("StabilityPool - ProtocolToken Rewards", async () => {
     defaulter_6,
     frontEnd_1,
     frontEnd_2;
-  let bountyAddress, lpRewardsAddress, multisig;
+  let lpRewardsAddress, multisig;
 
   let contracts;
 
   let priceFeed;
-  let debtToken;
   let stabilityPool;
   let sortedTroves;
   let troveManager;
@@ -79,7 +78,7 @@ contract("StabilityPool - ProtocolToken Rewards", async () => {
       frontEnd_1,
       frontEnd_2,
     ] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [lpRewardsAddress, multisig] = signers.slice(998, 1000);
   });
 
   describe("ProtocolToken Rewards", async () => {
@@ -90,23 +89,21 @@ contract("StabilityPool - ProtocolToken Rewards", async () => {
       const cpTesterContracts = await deploymentHelper.computeContractAddresses(
         owner.address,
         transactionCount,
-        5,
+        3,
       );
       const cpContracts = await deploymentHelper.computeCoreProtocolContracts(
         owner.address,
-        transactionCount + 5,
+        transactionCount + 3,
       );
 
       // Overwrite contracts with computed tester addresses
       cpContracts.troveManager = cpTesterContracts[2];
-      cpContracts.debtToken = cpTesterContracts[4];
 
       const troveManagerTester = await deploymentHelper.deployTroveManagerTester(
         th.GAS_COMPENSATION,
         th.MIN_NET_DEBT,
         cpContracts,
       );
-      const debtTokenTester = await deploymentHelper.deployDebtTokenTester(cpContracts);
 
       contracts = await deploymentHelper.deployProtocolCore(
         th.GAS_COMPENSATION,
@@ -114,18 +111,22 @@ contract("StabilityPool - ProtocolToken Rewards", async () => {
         cpContracts,
       );
 
-      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
-        bountyAddress.address,
-        lpRewardsAddress.address,
-        multisig.address,
-        cpContracts,
-      );
+      const protocolTokenContracts =
+        await deploymentHelper.deployProtocolTokenTesterContracts(cpContracts);
+
+      const allocation = [
+        { address: multisig.address, amount: toBN(dec(67000000, 18)) },
+        { address: lpRewardsAddress.address, amount: toBN(dec(1000000, 18)) },
+        {
+          address: protocolTokenContracts.communityIssuance.address,
+          amount: toBN(dec(32000000, 18)),
+        },
+      ];
+      await deploymentHelper.allocateProtocolToken(protocolTokenContracts, allocation);
 
       contracts.troveManager = troveManagerTester;
-      contracts.debtToken = debtTokenTester;
 
       priceFeed = contracts.priceFeedTestnet;
-      debtToken = contracts.debtToken;
       stabilityPool = contracts.stabilityPool;
       sortedTroves = contracts.sortedTroves;
       troveManager = contracts.troveManager;
@@ -283,9 +284,9 @@ contract("StabilityPool - ProtocolToken Rewards", async () => {
 
     // using the result of this to advance time by the desired amount from the deployment time, whether or not some extra time has passed in the meanwhile
     const getDuration = async (expectedDuration) => {
-      const deploymentTime = (await communityIssuanceTester.deploymentTime()).toNumber();
+      const supplyStartTime = (await communityIssuanceTester.supplyStartTime()).toNumber();
       const currentTime = await th.getLatestBlockTimestamp(web3);
-      const duration = Math.max(expectedDuration - (currentTime - deploymentTime), 0);
+      const duration = Math.max(expectedDuration - (currentTime - supplyStartTime), 0);
 
       return duration;
     };
@@ -1689,7 +1690,7 @@ contract("StabilityPool - ProtocolToken Rewards", async () => {
         dec(60000, 18),
       );
 
-      const startTime = await communityIssuanceTester.deploymentTime();
+      const startTime = await communityIssuanceTester.supplyStartTime();
       const currentTime = await th.getLatestBlockTimestamp(web3);
       const timePassed = toBN(currentTime).sub(startTime);
 

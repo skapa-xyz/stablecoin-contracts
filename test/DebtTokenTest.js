@@ -74,8 +74,6 @@ const getPermitDigest = (
 contract("DebtToken", async () => {
   let owner, alice, bob, carol, dennis;
 
-  let bountyAddress, lpRewardsAddress, multisig;
-
   let approve;
 
   // the second account our hardhatenv creates (for Alice) from `hardhatAccountsList2k.js`
@@ -92,10 +90,7 @@ contract("DebtToken", async () => {
   let tokenVersion;
 
   before(async () => {
-    const signers = await ethers.getSigners();
-
-    [owner, alice, bob, carol, dennis] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [owner, alice, bob, carol, dennis] = await ethers.getSigners();
 
     approve = {
       owner: alice,
@@ -132,12 +127,8 @@ contract("DebtToken", async () => {
 
       contracts.debtToken = debtTokenTester;
 
-      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
-        bountyAddress.address,
-        lpRewardsAddress.address,
-        multisig.address,
-        cpContracts,
-      );
+      const protocolTokenContracts =
+        await deploymentHelper.deployProtocolTokenTesterContracts(cpContracts);
 
       debtTokenOriginal = contracts.debtToken;
       if (withProxy) {

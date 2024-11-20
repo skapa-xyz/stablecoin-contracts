@@ -41,20 +41,16 @@ contract CommunityIssuance is ICommunityIssuance, OwnableUpgradeable, CheckContr
      *
      * Set to 32M (slightly less than 1/3) of total ProtocolToken supply.
      */
-    uint public constant override protocolTokenSupplyCap = 32e24; // 32 million
+    uint public override protocolTokenSupplyCap;
 
     IProtocolToken public protocolToken;
 
     address public stabilityPoolAddress;
 
     uint public totalProtocolTokenIssued;
-    uint public immutable deploymentTime;
+    uint public supplyStartTime;
 
     // --- Functions ---
-
-    constructor() {
-        deploymentTime = block.timestamp;
-    }
 
     function initialize(
         address _protocolTokenAddress,
@@ -62,6 +58,8 @@ contract CommunityIssuance is ICommunityIssuance, OwnableUpgradeable, CheckContr
     ) external initializer {
         __Ownable_init();
         _setAddresses(_protocolTokenAddress, _stabilityPoolAddress);
+
+        protocolTokenSupplyCap = 0;
     }
 
     function _setAddresses(address _protocolTokenAddress, address _stabilityPoolAddress) private {
@@ -73,6 +71,21 @@ contract CommunityIssuance is ICommunityIssuance, OwnableUpgradeable, CheckContr
 
         emit ProtocolTokenAddressSet(_protocolTokenAddress);
         emit StabilityPoolAddressSet(_stabilityPoolAddress);
+    }
+
+    function updateProtocolTokenSupplyCap() external onlyOwner {
+        uint newProtocolTokenSupplyCap = protocolToken.balanceOf(address(this));
+
+        require(
+            newProtocolTokenSupplyCap != protocolTokenSupplyCap,
+            "CommunityIssuance: supply cap not changed"
+        );
+
+        protocolTokenSupplyCap = newProtocolTokenSupplyCap;
+        totalProtocolTokenIssued = 0;
+        supplyStartTime = block.timestamp;
+
+        emit ProtocolTokenSupplyCapUpdated(protocolTokenSupplyCap);
     }
 
     function issueProtocolToken() external override returns (uint) {
@@ -95,7 +108,7 @@ contract CommunityIssuance is ICommunityIssuance, OwnableUpgradeable, CheckContr
     t:  time passed since last ProtocolToken issuance event  */
     function _getCumulativeIssuanceFraction() internal view returns (uint) {
         // Get the time passed since deployment
-        uint timePassedInMinutes = block.timestamp.sub(deploymentTime).div(SECONDS_IN_ONE_MINUTE);
+        uint timePassedInMinutes = block.timestamp.sub(supplyStartTime).div(SECONDS_IN_ONE_MINUTE);
 
         // f^t
         uint power = ProtocolMath._decPow(ISSUANCE_FACTOR, timePassedInMinutes);

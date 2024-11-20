@@ -20,31 +20,14 @@ const assertRevert = th.assertRevert;
  */
 
 contract("BorrowerOperations", async () => {
-  let owner,
-    alice,
-    bob,
-    carol,
-    dennis,
-    whale,
-    A,
-    B,
-    C,
-    D,
-    E,
-    F,
-    G,
-    H,
-    frontEnd_1,
-    frontEnd_2,
-    frontEnd_3;
-  let bountyAddress, lpRewardsAddress, multisig;
+  let owner, alice, bob, carol, dennis, whale, A, B, C, D, E, F, G, H;
+  let lpRewardsAddress, multisig;
 
   let priceFeed;
   let debtToken;
   let sortedTroves;
   let troveManager;
   let activePool;
-  let stabilityPool;
   let defaultPool;
   let borrowerOperations;
   let protocolTokenStaking;
@@ -70,26 +53,8 @@ contract("BorrowerOperations", async () => {
   before(async () => {
     const signers = await ethers.getSigners();
 
-    [
-      owner,
-      alice,
-      bob,
-      carol,
-      dennis,
-      whale,
-      A,
-      B,
-      C,
-      D,
-      E,
-      F,
-      G,
-      H,
-      frontEnd_1,
-      frontEnd_2,
-      frontEnd_3,
-    ] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [owner, alice, bob, carol, dennis, whale, A, B, C, D, E, F, G, H] = signers;
+    [lpRewardsAddress, multisig] = signers.slice(998, 1000);
   });
 
   const testCorpus = ({ withProxy = false }) => {
@@ -134,12 +99,18 @@ contract("BorrowerOperations", async () => {
       contracts.borrowerOperations = borrowerOperationsTester;
       contracts.debtToken = debtTokenTester;
 
-      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
-        bountyAddress.address,
-        lpRewardsAddress.address,
-        multisig.address,
-        cpContracts,
-      );
+      const protocolTokenContracts =
+        await deploymentHelper.deployProtocolTokenTesterContracts(cpContracts);
+
+      const allocation = [
+        { address: multisig.address, amount: toBN(dec(67000000, 18)) },
+        { address: lpRewardsAddress.address, amount: toBN(dec(1000000, 18)) },
+        {
+          address: protocolTokenContracts.communityIssuance.address,
+          amount: toBN(dec(32000000, 18)),
+        },
+      ];
+      await deploymentHelper.allocateProtocolToken(protocolTokenContracts, allocation);
 
       if (withProxy) {
         const users = [alice, bob, carol, dennis, whale, A, B, C, D, E];
@@ -151,7 +122,6 @@ contract("BorrowerOperations", async () => {
       sortedTroves = contracts.sortedTroves;
       troveManager = contracts.troveManager;
       activePool = contracts.activePool;
-      stabilityPool = contracts.stabilityPool;
       defaultPool = contracts.defaultPool;
       borrowerOperations = contracts.borrowerOperations;
       hintHelpers = contracts.hintHelpers;

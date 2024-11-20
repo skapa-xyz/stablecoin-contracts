@@ -3,7 +3,6 @@ const { TestHelper: th, MoneyValues: mv } = require("../utils/testHelpers.js");
 
 contract("All functions with onlyOwner modifier", async () => {
   let owner, alice, bob;
-  let bountyAddress, lpRewardsAddress, multisig;
 
   let contracts;
   let debtToken;
@@ -22,10 +21,7 @@ contract("All functions with onlyOwner modifier", async () => {
   before(async () => {
     await hre.network.provider.send("hardhat_reset");
 
-    const signers = await ethers.getSigners();
-
-    [owner, alice, bob] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [owner, alice, bob] = await ethers.getSigners();
 
     const transactionCount = await owner.getTransactionCount();
     const cpContracts = await deploymentHelper.computeCoreProtocolContracts(
@@ -39,12 +35,7 @@ contract("All functions with onlyOwner modifier", async () => {
       cpContracts,
     );
 
-    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress.address,
-      lpRewardsAddress.address,
-      multisig.address,
-      cpContracts,
-    );
+    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(cpContracts);
 
     debtToken = contracts.debtToken;
     sortedTroves = contracts.sortedTroves;

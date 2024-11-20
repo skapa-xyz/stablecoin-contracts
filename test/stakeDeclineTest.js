@@ -16,7 +16,7 @@ contract("TroveManager", async () => {
   const ZERO_ADDRESS = th.ZERO_ADDRESS;
   let signers;
   let owner, A, B, C, D, E, F;
-  let bountyAddress, lpRewardsAddress, multisig;
+  let lpRewardsAddress, multisig;
 
   let priceFeed;
   let troveManager;
@@ -39,7 +39,7 @@ contract("TroveManager", async () => {
     signers = await ethers.getSigners();
 
     [owner, A, B, C, D, E, F] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [lpRewardsAddress, multisig] = signers.slice(998, 1000);
   });
 
   beforeEach(async () => {
@@ -76,12 +76,7 @@ contract("TroveManager", async () => {
     contracts.troveManager = troveManagerTester;
     contracts.debtToken = debtTokenTester;
 
-    await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress.address,
-      lpRewardsAddress.address,
-      multisig.address,
-      cpContracts,
-    );
+    await deploymentHelper.deployProtocolTokenContracts(cpContracts);
 
     priceFeed = contracts.priceFeedTestnet;
     troveManager = contracts.troveManager;

@@ -39,7 +39,6 @@ contract("TroveManager - in Recovery Mode", async () => {
     G,
     H,
     I;
-  let bountyAddress, lpRewardsAddress, multisig;
 
   let priceFeed;
   let debtToken;
@@ -54,8 +53,6 @@ contract("TroveManager - in Recovery Mode", async () => {
   const openTrove = async (params) => th.openTrove(contracts, params);
 
   before(async () => {
-    const signers = await ethers.getSigners();
-
     [
       owner,
       alice,
@@ -80,8 +77,7 @@ contract("TroveManager - in Recovery Mode", async () => {
       G,
       H,
       I,
-    ] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    ] = await ethers.getSigners();
   });
 
   beforeEach(async () => {
@@ -118,12 +114,7 @@ contract("TroveManager - in Recovery Mode", async () => {
     contracts.troveManager = troveManagerTester;
     contracts.debtToken = debtTokenTester;
 
-    await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress.address,
-      lpRewardsAddress.address,
-      multisig.address,
-      cpContracts,
-    );
+    await deploymentHelper.deployProtocolTokenContracts(cpContracts);
 
     priceFeed = contracts.priceFeedTestnet;
     debtToken = contracts.debtToken;

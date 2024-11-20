@@ -30,7 +30,6 @@ contract("SortedTroves", async () => {
   };
 
   let owner, alice, bob, carol, dennis, erin, defaulter_1, A, B, C, D, E, F, G, H, I, J, whale;
-  let bountyAddress, lpRewardsAddress, multisig;
 
   let priceFeed;
   let sortedTroves;
@@ -43,11 +42,8 @@ contract("SortedTroves", async () => {
   const openTrove = async (params) => th.openTrove(contracts, params);
 
   before(async () => {
-    const signers = await ethers.getSigners();
-
     [owner, alice, bob, carol, dennis, erin, defaulter_1, A, B, C, D, E, F, G, H, I, J, whale] =
-      signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+      await ethers.getSigners();
   });
 
   describe("SortedTroves", () => {
@@ -82,12 +78,7 @@ contract("SortedTroves", async () => {
 
       contracts.troveManager = troveManagerTester;
 
-      await deploymentHelper.deployProtocolTokenContracts(
-        bountyAddress.address,
-        lpRewardsAddress.address,
-        multisig.address,
-        cpContracts,
-      );
+      await deploymentHelper.deployProtocolTokenContracts(cpContracts);
 
       priceFeed = contracts.priceFeedTestnet;
       sortedTroves = contracts.sortedTroves;

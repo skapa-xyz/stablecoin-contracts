@@ -11,6 +11,4 @@ interface IProtocolToken is IERC20Metadata, IERC2612 {
     function sendToProtocolTokenStaking(address _sender, uint256 _amount) external;
 
     function getDeploymentStartTime() external view returns (uint256);
-
-    function getLpRewardsEntitlement() external view returns (uint256);
 }

@@ -9,7 +9,6 @@ const timeValues = testHelpers.TimeValues;
 
 contract("CollSurplusPool", async () => {
   let owner, A, B, C, D, E;
-  let bountyAddress, lpRewardsAddress, multisig;
 
   let borrowerOperations;
   let priceFeed;
@@ -20,10 +19,7 @@ contract("CollSurplusPool", async () => {
   const openTrove = async (params) => th.openTrove(contracts, params);
 
   before(async () => {
-    const signers = await ethers.getSigners();
-
-    [owner, A, B, C, D, E] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [owner, A, B, C, D, E] = await ethers.getSigners();
   });
 
   beforeEach(async () => {
@@ -60,12 +56,7 @@ contract("CollSurplusPool", async () => {
     contracts.troveManager = troveManagerTester;
     contracts.debtToken = debtTokenTester;
 
-    await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress.address,
-      lpRewardsAddress.address,
-      multisig.address,
-      cpContracts,
-    );
+    await deploymentHelper.deployProtocolTokenContracts(cpContracts);
 
     priceFeed = contracts.priceFeedTestnet;
     collSurplusPool = contracts.collSurplusPool;

@@ -7,6 +7,7 @@ interface ICommunityIssuance {
 
     event ProtocolTokenAddressSet(address _protocolTokenAddress);
     event StabilityPoolAddressSet(address _stabilityPoolAddress);
+    event ProtocolTokenSupplyCapUpdated(uint _protocolTokenSupplyCap);
     event TotalProtocolTokenIssuedUpdated(uint _totalProtocolTokenIssued);
 
     // --- Functions ---

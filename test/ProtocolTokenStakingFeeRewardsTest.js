@@ -1,4 +1,3 @@
-const Decimal = require("decimal.js");
 const deploymentHelper = require("../utils/deploymentHelpers.js");
 const testHelpers = require("../utils/testHelpers.js");
 
@@ -20,9 +19,9 @@ const GAS_PRICE = 10000000;
  *
  */
 
-contract("ProtocolTokenStaking revenue share tests", async () => {
+contract("ProtocolTokenStaking -  Revenue share tests", async () => {
   let owner, A, B, C, D, E, F, G, whale;
-  let bountyAddress, lpRewardsAddress, multisig;
+  let lpRewardsAddress, multisig;
 
   let debtToken;
   let troveManager;
@@ -39,7 +38,7 @@ contract("ProtocolTokenStaking revenue share tests", async () => {
     const signers = await ethers.getSigners();
 
     [owner, A, B, C, D, E, F, G, whale] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [lpRewardsAddress, multisig] = signers.slice(998, 1000);
   });
 
   beforeEach(async () => {
@@ -71,12 +70,18 @@ contract("ProtocolTokenStaking revenue share tests", async () => {
       cpContracts,
     );
 
-    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
-      bountyAddress.address,
-      lpRewardsAddress.address,
-      multisig.address,
-      cpContracts,
-    );
+    const protocolTokenContracts =
+      await deploymentHelper.deployProtocolTokenTesterContracts(cpContracts);
+
+    const allocation = [
+      { address: multisig.address, amount: toBN(dec(67000000, 18)) },
+      { address: lpRewardsAddress.address, amount: toBN(dec(1000000, 18)) },
+      {
+        address: protocolTokenContracts.communityIssuance.address,
+        amount: toBN(dec(32000000, 18)),
+      },
+    ];
+    await deploymentHelper.allocateProtocolToken(protocolTokenContracts, allocation);
 
     contracts.troveManager = troveManagerTester;
 

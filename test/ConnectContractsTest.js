@@ -7,7 +7,6 @@ contract(
   "Deployment script - Sets correct contract addresses dependencies after deployment",
   async () => {
     let owner;
-    let bountyAddress, lpRewardsAddress, multisig;
 
     let priceFeed;
     let debtToken;
@@ -16,7 +15,6 @@ contract(
     let activePool;
     let stabilityPool;
     let defaultPool;
-    let functionCaller;
     let borrowerOperations;
     let protocolTokenStaking;
     let protocolToken;
@@ -26,10 +24,7 @@ contract(
     before(async () => {
       await hre.network.provider.send("hardhat_reset");
 
-      const signers = await ethers.getSigners();
-
-      [owner] = signers;
-      [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+      [owner] = await ethers.getSigners();
 
       const transactionCount = await owner.getTransactionCount();
       const cpContracts = await deploymentHelper.computeCoreProtocolContracts(
@@ -42,12 +37,8 @@ contract(
         th.MIN_NET_DEBT,
         cpContracts,
       );
-      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
-        bountyAddress.address,
-        lpRewardsAddress.address,
-        multisig.address,
-        cpContracts,
-      );
+      const protocolTokenContracts =
+        await deploymentHelper.deployProtocolTokenContracts(cpContracts);
 
       priceFeed = coreContracts.priceFeedTestnet;
       debtToken = coreContracts.debtToken;
@@ -56,7 +47,6 @@ contract(
       activePool = coreContracts.activePool;
       stabilityPool = coreContracts.stabilityPool;
       defaultPool = coreContracts.defaultPool;
-      functionCaller = coreContracts.functionCaller;
       borrowerOperations = coreContracts.borrowerOperations;
 
       protocolTokenStaking = protocolTokenContracts.protocolTokenStaking;
@@ -323,28 +313,12 @@ contract(
 
     // ---  ProtocolToken ---
 
-    // Sets CI in ProtocolToken
-    it("Sets the correct CommunityIssuance address in ProtocolToken", async () => {
-      const communityIssuanceAddress = communityIssuance.address;
-
-      const recordedcommunityIssuanceAddress = await protocolToken.communityIssuanceAddress();
-      assert.equal(communityIssuanceAddress, recordedcommunityIssuanceAddress);
-    });
-
     // Sets ProtocolTokenStaking in ProtocolToken
     it("Sets the correct ProtocolTokenStaking address in ProtocolToken", async () => {
       const protocolTokenStakingAddress = protocolTokenStaking.address;
 
       const recordedProtocolTokenStakingAddress = await protocolToken.protocolTokenStakingAddress();
       assert.equal(protocolTokenStakingAddress, recordedProtocolTokenStakingAddress);
-    });
-
-    // Sets LCF in ProtocolToken
-    it("Sets the correct LockupContractFactory address in ProtocolToken", async () => {
-      const LCFAddress = lockupContractFactory.address;
-
-      const recordedLCFAddress = await protocolToken.lockupContractFactory();
-      assert.equal(LCFAddress, recordedLCFAddress);
     });
 
     // --- LCF  ---

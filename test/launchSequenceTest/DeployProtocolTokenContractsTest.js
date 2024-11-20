@@ -8,8 +8,8 @@ const dec = th.dec;
 contract(
   "Deploying the ProtocolToken contracts: LCF, CI, ProtocolTokenStaking, and ProtocolToken ",
   async () => {
-    let deployer, A, B;
-    let bountyAddress, lpRewardsAddress, multisig;
+    let deployer;
+    let lpRewardsAddress, multisig;
 
     let protocolTokenContracts;
 
@@ -26,8 +26,8 @@ contract(
     before(async () => {
       const signers = await ethers.getSigners();
 
-      [deployer, A, B] = signers;
-      [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+      [deployer] = signers;
+      [lpRewardsAddress, multisig] = signers.slice(998, 1000);
     });
 
     beforeEach(async () => {
@@ -39,12 +39,17 @@ contract(
         transactionCount + 1,
       );
       await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT, cpContracts);
-      protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
-        bountyAddress.address,
-        lpRewardsAddress.address,
-        multisig.address,
-        cpContracts,
-      );
+      protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(cpContracts);
+
+      const allocation = [
+        { address: multisig.address, amount: toBN(dec(67000000, 18)) },
+        { address: lpRewardsAddress.address, amount: toBN(dec(1000000, 18)) },
+        {
+          address: protocolTokenContracts.communityIssuance.address,
+          amount: toBN(dec(32000000, 18)),
+        },
+      ];
+      await deploymentHelper.allocateProtocolToken(protocolTokenContracts, allocation);
 
       protocolTokenStaking = protocolTokenContracts.protocolTokenStaking;
       protocolToken = protocolTokenContracts.protocolToken;
@@ -72,56 +77,21 @@ contract(
     });
 
     describe("ProtocolToken deployment", async () => {
-      it("Stores the multisig's address", async () => {
-        const storedMultisigAddress = await protocolToken.multisigAddress();
-
-        assert.equal(multisig.address, storedMultisigAddress);
-      });
-
-      it("Stores the CommunityIssuance address", async () => {
-        const storedCIAddress = await protocolToken.communityIssuanceAddress();
-
-        assert.equal(communityIssuance.address, storedCIAddress);
-      });
-
-      it("Stores the LockupContractFactory address", async () => {
-        const storedLCFAddress = await protocolToken.lockupContractFactory();
-
-        assert.equal(lockupContractFactory.address, storedLCFAddress);
-      });
-
-      it("Mints the correct ProtocolToken amount to the multisig's address: (64.66 million)", async () => {
+      it("Mints the correct ProtocolToken amount to the multisig's address: 67 million", async () => {
         const multisigProtocolTokenEntitlement = await protocolToken.balanceOf(multisig.address);
-
-        const twentyThreeSixes = "6".repeat(23);
-        const expectedMultisigEntitlement = "64".concat(twentyThreeSixes).concat("7");
-        assert.equal(multisigProtocolTokenEntitlement, expectedMultisigEntitlement);
+        assert.equal(multisigProtocolTokenEntitlement, dec(67000000, 18));
       });
 
       it("Mints the correct ProtocolToken amount to the CommunityIssuance contract address: 32 million", async () => {
         const communityProtocolTokenEntitlement = await protocolToken.balanceOf(
           communityIssuance.address,
         );
-        // 32 million as 18-digit decimal
-        const _32Million = dec(32, 24);
-
-        assert.equal(communityProtocolTokenEntitlement, _32Million);
+        assert.equal(communityProtocolTokenEntitlement, dec(32000000, 18));
       });
 
-      it("Mints the correct ProtocolToken amount to the bountyAddress EOA: 2 million", async () => {
-        const bountyAddressBal = await protocolToken.balanceOf(bountyAddress.address);
-        // 2 million as 18-digit decimal
-        const _2Million = dec(2, 24);
-
-        assert.equal(bountyAddressBal, _2Million);
-      });
-
-      it("Mints the correct ProtocolToken amount to the lpRewardsAddress EOA: 1.33 million", async () => {
+      it("Mints the correct ProtocolToken amount to the lpRewardsAddress EOA: 1 million", async () => {
         const lpRewardsAddressBal = await protocolToken.balanceOf(lpRewardsAddress.address);
-        // 1.3 million as 18-digit decimal
-        const _1pt33Million = "1".concat("3".repeat(24));
-
-        assert.equal(lpRewardsAddressBal, _1pt33Million);
+        assert.equal(lpRewardsAddressBal, dec(1000000, 18));
       });
     });
 

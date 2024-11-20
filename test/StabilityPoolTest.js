@@ -37,7 +37,7 @@ contract("StabilityPool", async () => {
     frontEnd_1,
     frontEnd_2,
     frontEnd_3;
-  let bountyAddress, lpRewardsAddress, multisig;
+  let lpRewardsAddress, multisig;
   let frontEnds;
 
   let contracts;
@@ -82,7 +82,7 @@ contract("StabilityPool", async () => {
       frontEnd_2,
       frontEnd_3,
     ] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [lpRewardsAddress, multisig] = signers.slice(998, 1000);
     frontEnds = [frontEnd_1, frontEnd_2, frontEnd_3];
   });
 
@@ -121,12 +121,18 @@ contract("StabilityPool", async () => {
       contracts.troveManager = troveManagerTester;
       contracts.debtToken = debtTokenTester;
 
-      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
-        bountyAddress.address,
-        lpRewardsAddress.address,
-        multisig.address,
-        cpContracts,
-      );
+      const protocolTokenContracts =
+        await deploymentHelper.deployProtocolTokenContracts(cpContracts);
+
+      const allocation = [
+        { address: multisig.address, amount: toBN(dec(67000000, 18)) },
+        { address: lpRewardsAddress.address, amount: toBN(dec(1000000, 18)) },
+        {
+          address: protocolTokenContracts.communityIssuance.address,
+          amount: toBN(dec(32000000, 18)),
+        },
+      ];
+      await deploymentHelper.allocateProtocolToken(protocolTokenContracts, allocation);
 
       priceFeed = contracts.priceFeedTestnet;
       debtToken = contracts.debtToken;

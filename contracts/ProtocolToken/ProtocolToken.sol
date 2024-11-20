@@ -7,7 +7,6 @@ import "../Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "../Dependencies/CheckContract.sol";
 import "../Interfaces/ICommunityIssuance.sol";
 import "../Interfaces/IProtocolToken.sol";
-import "../Interfaces/ILockupContractFactory.sol";
 import "../Dependencies/console.sol";
 
 /*
@@ -28,7 +27,7 @@ import "../Dependencies/console.sol";
 *
 * 3) Supply hard-capped at 100 million
 *
-* 4) CommunityIssuance and LockupContractFactory addresses are set at deployment
+* 4) CommunityIssuance addresses are set at deployment
 *
 * 5) The bug bounties / hackathons allocation of 2 million tokens is minted at deployment to an EOA
 
@@ -37,14 +36,7 @@ import "../Dependencies/console.sol";
 * 7) The LP rewards allocation of (1 + 1/3) million tokens is minted at deployent to a Staking contract
 *
 * 8) (64 + 2/3) million tokens are minted at deployment to the multisig
-*
-* 9) Until one year from deployment:
-* -The multisig may only transfer() tokens to LockupContracts that have been deployed via & registered in the 
-*  LockupContractFactory 
-* -approve() revert when called by the multisig
-* -transferFrom() reverts when the multisig is the sender
-* -sendToProtocolTokenStaking() reverts when the multisig is the sender, blocking the multisig from staking its ProtocolToken.
-* 
+** 
 * After one year has passed since deployment of the ProtocolToken, the restrictions on multisig operations are lifted
 * and the multisig has the same rights as any other address.
 */
@@ -84,20 +76,12 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
 
     // --- ProtocolToken specific data ---
 
-    uint public constant ONE_YEAR_IN_SECONDS = 31536000; // 60 * 60 * 24 * 365
-
     // uint for use with SafeMath
     uint internal constant _1_MILLION = 1e24; // 1e6 * 1e18 = 1e24
 
     uint internal immutable deploymentStartTime;
-    address public multisigAddress;
 
-    address public communityIssuanceAddress;
     address public protocolTokenStakingAddress;
-
-    uint internal lpRewardsEntitlement;
-
-    ILockupContractFactory public lockupContractFactory;
 
     // --- Functions ---
 
@@ -105,42 +89,15 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
         deploymentStartTime = block.timestamp;
     }
 
-    function initialize(
-        address _communityIssuanceAddress,
-        address _protocolTokenStakingAddress,
-        address _lockupFactoryAddress,
-        address _bountyAddress,
-        address _lpRewardsAddress,
-        address _multisigAddress
-    ) external initializer {
+    function initialize(address _protocolTokenStakingAddress) external initializer {
         __Ownable_init();
-        _setAddresses(
-            _communityIssuanceAddress,
-            _protocolTokenStakingAddress,
-            _lockupFactoryAddress,
-            _bountyAddress,
-            _lpRewardsAddress,
-            _multisigAddress
-        );
+        _setAddresses(_protocolTokenStakingAddress);
     }
 
-    function _setAddresses(
-        address _communityIssuanceAddress,
-        address _protocolTokenStakingAddress,
-        address _lockupFactoryAddress,
-        address _bountyAddress,
-        address _lpRewardsAddress,
-        address _multisigAddress
-    ) private {
-        checkContract(_communityIssuanceAddress);
+    function _setAddresses(address _protocolTokenStakingAddress) private {
         checkContract(_protocolTokenStakingAddress);
-        checkContract(_lockupFactoryAddress);
 
-        multisigAddress = _multisigAddress;
-
-        communityIssuanceAddress = _communityIssuanceAddress;
         protocolTokenStakingAddress = _protocolTokenStakingAddress;
-        lockupContractFactory = ILockupContractFactory(_lockupFactoryAddress);
 
         bytes32 hashedName = keccak256(bytes(_NAME));
         bytes32 hashedVersion = keccak256(bytes(_VERSION));
@@ -149,29 +106,18 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
         _HASHED_VERSION = hashedVersion;
         _CACHED_CHAIN_ID = _chainID();
         _CACHED_DOMAIN_SEPARATOR = _buildDomainSeparator(_TYPE_HASH, hashedName, hashedVersion);
+    }
 
-        // --- Initial ProtocolToken allocations ---
+    function allocate(address[] memory _accounts, uint256[] memory _amounts) external onlyOwner {
+        require(_totalSupply == 0, "ProtocolToken: already allocated");
+        require(
+            _accounts.length == _amounts.length,
+            "ProtocolToken: accounts and amounts length mismatch"
+        );
 
-        uint bountyEntitlement = _1_MILLION.mul(2); // Allocate 2 million for bounties/hackathons
-        _mint(_bountyAddress, bountyEntitlement);
-
-        // Allocate the amount set in the CommunityIssuance contract
-        uint depositorsAndFrontEndsEntitlement = ICommunityIssuance(_communityIssuanceAddress)
-            .protocolTokenSupplyCap();
-        _mint(_communityIssuanceAddress, depositorsAndFrontEndsEntitlement);
-
-        uint _lpRewardsEntitlement = _1_MILLION.mul(4).div(3); // Allocate 1.33 million for LP rewards
-        lpRewardsEntitlement = _lpRewardsEntitlement;
-        _mint(_lpRewardsAddress, _lpRewardsEntitlement);
-
-        // Allocate the remainder to the ProtocolToken Multisig: (100 - 2 - 32 - 1.33) million = 64.66 million
-        uint multisigEntitlement = _1_MILLION
-            .mul(100)
-            .sub(bountyEntitlement)
-            .sub(depositorsAndFrontEndsEntitlement)
-            .sub(_lpRewardsEntitlement);
-
-        _mint(_multisigAddress, multisigEntitlement);
+        for (uint i = 0; i < _accounts.length; i++) {
+            _mint(_accounts[i], _amounts[i]);
+        }
     }
 
     // --- External functions ---
@@ -188,16 +134,7 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
         return deploymentStartTime;
     }
 
-    function getLpRewardsEntitlement() external view override returns (uint256) {
-        return lpRewardsEntitlement;
-    }
-
     function transfer(address recipient, uint256 amount) external override returns (bool) {
-        // Restrict the multisig's transfers in first year
-        if (_callerIsMultisig() && _isFirstYear()) {
-            _requireRecipientIsRegisteredLC(recipient);
-        }
-
         _requireValidRecipient(recipient);
 
         // Otherwise, standard transfer functionality
@@ -210,10 +147,6 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
     }
 
     function approve(address spender, uint256 amount) external override returns (bool) {
-        if (_isFirstYear()) {
-            _requireCallerIsNotMultisig();
-        }
-
         _approve(msg.sender, spender, amount);
         return true;
     }
@@ -223,10 +156,6 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
         address recipient,
         uint256 amount
     ) external override returns (bool) {
-        if (_isFirstYear()) {
-            _requireSenderIsNotMultisig(sender);
-        }
-
         _requireValidRecipient(recipient);
 
         _transfer(sender, recipient, amount);
@@ -240,9 +169,6 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
 
     function sendToProtocolTokenStaking(address _sender, uint256 _amount) external override {
         _requireCallerIsProtocolTokenStaking();
-        if (_isFirstYear()) {
-            _requireSenderIsNotMultisig(_sender);
-        } // Prevent the multisig from staking ProtocolToken
         _transfer(_sender, protocolTokenStakingAddress, _amount);
     }
 
@@ -326,16 +252,6 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
         emit Approval(owner, spender, amount);
     }
 
-    // --- Helper functions ---
-
-    function _callerIsMultisig() internal view returns (bool) {
-        return (msg.sender == multisigAddress);
-    }
-
-    function _isFirstYear() internal view returns (bool) {
-        return (block.timestamp.sub(deploymentStartTime) < ONE_YEAR_IN_SECONDS);
-    }
-
     // --- 'require' functions ---
 
     function _requireValidRecipient(address _recipient) internal view {
@@ -344,24 +260,9 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
             "ProtocolToken: Cannot transfer tokens directly to the ProtocolToken token contract or the zero address"
         );
         require(
-            _recipient != communityIssuanceAddress && _recipient != protocolTokenStakingAddress,
-            "ProtocolToken: Cannot transfer tokens directly to the community issuance or staking contract"
+            _recipient != protocolTokenStakingAddress,
+            "ProtocolToken: Cannot transfer tokens directly to the staking contract"
         );
-    }
-
-    function _requireRecipientIsRegisteredLC(address _recipient) internal view {
-        require(
-            lockupContractFactory.isRegisteredLockup(_recipient),
-            "ProtocolToken: recipient must be a LockupContract registered in the Factory"
-        );
-    }
-
-    function _requireSenderIsNotMultisig(address _sender) internal view {
-        require(_sender != multisigAddress, "ProtocolToken: sender must not be the multisig");
-    }
-
-    function _requireCallerIsNotMultisig() internal view {
-        require(!_callerIsMultisig(), "ProtocolToken: caller must not be the multisig");
     }
 
     function _requireCallerIsProtocolTokenStaking() internal view {

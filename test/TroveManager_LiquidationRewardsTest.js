@@ -8,7 +8,6 @@ const getDifference = th.getDifference;
 
 contract("TroveManager - Redistribution reward calculations", async () => {
   let owner, alice, bob, carol, dennis, erin, freddy, A, B, C, D, E;
-  let bountyAddress, lpRewardsAddress, multisig;
 
   let priceFeed;
   let debtToken;
@@ -28,7 +27,6 @@ contract("TroveManager - Redistribution reward calculations", async () => {
     const signers = await ethers.getSigners();
 
     [owner, alice, bob, carol, dennis, erin, freddy, A, B, C, D, E] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
   });
 
   beforeEach(async () => {
@@ -65,12 +63,7 @@ contract("TroveManager - Redistribution reward calculations", async () => {
     contracts.troveManager = troveManagerTester;
     contracts.debtToken = debtTokenTester;
 
-    await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress.address,
-      lpRewardsAddress.address,
-      multisig.address,
-      cpContracts,
-    );
+    await deploymentHelper.deployProtocolTokenContracts(cpContracts);
 
     priceFeed = contracts.priceFeedTestnet;
     debtToken = contracts.debtToken;
