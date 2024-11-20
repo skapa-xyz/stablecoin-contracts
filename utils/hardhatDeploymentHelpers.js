@@ -290,13 +290,7 @@ class HardhatDeploymentHelper {
     return coreContracts;
   }
 
-  async deployProtocolTokenContractsMainnet(
-    bountyAddress,
-    lpRewardsAddress,
-    multisigAddress,
-    deploymentState,
-    cpContracts,
-  ) {
+  async deployProtocolTokenContractsMainnet(deploymentState, cpContracts) {
     const protocolTokenStakingFactory = await this.getFactory("ProtocolTokenStaking");
     const lockupContractFactory_Factory = await this.getFactory("LockupContractFactory");
     const communityIssuanceFactory = await this.getFactory("CommunityIssuance");
@@ -440,9 +434,12 @@ class HardhatDeploymentHelper {
 
   async logContractObjects(contracts) {
     console.log(`Contract objects addresses:`);
-    for (const contractName of Object.keys(contracts)) {
-      console.log(`${contractName}: ${contracts[contractName].address}`);
-    }
+    console.table(
+      Object.entries(contracts).reduce((acc, [name, contract]) => {
+        acc[name] = contract.address;
+        return acc;
+      }, {}),
+    );
   }
 
   async computeContractAddresses(count) {

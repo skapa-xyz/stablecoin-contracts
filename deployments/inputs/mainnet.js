@@ -9,9 +9,14 @@ const externalAddrs = {
 };
 
 const walletAddrs = {
-  GENERAL_SAFE: "0xF06016D822943C42e3Cb7FC3a6A3B1889C1045f8", // to be passed to ProtocolToken as the bounties/hackathons address
-  PROTOCOL_TOKEN_SAFE: "0xb8a9faDA75c6d891fB77a7988Ff9BaD9e485Ca1C", // to be passed to ProtocolToken as the multisig address
+  ADMIN: "0xb8a9faDA75c6d891fB77a7988Ff9BaD9e485Ca1C", // to be passed to ProtocolToken as the multisig address
   DEPLOYER: "0xa850535D3628CD4dFEB528dC85cfA93051Ff2984", // Mainnet REAL deployment address
+};
+
+const allocation = {
+  ADMIN: "67000000000000000000000000",
+  UNIPOOL: "1000000000000000000000000",
+  COMMUNITY_ISSUANCE: "32000000000000000000000000",
 };
 
 // Beneficiaries for lockup contracts.
@@ -52,11 +57,6 @@ const beneficiaries = {
   ACCOUNT_34: "0x895870D281E4761237f4465AFb51D16c3e124EFC",
 };
 
-const delay = (ms) => new Promise((res) => setTimeout(res, ms));
-const waitFunction = async () => {
-  return delay(90000); // wait 90s
-};
-
 const GAS_COMPENSATION = dec(20, 18);
 const MIN_NET_DEBT = dec(180, 18);
 const ETHERSCAN_BASE_URL = "https://etherscan.io/address";
@@ -64,8 +64,8 @@ const ETHERSCAN_BASE_URL = "https://etherscan.io/address";
 module.exports = {
   externalAddrs,
   walletAddrs,
+  allocation,
   beneficiaries,
-  waitFunction,
   ETHERSCAN_BASE_URL,
   GAS_COMPENSATION,
   MIN_NET_DEBT,

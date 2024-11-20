@@ -1,14 +1,13 @@
 const { UniswapV2Factory } = require("./ABIs/UniswapV2Factory.js");
 const { UniswapV2Pair } = require("./ABIs/UniswapV2Pair.js");
 const { UniswapV2Router02 } = require("./ABIs/UniswapV2Router02.js");
-const { ChainlinkAggregatorV3Interface } = require("./ABIs/ChainlinkAggregatorV3Interface.js");
 const { TestHelper: th, TimeValues: timeVals } = require("../utils/testHelpers.js");
 const { dec } = th;
 const HardhatDeploymentHelper = require("../utils/hardhatDeploymentHelpers.js");
 const hre = require("hardhat");
 const toBigNum = ethers.BigNumber.from;
 
-async function deploy(configParams) {
+async function main(configParams) {
   const date = new Date();
   console.log(date.toUTCString());
   const deployerWallet = (await ethers.getSigners())[0];
@@ -53,7 +52,6 @@ async function deploy(configParams) {
   const addressList = await mdh.computeContractAddresses(
     contractList.length + proxyContractList.length * 2,
   );
-  console.log("addressList:", addressList);
 
   const cpContracts = {
     ...contractList.reduce((acc, contract) => {
@@ -71,8 +69,6 @@ async function deploy(configParams) {
     }, {}),
   };
 
-  console.log("cpContracts:", cpContracts);
-
   // Deploy core logic contracts
   const coreContracts = await mdh.deployProtocolCoreMainnet(deploymentState, cpContracts);
   await mdh.checkContractAddresses(coreContracts, cpContracts);
@@ -84,9 +80,6 @@ async function deploy(configParams) {
 
   // Deploy ProtocolToken Contracts
   const protocolTokenContracts = await mdh.deployProtocolTokenContractsMainnet(
-    configParams.walletAddrs.GENERAL_SAFE, // bounty address
-    unipool.address, // lp rewards address
-    configParams.walletAddrs.PROTOCOL_TOKEN_SAFE, // multisig endowment address
     deploymentState,
     cpContracts,
   );
@@ -187,69 +180,6 @@ async function deploy(configParams) {
   await mdh.logContractObjects(protocolTokenContracts);
   console.log(`Unipool address: ${unipool.address}`);
 
-  // let latestBlock = await ethers.provider.getBlockNumber()
-  let deploymentStartTime = await protocolTokenContracts.protocolToken.getDeploymentStartTime();
-
-  console.log(`deployment start time: ${deploymentStartTime}`);
-  const oneYearFromDeployment = (
-    Number(deploymentStartTime) + timeVals.SECONDS_IN_ONE_YEAR
-  ).toString();
-  console.log(`time oneYearFromDeployment: ${oneYearFromDeployment}`);
-
-  // Deploy LockupContracts - one for each beneficiary
-  const lockupContracts = {};
-
-  for (const [investor, investorAddr] of Object.entries(configParams.beneficiaries)) {
-    const lockupContractEthersFactory = await ethers.getContractFactory(
-      "LockupContract",
-      deployerWallet,
-    );
-    if (deploymentState[investor] && deploymentState[investor].address) {
-      console.log(
-        `Using previously deployed ${investor} lockup contract at address ${deploymentState[investor].address}`,
-      );
-      lockupContracts[investor] = new ethers.Contract(
-        deploymentState[investor].address,
-        lockupContractEthersFactory.interface,
-        deployerWallet,
-      );
-    } else {
-      const txReceipt = await mdh.sendAndWaitForTransaction(
-        protocolTokenContracts.lockupContractFactory.deployLockupContract(
-          investorAddr,
-          oneYearFromDeployment,
-        ),
-      );
-
-      const address =
-        await protocolTokenContracts.lockupContractFactory.beneficiaryToLockupContract(
-          investorAddr,
-        );
-      lockupContracts[investor] = new ethers.Contract(
-        address,
-        lockupContractEthersFactory.interface,
-        deployerWallet,
-      );
-
-      deploymentState[investor] = {
-        address: address,
-        txHash: txReceipt.transactionHash,
-      };
-
-      mdh.saveDeployment(deploymentState);
-    }
-
-    const protocolTokenAddr = protocolTokenContracts.protocolToken.address;
-    // verify
-    if (configParams.ETHERSCAN_BASE_URL) {
-      await mdh.verifyContract(investor, deploymentState, [
-        protocolTokenAddr,
-        investorAddr,
-        oneYearFromDeployment,
-      ]);
-    }
-  }
-
   // // --- TESTS AND CHECKS  ---
 
   // Deployer repay DebtToken
@@ -273,64 +203,6 @@ async function deploy(configParams) {
   let tellorPriceResponse = await coreContracts.tellorCaller.getTellorCurrentValue(); // id == 1: the FIL-USD request ID
   console.log(`current Tellor price: ${tellorPriceResponse[1]}`);
   console.log(`current Tellor timestamp: ${tellorPriceResponse[2]}`);
-
-  // // --- Lockup Contracts ---
-  console.log("LOCKUP CONTRACT CHECKS");
-  // Check lockup contracts exist for each beneficiary with correct unlock time
-  for (investor of Object.keys(lockupContracts)) {
-    const lockupContract = lockupContracts[investor];
-    // check LC references correct ProtocolToken
-    const storedProtocolTokenAddr = await lockupContract.protocolToken();
-    assert.equal(protocolTokenContracts.protocolToken.address, storedProtocolTokenAddr);
-    // Check contract has stored correct beneficary
-    const onChainBeneficiary = await lockupContract.beneficiary();
-    assert.equal(
-      configParams.beneficiaries[investor].toLowerCase(),
-      onChainBeneficiary.toLowerCase(),
-    );
-    // Check correct unlock time (1 yr from deployment)
-    const unlockTime = await lockupContract.unlockTime();
-    assert.equal(oneYearFromDeployment, unlockTime);
-
-    console.log(
-      `lockupContract addr: ${lockupContract.address},
-            stored ProtocolToken addr: ${storedProtocolTokenAddr}
-            beneficiary: ${investor},
-            beneficiary addr: ${configParams.beneficiaries[investor]},
-            on-chain beneficiary addr: ${onChainBeneficiary},
-            unlockTime: ${unlockTime}
-            `,
-    );
-  }
-
-  // // --- Check correct addresses set in ProtocolToken
-  // console.log("STORED ADDRESSES IN ProtocolToken TOKEN")
-  // const storedMultisigAddress = await protocolTokenContracts.protocolToken.multisigAddress()
-  // assert.equal(configParams.walletAddrs.PROTOCOL_TOKEN_SAFE.toLowerCase(), storedMultisigAddress.toLowerCase())
-  // console.log(`multi-sig address stored in ProtocolToken : ${th.squeezeAddr(storedMultisigAddress)}`)
-  // console.log(`ProtocolToken Safe address: ${th.squeezeAddr(configParams.walletAddrs.PROTOCOL_TOKEN_SAFE)}`)
-
-  // // --- ProtocolToken allowances of different addresses ---
-  // console.log("INITIAL ProtocolToken BALANCES")
-  // // Unipool
-  // const unipoolProtocolTokenBal = await protocolTokenContracts.protocolToken.balanceOf(unipool.address)
-  // // assert.equal(unipoolProtocolTokenBal.toString(), '1333333333333333333333333')
-  // th.logBN('Unipool ProtocolToken balance       ', unipoolProtocolTokenBal)
-
-  // // ProtocolToken Safe
-  // const protocolTokenSafeBal = await protocolTokenContracts.protocolToken.balanceOf(configParams.walletAddrs.PROTOCOL_TOKEN_SAFE)
-  // assert.equal(protocolTokenSafeBal.toString(), '64666666666666666666666667')
-  // th.logBN('ProtocolToken Safe balance     ', protocolTokenSafeBal)
-
-  // // Bounties/hackathons (General Safe)
-  // const generalSafeBal = await protocolTokenContracts.protocolToken.balanceOf(configParams.walletAddrs.GENERAL_SAFE)
-  // assert.equal(generalSafeBal.toString(), '2000000000000000000000000')
-  // th.logBN('General Safe balance       ', generalSafeBal)
-
-  // // CommunityIssuance contract
-  // const communityIssuanceBal = await protocolTokenContracts.protocolToken.balanceOf(protocolTokenContracts.communityIssuance.address)
-  // // assert.equal(communityIssuanceBal.toString(), '32000000000000000000000000')
-  // th.logBN('Community Issuance balance', communityIssuanceBal)
 
   // // --- PriceFeed ---
   // console.log("PRICEFEED CHECKS")
@@ -803,7 +675,7 @@ const inputFile = require(
   `./inputs/${hre.network.name === "localhost" ? "testnet" : hre.network.name}.js`,
 );
 
-deploy(inputFile)
+main(inputFile)
   .then(() => process.exit(0))
   .catch((error) => {
     console.error(error);

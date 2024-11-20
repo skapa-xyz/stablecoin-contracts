@@ -15,9 +15,14 @@ const externalAddrs = {
 };
 
 const walletAddrs = {
-  GENERAL_SAFE: "0x001D0E50D2ca06647446cED79392d4F3Bce17009", // TODO
-  PROTOCOL_TOKEN_SAFE: "0xe96D28Fe3E959FE7721624B56e2A4d40C3213D3d", // TODO
+  ADMIN: "0xe96D28Fe3E959FE7721624B56e2A4d40C3213D3d",
   DEPLOYER: "0xDBA767F3DFF3835BEf5dE1eDEe91A9901402AB21",
+};
+
+const allocation = {
+  ADMIN: "67000000000000000000000000",
+  UNIPOOL: "1000000000000000000000000",
+  COMMUNITY_ISSUANCE: "32000000000000000000000000",
 };
 
 const beneficiaries = {
@@ -28,11 +33,6 @@ const beneficiaries = {
   TEST_INVESTOR_E: "0x89ff871dbcd0a456fe92db98d190c38bc10d1cc1",
 };
 
-const delay = (ms) => new Promise((res) => setTimeout(res, ms));
-const waitFunction = async () => {
-  return delay(90000); // wait 90s
-};
-
 const GAS_COMPENSATION = dec(20, 18);
 const MIN_NET_DEBT = dec(180, 18);
 const ETHERSCAN_BASE_URL = undefined;
@@ -40,8 +40,8 @@ const ETHERSCAN_BASE_URL = undefined;
 module.exports = {
   externalAddrs,
   walletAddrs,
+  allocation,
   beneficiaries,
-  waitFunction,
   ETHERSCAN_BASE_URL,
   GAS_COMPENSATION,
   MIN_NET_DEBT,
