@@ -13,10 +13,15 @@ const walletAddrs = {
   DEPLOYER: "0xa850535D3628CD4dFEB528dC85cfA93051Ff2984", // Mainnet REAL deployment address
 };
 
-const allocation = {
-  ADMIN: "67000000000000000000000000",
-  UNIPOOL: "1000000000000000000000000",
-  COMMUNITY_ISSUANCE: "32000000000000000000000000",
+const allocationAmounts = {
+  ADMIN: dec(6_700_000, 18),
+  UNIPOOL: dec(100_000, 18),
+  COMMUNITY_ISSUANCE: dec(3_200_000, 18),
+};
+
+const annualAllocationSettings = {
+  RATE: dec(2, 16), // 2%
+  RECIPIENT: walletAddrs.ADMIN,
 };
 
 // Beneficiaries for lockup contracts.
@@ -64,7 +69,8 @@ const ETHERSCAN_BASE_URL = "https://etherscan.io/address";
 module.exports = {
   externalAddrs,
   walletAddrs,
-  allocation,
+  allocationAmounts,
+  annualAllocationSettings,
   beneficiaries,
   ETHERSCAN_BASE_URL,
   GAS_COMPENSATION,

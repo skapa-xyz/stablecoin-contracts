@@ -37,8 +37,10 @@ contract(
         th.MIN_NET_DEBT,
         cpContracts,
       );
-      const protocolTokenContracts =
-        await deploymentHelper.deployProtocolTokenContracts(cpContracts);
+      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
+        owner.address,
+        cpContracts,
+      );
 
       priceFeed = coreContracts.priceFeedTestnet;
       debtToken = coreContracts.debtToken;

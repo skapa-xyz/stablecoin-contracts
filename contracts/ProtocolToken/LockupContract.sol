@@ -78,9 +78,9 @@ contract LockupContract {
     function _requireUnlockTimeIsAtLeastOneYearAfterSystemDeployment(
         uint _unlockTime
     ) internal view {
-        uint systemDeploymentTime = protocolToken.getDeploymentStartTime();
+        uint tokenAllocationTime = protocolToken.getAllocationStartTime();
         require(
-            _unlockTime >= systemDeploymentTime.add(SECONDS_IN_ONE_YEAR),
+            _unlockTime >= tokenAllocationTime.add(SECONDS_IN_ONE_YEAR),
             "LockupContract: unlock time must be at least one year after system deployment"
         );
     }

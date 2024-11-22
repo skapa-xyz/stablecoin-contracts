@@ -73,7 +73,7 @@ contract("Gas compensation tests", async () => {
     contracts.troveManager = troveManagerTester;
     contracts.borrowerOperations = borrowerOperationsTester;
 
-    await deploymentHelper.deployProtocolTokenContracts(cpContracts);
+    await deploymentHelper.deployProtocolTokenContracts(owner.address, cpContracts);
 
     priceFeed = contracts.priceFeedTestnet;
     sortedTroves = contracts.sortedTroves;

@@ -230,7 +230,7 @@ contract("Fee arithmetic tests", async () => {
     );
 
     await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT, cpContracts);
-    await deploymentHelper.deployProtocolTokenContracts(cpContracts);
+    await deploymentHelper.deployProtocolTokenContracts(owner.address, cpContracts);
   });
 
   it("minutesPassedSinceLastFeeOp(): returns minutes passed for no time increase", async () => {

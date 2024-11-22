@@ -1417,9 +1417,9 @@ class TestHelper {
     return Number(days) * (60 * 60 * 24);
   }
 
-  static async getTimeFromSystemDeployment(protocolToken, web3, timePassedSinceDeployment) {
-    const deploymentTime = await protocolToken.getDeploymentStartTime();
-    return this.toBN(deploymentTime).add(this.toBN(timePassedSinceDeployment));
+  static async getTimeFromAllocation(protocolToken, timePassedSinceDeployment) {
+    const allocationTime = await protocolToken.getAllocationStartTime();
+    return this.toBN(allocationTime).add(this.toBN(timePassedSinceDeployment));
   }
 
   // --- Assert functions ---

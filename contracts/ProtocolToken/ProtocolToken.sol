@@ -76,22 +76,27 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
 
     // --- ProtocolToken specific data ---
 
-    // uint for use with SafeMath
-    uint internal constant _1_MILLION = 1e24; // 1e6 * 1e18 = 1e24
+    uint public constant _100pct = 1000000000000000000; // 1e18 == 100%
 
-    uint internal immutable deploymentStartTime;
+    uint internal allocationStartTime;
+    uint public annualAllocationRate;
+    address public annualAllocationRecipient;
+    // Status if annual allocation has been triggered for each year since deployment
+    mapping(uint => bool) public allocationTriggered;
 
     address public protocolTokenStakingAddress;
 
     // --- Functions ---
 
-    constructor() {
-        deploymentStartTime = block.timestamp;
-    }
-
-    function initialize(address _protocolTokenStakingAddress) external initializer {
+    function initialize(
+        address _protocolTokenStakingAddress,
+        address _annualAllocationRecipient,
+        uint _annualAllocationRate
+    ) external initializer {
         __Ownable_init();
         _setAddresses(_protocolTokenStakingAddress);
+        _updateAnnualAllocationRecipient(_annualAllocationRecipient);
+        _updateAnnualAllocationRate(_annualAllocationRate);
     }
 
     function _setAddresses(address _protocolTokenStakingAddress) private {
@@ -108,18 +113,6 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
         _CACHED_DOMAIN_SEPARATOR = _buildDomainSeparator(_TYPE_HASH, hashedName, hashedVersion);
     }
 
-    function allocate(address[] memory _accounts, uint256[] memory _amounts) external onlyOwner {
-        require(_totalSupply == 0, "ProtocolToken: already allocated");
-        require(
-            _accounts.length == _amounts.length,
-            "ProtocolToken: accounts and amounts length mismatch"
-        );
-
-        for (uint i = 0; i < _accounts.length; i++) {
-            _mint(_accounts[i], _amounts[i]);
-        }
-    }
-
     // --- External functions ---
 
     function totalSupply() external view override returns (uint256) {
@@ -130,8 +123,8 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
         return _balances[account];
     }
 
-    function getDeploymentStartTime() external view override returns (uint256) {
-        return deploymentStartTime;
+    function getAllocationStartTime() external view override returns (uint256) {
+        return allocationStartTime;
     }
 
     function transfer(address recipient, uint256 amount) external override returns (bool) {
@@ -211,6 +204,49 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
         return _nonces[owner];
     }
 
+    // --- ProtocolToken specific function ---
+
+    function triggerInitialAllocation(
+        address[] memory _accounts,
+        uint256[] memory _amounts
+    ) external onlyOwner {
+        require(_totalSupply == 0, "ProtocolToken: already allocated");
+        require(
+            _accounts.length == _amounts.length,
+            "ProtocolToken: accounts and amounts length mismatch"
+        );
+
+        allocationStartTime = block.timestamp;
+        allocationTriggered[0] = true;
+
+        for (uint i = 0; i < _accounts.length; i++) {
+            _mint(_accounts[i], _amounts[i]);
+        }
+    }
+
+    function triggerAnnualAllocation() external {
+        require(_totalSupply != 0, "ProtocolToken: initial allocation has not been done yet");
+
+        uint passedYears = (block.timestamp - allocationStartTime) / 365 days;
+        require(
+            !allocationTriggered[passedYears],
+            "ProtocolToken: annual allocation is not yet available"
+        );
+
+        allocationTriggered[passedYears] = true;
+        _mint(annualAllocationRecipient, _totalSupply.mul(annualAllocationRate).div(_100pct));
+    }
+
+    function updateAnnualAllocationRate(uint _annualAllocationRate) external onlyOwner {
+        _updateAnnualAllocationRate(_annualAllocationRate);
+    }
+
+    function updateAnnualAllocationRecipient(
+        address _annualAllocationRecipient
+    ) external onlyOwner {
+        _updateAnnualAllocationRecipient(_annualAllocationRecipient);
+    }
+
     // --- Internal operations ---
 
     function _chainID() private pure returns (uint256 chainID) {
@@ -270,6 +306,21 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
             msg.sender == protocolTokenStakingAddress,
             "ProtocolToken: caller must be the ProtocolTokenStaking contract"
         );
+    }
+
+    function _updateAnnualAllocationRate(uint _annualAllocationRate) internal {
+        require(
+            _annualAllocationRate <= _100pct,
+            "ProtocolToken: annual allocation rate must be less than or equal to 100%"
+        );
+
+        annualAllocationRate = _annualAllocationRate;
+        emit AnnualAllocationRateUpdated(_annualAllocationRate);
+    }
+
+    function _updateAnnualAllocationRecipient(address _annualAllocationRecipient) internal {
+        annualAllocationRecipient = _annualAllocationRecipient;
+        emit AnnualAllocationRecipientUpdated(_annualAllocationRecipient);
     }
 
     // --- Optional functions ---

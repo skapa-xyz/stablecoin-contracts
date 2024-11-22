@@ -2,13 +2,13 @@
 
 pragma solidity 0.7.6;
 
-import "./Interfaces/ITroveManager.sol";
-import "./Interfaces/IStabilityPool.sol";
 import "./Interfaces/ICollSurplusPool.sol";
 import "./Interfaces/IDebtToken.sol";
-import "./Interfaces/ISortedTroves.sol";
 import "./Interfaces/IProtocolToken.sol";
 import "./Interfaces/IProtocolTokenStaking.sol";
+import "./Interfaces/ISortedTroves.sol";
+import "./Interfaces/IStabilityPool.sol";
+import "./Interfaces/ITroveManager.sol";
 import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "./Dependencies/ProtocolBase.sol";
 import "./Dependencies/CheckContract.sol";
@@ -19,24 +19,21 @@ contract TroveManager is ProtocolBase, OwnableUpgradeable, CheckContract, ITrove
 
     string public constant NAME = "TroveManager";
 
+    uint public immutable deploymentStartTime;
+
     // --- Connected contract declarations ---
 
     address public borrowerOperationsAddress;
+    address public gasPoolAddress;
 
+    ICollSurplusPool public override collSurplusPool;
     IStabilityPool public override stabilityPool;
-
-    address gasPoolAddress;
-
-    ICollSurplusPool collSurplusPool;
-
     IDebtToken public override debtToken;
-
     IProtocolToken public override protocolToken;
-
     IProtocolTokenStaking public override protocolTokenStaking;
 
     // A doubly linked list of Troves, sorted by their sorted by their collateral ratios
-    ISortedTroves public sortedTroves;
+    ISortedTroves public override sortedTroves;
 
     // --- Data structures ---
 
@@ -197,7 +194,9 @@ contract TroveManager is ProtocolBase, OwnableUpgradeable, CheckContract, ITrove
     constructor(
         uint _gasCompensation,
         uint _minNetDebt
-    ) ProtocolBase(_gasCompensation, _minNetDebt) {}
+    ) ProtocolBase(_gasCompensation, _minNetDebt) {
+        deploymentStartTime = block.timestamp;
+    }
 
     // --- Dependency setter ---
 
@@ -1791,9 +1790,8 @@ contract TroveManager is ProtocolBase, OwnableUpgradeable, CheckContract, ITrove
     }
 
     function _requireAfterBootstrapPeriod() internal view {
-        uint systemDeploymentTime = protocolToken.getDeploymentStartTime();
         require(
-            block.timestamp >= systemDeploymentTime.add(BOOTSTRAP_PERIOD),
+            block.timestamp >= deploymentStartTime.add(BOOTSTRAP_PERIOD),
             "TroveManager: Redemptions are not allowed during bootstrap phase"
         );
     }

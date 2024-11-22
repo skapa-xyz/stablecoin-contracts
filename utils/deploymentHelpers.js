@@ -245,7 +245,7 @@ class DeploymentHelper {
     return testerContracts;
   }
 
-  static async deployProtocolTokenContracts(cpContracts) {
+  static async deployProtocolTokenContracts(annualAllocationRecipient, cpContracts) {
     const protocolTokenStakingFactory = await this.getFactory("ProtocolTokenStaking");
     const lockupContractFactoryFactory = await this.getFactory("LockupContractFactory");
     const communityIssuanceFactory = await this.getFactory("CommunityIssuance");
@@ -267,6 +267,8 @@ class DeploymentHelper {
     ]);
     const protocolToken = await this.deployProxy(protocolTokenFactory, [
       cpContracts.protocolTokenStaking,
+      annualAllocationRecipient,
+      "20000000000000000", // 2%
     ]);
 
     const protocolTokenContracts = {
@@ -278,7 +280,7 @@ class DeploymentHelper {
     return protocolTokenContracts;
   }
 
-  static async deployProtocolTokenTesterContracts(cpContracts) {
+  static async deployProtocolTokenTesterContracts(annualAllocationRecipient, cpContracts) {
     const protocolTokenStakingFactory = await this.getFactory("ProtocolTokenStaking");
     const lockupContractFactoryFactory = await this.getFactory("LockupContractFactory");
     const communityIssuanceFactory = await this.getFactory("CommunityIssuanceTester");
@@ -300,6 +302,8 @@ class DeploymentHelper {
     ]);
     const protocolToken = await this.deployProxy(protocolTokenFactory, [
       protocolTokenStaking.address,
+      annualAllocationRecipient,
+      "20000000000000000", // 2%
     ]);
 
     const protocolTokenContracts = {
@@ -561,7 +565,7 @@ class DeploymentHelper {
     const accounts = allocation.map((a) => a.address);
     const amounts = allocation.map((a) => a.amount);
 
-    await protocolTokenContracts.protocolToken.allocate(accounts, amounts);
+    await protocolTokenContracts.protocolToken.triggerInitialAllocation(accounts, amounts);
     await protocolTokenContracts.communityIssuance.updateProtocolTokenSupplyCap();
   }
 

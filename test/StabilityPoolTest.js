@@ -121,8 +121,10 @@ contract("StabilityPool", async () => {
       contracts.troveManager = troveManagerTester;
       contracts.debtToken = debtTokenTester;
 
-      const protocolTokenContracts =
-        await deploymentHelper.deployProtocolTokenContracts(cpContracts);
+      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
+        owner.address,
+        cpContracts,
+      );
 
       const allocation = [
         { address: multisig.address, amount: toBN(dec(67000000, 18)) },

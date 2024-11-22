@@ -127,8 +127,10 @@ contract("DebtToken", async () => {
 
       contracts.debtToken = debtTokenTester;
 
-      const protocolTokenContracts =
-        await deploymentHelper.deployProtocolTokenTesterContracts(cpContracts);
+      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
+        owner.address,
+        cpContracts,
+      );
 
       debtTokenOriginal = contracts.debtToken;
       if (withProxy) {

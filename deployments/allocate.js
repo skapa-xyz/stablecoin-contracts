@@ -25,9 +25,9 @@ async function main(configParams) {
   // Allocate tokens to the admin, community issuance, and unipool
   const accounts = [configParams.walletAddrs.ADMIN, unipool.address, communityIssuance.address];
   const amounts = [
-    configParams.allocation.ADMIN,
-    configParams.allocation.UNIPOOL,
-    configParams.allocation.COMMUNITY_ISSUANCE,
+    configParams.allocationAmounts.ADMIN,
+    configParams.allocationAmounts.UNIPOOL,
+    configParams.allocationAmounts.COMMUNITY_ISSUANCE,
   ];
 
   const convertFromFullAmount = (amount) =>
@@ -40,7 +40,7 @@ async function main(configParams) {
     communityIssuance: { address: accounts[2], amount: convertFromFullAmount(amounts[2]) },
   });
 
-  await mdh.sendAndWaitForTransaction(protocolToken.allocate(accounts, amounts));
+  await mdh.sendAndWaitForTransaction(protocolToken.triggerInitialAllocation(accounts, amounts));
   await mdh.sendAndWaitForTransaction(communityIssuance.updateProtocolTokenSupplyCap());
 
   let supplyStartTime = await communityIssuance.supplyStartTime();

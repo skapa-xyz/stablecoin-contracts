@@ -49,8 +49,8 @@ contract("During the initial lockup period", async () => {
   const investorInitialEntitlement_2 = dec(5, 24);
   const investorInitialEntitlement_3 = dec(6, 24);
 
-  let oneYearFromSystemDeployment;
-  let twoYearsFromSystemDeployment;
+  let oneYearFromAllocation;
+  let twoYearsFromAllocation;
 
   before(async () => {
     const signers = await ethers.getSigners();
@@ -86,7 +86,10 @@ contract("During the initial lockup period", async () => {
       transactionCount + 1,
     );
     await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT, cpContracts);
-    protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(cpContracts);
+    protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
+      deployer.address,
+      cpContracts,
+    );
 
     const allocation = [
       { address: multisig.address, amount: toBN(dec(67000000, 18)) },
@@ -102,39 +105,34 @@ contract("During the initial lockup period", async () => {
     protocolToken = protocolTokenContracts.protocolToken;
     lockupContractFactory = protocolTokenContracts.lockupContractFactory;
 
-    oneYearFromSystemDeployment = await th.getTimeFromSystemDeployment(
+    oneYearFromAllocation = await th.getTimeFromAllocation(
       protocolToken,
-      web3,
       timeValues.SECONDS_IN_ONE_YEAR,
     );
     const secondsInTwoYears = toBN(timeValues.SECONDS_IN_ONE_YEAR).mul(toBN("2"));
-    twoYearsFromSystemDeployment = await th.getTimeFromSystemDeployment(
-      protocolToken,
-      web3,
-      secondsInTwoYears,
-    );
+    twoYearsFromAllocation = await th.getTimeFromAllocation(protocolToken, secondsInTwoYears);
 
     // Deploy 3 LCs for team members on vesting schedules
     const deployedLCtx_T1 = await lockupContractFactory
       .connect(deployer)
-      .deployLockupContract(teamMember_1.address, oneYearFromSystemDeployment);
+      .deployLockupContract(teamMember_1.address, oneYearFromAllocation);
     const deployedLCtx_T2 = await lockupContractFactory
       .connect(deployer)
-      .deployLockupContract(teamMember_2.address, oneYearFromSystemDeployment);
+      .deployLockupContract(teamMember_2.address, oneYearFromAllocation);
     const deployedLCtx_T3 = await lockupContractFactory
       .connect(deployer)
-      .deployLockupContract(teamMember_3.address, oneYearFromSystemDeployment);
+      .deployLockupContract(teamMember_3.address, oneYearFromAllocation);
 
     // Deploy 3 LCs for investors
     const deployedLCtx_I1 = await lockupContractFactory
       .connect(deployer)
-      .deployLockupContract(investor_1.address, oneYearFromSystemDeployment);
+      .deployLockupContract(investor_1.address, oneYearFromAllocation);
     const deployedLCtx_I2 = await lockupContractFactory
       .connect(deployer)
-      .deployLockupContract(investor_2.address, oneYearFromSystemDeployment);
+      .deployLockupContract(investor_2.address, oneYearFromAllocation);
     const deployedLCtx_I3 = await lockupContractFactory
       .connect(deployer)
-      .deployLockupContract(investor_3.address, oneYearFromSystemDeployment);
+      .deployLockupContract(investor_3.address, oneYearFromAllocation);
 
     // LCs for team members on vesting schedules
     LC_T1 = await th.getLCFromDeploymentTx(deployedLCtx_T1);
@@ -169,13 +167,13 @@ contract("During the initial lockup period", async () => {
       // H, I, and Deployer deploy lockup contracts with A, B, C as beneficiaries, respectively
       const deployedLCtx_A = await lockupContractFactory
         .connect(H)
-        .deployLockupContract(A.address, oneYearFromSystemDeployment);
+        .deployLockupContract(A.address, oneYearFromAllocation);
       const deployedLCtx_B = await lockupContractFactory
         .connect(I)
-        .deployLockupContract(B.address, oneYearFromSystemDeployment);
+        .deployLockupContract(B.address, oneYearFromAllocation);
       const deployedLCtx_C = await lockupContractFactory
         .connect(multisig)
-        .deployLockupContract(C.address, oneYearFromSystemDeployment);
+        .deployLockupContract(C.address, oneYearFromAllocation);
 
       // Grab contract addresses from deployment tx events
       const LCAddress_A = await th.getLCAddressFromDeploymentTx(deployedLCtx_A);
@@ -209,13 +207,13 @@ contract("During the initial lockup period", async () => {
       // H, I, LiqAG deploy lockup contracts with A, B, C as beneficiaries, respectively
       const LC_A = await _lockupContractFactory
         .connect(H)
-        .deploy(protocolToken.address, A.address, oneYearFromSystemDeployment);
+        .deploy(protocolToken.address, A.address, oneYearFromAllocation);
       const LC_B = await _lockupContractFactory
         .connect(I)
-        .deploy(protocolToken.address, B.address, oneYearFromSystemDeployment);
+        .deploy(protocolToken.address, B.address, oneYearFromAllocation);
       const LC_C = await _lockupContractFactory
         .connect(multisig)
-        .deploy(protocolToken.address, C.address, oneYearFromSystemDeployment);
+        .deploy(protocolToken.address, C.address, oneYearFromAllocation);
 
       // Check balances of LCs are 0
       assert.equal(await protocolToken.balanceOf(LC_A.address), "0");
@@ -325,7 +323,7 @@ contract("During the initial lockup period", async () => {
       const registeredProtocolTokenAddr = await lcfNew.protocolTokenAddress();
       assert.equal(registeredProtocolTokenAddr, dumbContract.address);
 
-      const tx = lcfNew.connect(F).deployLockupContract(A.address, oneYearFromSystemDeployment);
+      const tx = lcfNew.connect(F).deployLockupContract(A.address, oneYearFromAllocation);
       await assertRevert(tx);
     });
   });
@@ -401,13 +399,13 @@ contract("During the initial lockup period", async () => {
       // A, B, C each deploy a lockup contract with themself as beneficiary
       const deployedLCtx_A = await lockupContractFactory
         .connect(A)
-        .deployLockupContract(A.address, twoYearsFromSystemDeployment);
+        .deployLockupContract(A.address, twoYearsFromAllocation);
       const deployedLCtx_B = await lockupContractFactory
         .connect(B)
-        .deployLockupContract(B.address, twoYearsFromSystemDeployment);
+        .deployLockupContract(B.address, twoYearsFromAllocation);
       const deployedLCtx_C = await lockupContractFactory
         .connect(C)
-        .deployLockupContract(C.address, twoYearsFromSystemDeployment);
+        .deployLockupContract(C.address, twoYearsFromAllocation);
 
       // LCs for team members on vesting schedules
       const LC_A = await th.getLCFromDeploymentTx(deployedLCtx_A);
@@ -439,10 +437,10 @@ contract("During the initial lockup period", async () => {
       // ProtocolToken deployer deploys LCs
       const lcDeploymentTx_A = await lockupContractFactory
         .connect(deployer)
-        .deployLockupContract(A.address, oneYearFromSystemDeployment);
+        .deployLockupContract(A.address, oneYearFromAllocation);
       const lcDeploymentTx_B = await lockupContractFactory
         .connect(deployer)
-        .deployLockupContract(B.address, twoYearsFromSystemDeployment);
+        .deployLockupContract(B.address, twoYearsFromAllocation);
       const lcDeploymentTx_C = await lockupContractFactory
         .connect(deployer)
         .deployLockupContract(C.address, "9595995999999900000023423234");
@@ -460,10 +458,10 @@ contract("During the initial lockup period", async () => {
       // ProtocolToken deployer deploys LCs
       const lcDeploymentTx_A = await lockupContractFactory
         .connect(multisig)
-        .deployLockupContract(A.address, oneYearFromSystemDeployment);
+        .deployLockupContract(A.address, oneYearFromAllocation);
       const lcDeploymentTx_B = await lockupContractFactory
         .connect(multisig)
-        .deployLockupContract(B.address, twoYearsFromSystemDeployment);
+        .deployLockupContract(B.address, twoYearsFromAllocation);
       const lcDeploymentTx_C = await lockupContractFactory
         .connect(multisig)
         .deployLockupContract(C.address, "9595995999999900000023423234");
@@ -481,16 +479,16 @@ contract("During the initial lockup period", async () => {
       // Various EOAs deploy LCs
       const lcDeploymentTx_1 = await lockupContractFactory
         .connect(teamMember_1)
-        .deployLockupContract(A.address, oneYearFromSystemDeployment);
+        .deployLockupContract(A.address, oneYearFromAllocation);
       const lcDeploymentTx_2 = await lockupContractFactory
         .connect(investor_2)
-        .deployLockupContract(C.address, twoYearsFromSystemDeployment);
+        .deployLockupContract(C.address, twoYearsFromAllocation);
       const lcDeploymentTx_3 = await lockupContractFactory
         .connect(A)
         .deployLockupContract(deployer.address, "9595995999999900000023423234");
       const lcDeploymentTx_4 = await lockupContractFactory
         .connect(B)
-        .deployLockupContract(D.address, twoYearsFromSystemDeployment);
+        .deployLockupContract(D.address, twoYearsFromAllocation);
 
       const receipt_1 = await lcDeploymentTx_1.wait();
       const receipt_2 = await lcDeploymentTx_2.wait();
@@ -509,13 +507,13 @@ contract("During the initial lockup period", async () => {
 
       const lcTx_A = await _lockupContractFactory
         .connect(deployer)
-        .deploy(protocolToken.address, A.address, oneYearFromSystemDeployment);
+        .deploy(protocolToken.address, A.address, oneYearFromAllocation);
       const lcTx_B = await _lockupContractFactory
         .connect(deployer)
-        .deploy(protocolToken.address, B.address, twoYearsFromSystemDeployment);
+        .deploy(protocolToken.address, B.address, twoYearsFromAllocation);
       const lcTx_C = await _lockupContractFactory
         .connect(deployer)
-        .deploy(protocolToken.address, C.address, twoYearsFromSystemDeployment);
+        .deploy(protocolToken.address, C.address, twoYearsFromAllocation);
 
       const receipt_A = await lcTx_A.deployTransaction.wait();
       const receipt_B = await lcTx_B.deployTransaction.wait();
@@ -533,13 +531,13 @@ contract("During the initial lockup period", async () => {
 
       const lcTx_A = await _lockupContractFactory
         .connect(multisig)
-        .deploy(protocolToken.address, A.address, oneYearFromSystemDeployment);
+        .deploy(protocolToken.address, A.address, oneYearFromAllocation);
       const lcTx_B = await _lockupContractFactory
         .connect(multisig)
-        .deploy(protocolToken.address, B.address, twoYearsFromSystemDeployment);
+        .deploy(protocolToken.address, B.address, twoYearsFromAllocation);
       const lcTx_C = await _lockupContractFactory
         .connect(multisig)
-        .deploy(protocolToken.address, C.address, twoYearsFromSystemDeployment);
+        .deploy(protocolToken.address, C.address, twoYearsFromAllocation);
 
       const receipt_A = await lcTx_A.deployTransaction.wait();
       const receipt_B = await lcTx_B.deployTransaction.wait();
@@ -557,13 +555,13 @@ contract("During the initial lockup period", async () => {
 
       const lcTx_A = await _lockupContractFactory
         .connect(D)
-        .deploy(protocolToken.address, A.address, oneYearFromSystemDeployment);
+        .deploy(protocolToken.address, A.address, oneYearFromAllocation);
       const lcTx_B = await _lockupContractFactory
         .connect(E)
-        .deploy(protocolToken.address, B.address, twoYearsFromSystemDeployment);
+        .deploy(protocolToken.address, B.address, twoYearsFromAllocation);
       const lcTx_C = await _lockupContractFactory
         .connect(F)
-        .deploy(protocolToken.address, C.address, twoYearsFromSystemDeployment);
+        .deploy(protocolToken.address, C.address, twoYearsFromAllocation);
 
       const receipt_A = await lcTx_A.deployTransaction.wait();
       const receipt_B = await lcTx_B.deployTransaction.wait();
@@ -581,24 +579,24 @@ contract("During the initial lockup period", async () => {
 
       const lcTx_1 = await _lockupContractFactory
         .connect(D)
-        .deploy(protocolToken.address, A.address, oneYearFromSystemDeployment);
+        .deploy(protocolToken.address, A.address, oneYearFromAllocation);
       const lcTx_2 = await _lockupContractFactory
         .connect(deployer)
-        .deploy(protocolToken.address, B.address, oneYearFromSystemDeployment);
+        .deploy(protocolToken.address, B.address, oneYearFromAllocation);
       const lcTx_3 = await _lockupContractFactory
         .connect(multisig)
-        .deploy(protocolToken.address, C.address, oneYearFromSystemDeployment);
+        .deploy(protocolToken.address, C.address, oneYearFromAllocation);
 
       // Deploy through factory
       const lcTx_4 = await lockupContractFactory
         .connect(E)
-        .deployLockupContract(A.address, oneYearFromSystemDeployment);
+        .deployLockupContract(A.address, oneYearFromAllocation);
       const lcTx_5 = await lockupContractFactory
         .connect(deployer)
-        .deployLockupContract(C.address, twoYearsFromSystemDeployment);
+        .deployLockupContract(C.address, twoYearsFromAllocation);
       const lcTx_6 = await lockupContractFactory
         .connect(multisig)
-        .deployLockupContract(D.address, twoYearsFromSystemDeployment);
+        .deployLockupContract(D.address, twoYearsFromAllocation);
 
       const receipt_1 = await lcTx_1.deployTransaction.wait();
       const receipt_2 = await lcTx_2.deployTransaction.wait();
@@ -617,8 +615,8 @@ contract("During the initial lockup period", async () => {
     });
 
     it("Anyone can deploy LCs with unlockTime > one year from deployment, directly and through factory", async () => {
-      const justOverOneYear = oneYearFromSystemDeployment.add(toBN("1"));
-      const _17YearsFromDeployment = oneYearFromSystemDeployment.add(
+      const justOverOneYear = oneYearFromAllocation.add(toBN("1"));
+      const _17YearsFromDeployment = oneYearFromAllocation.add(
         toBN(timeValues.SECONDS_IN_ONE_YEAR).mul(toBN("2")),
       );
 
@@ -627,7 +625,7 @@ contract("During the initial lockup period", async () => {
 
       const lcTx_1 = await _lockupContractFactory
         .connect(D)
-        .deploy(protocolToken.address, A.address, twoYearsFromSystemDeployment);
+        .deploy(protocolToken.address, A.address, twoYearsFromAllocation);
       const lcTx_2 = await _lockupContractFactory
         .connect(multisig)
         .deploy(protocolToken.address, B.address, justOverOneYear);
@@ -638,13 +636,13 @@ contract("During the initial lockup period", async () => {
       // Deploy through factory
       const lcTx_4 = await lockupContractFactory
         .connect(E)
-        .deployLockupContract(A.address, oneYearFromSystemDeployment);
+        .deployLockupContract(A.address, oneYearFromAllocation);
       const lcTx_5 = await lockupContractFactory
         .connect(multisig)
-        .deployLockupContract(C.address, twoYearsFromSystemDeployment);
+        .deployLockupContract(C.address, twoYearsFromAllocation);
       const lcTx_6 = await lockupContractFactory
         .connect(teamMember_2)
-        .deployLockupContract(D.address, twoYearsFromSystemDeployment);
+        .deployLockupContract(D.address, twoYearsFromAllocation);
 
       const receipt_1 = await lcTx_1.deployTransaction.wait();
       const receipt_2 = await lcTx_2.deployTransaction.wait();
@@ -663,7 +661,7 @@ contract("During the initial lockup period", async () => {
     });
 
     it("No one can deploy LCs with unlockTime < one year from deployment, directly or through factory", async () => {
-      const justUnderOneYear = oneYearFromSystemDeployment.sub(toBN("1"));
+      const justUnderOneYear = oneYearFromAllocation.sub(toBN("1"));
 
       // Attempt to deploy directly
       const _lockupContractFactory = await ethers.getContractFactory("LockupContract");
@@ -736,7 +734,7 @@ contract("During the initial lockup period", async () => {
         // Account D deploys a new LC via the Factory
         const deployedLCtx_B = await lockupContractFactory
           .connect(D)
-          .deployLockupContract(B.address, oneYearFromSystemDeployment);
+          .deployLockupContract(B.address, oneYearFromAllocation);
         const LC_B = await th.getLCFromDeploymentTx(deployedLCtx_B);
 
         //ProtocolToken multisig fund the newly deployed LCs
@@ -761,7 +759,7 @@ contract("During the initial lockup period", async () => {
         // Account D deploys a new LC via the Factory
         const deployedLCtx_B = await lockupContractFactory
           .connect(D)
-          .deployLockupContract(B.address, oneYearFromSystemDeployment);
+          .deployLockupContract(B.address, oneYearFromAllocation);
         const LC_B = await th.getLCFromDeploymentTx(deployedLCtx_B);
 
         // Multisig funds contracts
@@ -793,7 +791,7 @@ contract("During the initial lockup period", async () => {
         // Account D deploys a new LC via the Factory
         const deployedLCtx_B = await lockupContractFactory
           .connect(D)
-          .deployLockupContract(B.address, oneYearFromSystemDeployment);
+          .deployLockupContract(B.address, oneYearFromAllocation);
         const LC_B = await th.getLCFromDeploymentTx(deployedLCtx_B);
 
         // Multisig funds contract

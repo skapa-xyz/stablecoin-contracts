@@ -78,7 +78,7 @@ contract("SortedTroves", async () => {
 
       contracts.troveManager = troveManagerTester;
 
-      await deploymentHelper.deployProtocolTokenContracts(cpContracts);
+      await deploymentHelper.deployProtocolTokenContracts(owner.address, cpContracts);
 
       priceFeed = contracts.priceFeedTestnet;
       sortedTroves = contracts.sortedTroves;

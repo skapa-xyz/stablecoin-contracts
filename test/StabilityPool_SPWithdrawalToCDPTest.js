@@ -98,7 +98,7 @@ contract("StabilityPool - Withdrawal of stability deposit - Reward calculations"
 
       contracts.troveManager = troveManagerTester;
 
-      await deploymentHelper.deployProtocolTokenContracts(cpContracts);
+      await deploymentHelper.deployProtocolTokenContracts(owner.address, cpContracts);
 
       priceFeed = contracts.priceFeedTestnet;
       debtToken = contracts.debtToken;

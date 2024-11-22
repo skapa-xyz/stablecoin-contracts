@@ -61,7 +61,10 @@ contract("StabilityPool - ProtocolToken supply cap update tests", async () => {
       cpContracts,
     );
 
-    protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(cpContracts);
+    protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
+      owner.address,
+      cpContracts,
+    );
 
     contracts.troveManager = troveManagerTester;
 

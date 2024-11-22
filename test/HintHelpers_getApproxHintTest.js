@@ -117,7 +117,7 @@ contract("HintHelpers", async () => {
     contracts.troveManager = troveManagerTester;
     contracts.debtToken = debtTokenTester;
 
-    await deploymentHelper.deployProtocolTokenContracts(cpContracts);
+    await deploymentHelper.deployProtocolTokenContracts(owner.address, cpContracts);
 
     sortedTroves = contracts.sortedTroves;
     troveManager = contracts.troveManager;

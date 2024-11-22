@@ -68,8 +68,10 @@ contract("BorrowerWrappers", async () => {
       th.MIN_NET_DEBT,
       cpContracts,
     );
-    const protocolTokenContracts =
-      await deploymentHelper.deployProtocolTokenTesterContracts(cpContracts);
+    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
+      owner.address,
+      cpContracts,
+    );
 
     const allocation = [
       { address: multisig.address, amount: toBN(dec(67000000, 18)) },

@@ -19,10 +19,15 @@ const walletAddrs = {
   DEPLOYER: "0xDBA767F3DFF3835BEf5dE1eDEe91A9901402AB21",
 };
 
-const allocation = {
-  ADMIN: "67000000000000000000000000",
-  UNIPOOL: "1000000000000000000000000",
-  COMMUNITY_ISSUANCE: "32000000000000000000000000",
+const allocationAmounts = {
+  ADMIN: dec(6_700_000, 18),
+  UNIPOOL: dec(100_000, 18),
+  COMMUNITY_ISSUANCE: dec(3_200_000, 18),
+};
+
+const annualAllocationSettings = {
+  RATE: dec(2, 16), // 2%
+  RECIPIENT: walletAddrs.ADMIN,
 };
 
 const beneficiaries = {
@@ -40,7 +45,8 @@ const ETHERSCAN_BASE_URL = undefined;
 module.exports = {
   externalAddrs,
   walletAddrs,
-  allocation,
+  allocationAmounts,
+  annualAllocationSettings,
   beneficiaries,
   ETHERSCAN_BASE_URL,
   GAS_COMPENSATION,

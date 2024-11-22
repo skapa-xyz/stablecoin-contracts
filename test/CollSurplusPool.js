@@ -56,7 +56,7 @@ contract("CollSurplusPool", async () => {
     contracts.troveManager = troveManagerTester;
     contracts.debtToken = debtTokenTester;
 
-    await deploymentHelper.deployProtocolTokenContracts(cpContracts);
+    await deploymentHelper.deployProtocolTokenContracts(owner.address, cpContracts);
 
     priceFeed = contracts.priceFeedTestnet;
     collSurplusPool = contracts.collSurplusPool;

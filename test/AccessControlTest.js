@@ -68,8 +68,10 @@ contract(
         cpContracts,
       );
 
-      const protocolTokenContracts =
-        await deploymentHelper.deployProtocolTokenTesterContracts(cpContracts);
+      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
+        owner.address,
+        cpContracts,
+      );
 
       const allocation = [
         { address: multisig.address, amount: toBN(dec(67000000, 18)) },
@@ -475,7 +477,7 @@ contract(
     describe("LockupContract", async () => {
       it("withdrawProtocolToken(): reverts when caller is not beneficiary", async () => {
         // deploy new LC with Carol as beneficiary
-        const unlockTime = (await protocolToken.getDeploymentStartTime()).add(
+        const unlockTime = (await protocolToken.getAllocationStartTime()).add(
           toBN(timeValues.SECONDS_IN_ONE_YEAR),
         );
         const deployedLCtx = await lockupContractFactory

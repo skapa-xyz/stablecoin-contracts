@@ -51,7 +51,7 @@ contract("TroveManager - in Recovery Mode - back to normal mode in 1 tx", async 
     contracts.troveManager = troveManagerTester;
     contracts.debtToken = debtTokenTester;
 
-    await deploymentHelper.deployProtocolTokenContracts(cpContracts);
+    await deploymentHelper.deployProtocolTokenContracts(owner.address, cpContracts);
 
     troveManager = contracts.troveManager;
     stabilityPool = contracts.stabilityPool;

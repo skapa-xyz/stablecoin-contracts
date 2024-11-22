@@ -35,7 +35,10 @@ contract("All functions with onlyOwner modifier", async () => {
       cpContracts,
     );
 
-    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(cpContracts);
+    const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
+      owner.address,
+      cpContracts,
+    );
 
     debtToken = contracts.debtToken;
     sortedTroves = contracts.sortedTroves;

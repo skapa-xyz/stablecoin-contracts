@@ -2,11 +2,13 @@
 
 pragma solidity 0.7.6;
 
-import "./IProtocolBase.sol";
-import "./IStabilityPool.sol";
+import "./ICollSurplusPool.sol";
 import "./IDebtToken.sol";
+import "./IProtocolBase.sol";
 import "./IProtocolToken.sol";
 import "./IProtocolTokenStaking.sol";
+import "./ISortedTroves.sol";
+import "./IStabilityPool.sol";
 
 // Common interface for the Trove Manager.
 interface ITroveManager is IProtocolBase {
@@ -74,10 +76,12 @@ interface ITroveManager is IProtocolBase {
 
     // --- Functions ---
 
+    function collSurplusPool() external view returns (ICollSurplusPool);
     function stabilityPool() external view returns (IStabilityPool);
     function debtToken() external view returns (IDebtToken);
     function protocolToken() external view returns (IProtocolToken);
     function protocolTokenStaking() external view returns (IProtocolTokenStaking);
+    function sortedTroves() external view returns (ISortedTroves);
 
     function getTroveOwnersCount() external view returns (uint);
 

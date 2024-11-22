@@ -54,6 +54,8 @@ contract("Unipool", function () {
     const dumbContract = await nonPayableFactory.deploy();
     that.protocolToken = await deploymentHelper.deployProxy(protocolTokenFactory, [
       dumbContract.address,
+      owner.address,
+      "0",
     ]);
     const communityIssuance = await deploymentHelper.deployProxy(communityIssuanceFactory, [
       that.protocolToken.address,

@@ -328,7 +328,11 @@ class HardhatDeploymentHelper {
       protocolTokenFactory,
       "protocolToken",
       deploymentState,
-      [cpContracts.protocolTokenStaking],
+      [
+        cpContracts.protocolTokenStaking,
+        this.configParams.annualAllocationSettings.RECIPIENT,
+        this.configParams.annualAllocationSettings.RATE,
+      ],
     );
 
     if (!this.configParams.ETHERSCAN_BASE_URL) {

@@ -39,7 +39,10 @@ contract(
         transactionCount + 1,
       );
       await deploymentHelper.deployProtocolCore(th.GAS_COMPENSATION, th.MIN_NET_DEBT, cpContracts);
-      protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(cpContracts);
+      protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
+        deployer.address,
+        cpContracts,
+      );
 
       const allocation = [
         { address: multisig.address, amount: toBN(dec(67000000, 18)) },

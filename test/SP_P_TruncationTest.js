@@ -61,7 +61,7 @@ contract("StabilityPool Scale Factor issue tests", async () => {
         cpContracts,
       );
 
-      await deploymentHelper.deployProtocolTokenTesterContracts(cpContracts);
+      await deploymentHelper.deployProtocolTokenTesterContracts(owner.address, cpContracts);
 
       contracts.troveManager = troveManagerTester;
       contracts.debtToken = debtTokenTester;
