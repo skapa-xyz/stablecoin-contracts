@@ -9,6 +9,7 @@ $ npx hardhat run --network localhost deployments/deploy.js
 
 # testnet
 $ npx hardhat run --network testnet deployments/deploy.js
+$ npx hardhat run --network testnet deployments/deploy-mock-price-feed.js
 
 # mainnet
 $ npx hardhat run --network mainnet deployments/deploy.js

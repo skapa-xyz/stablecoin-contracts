@@ -7,7 +7,7 @@ import "../Dependencies/console.sol";
 
 contract MockAggregator is AggregatorV3Interface {
     // storage variables to hold the mock data
-    uint8 private decimalsVal = 8;
+    uint8 private decimalsVal = 18;
     int private price;
     int private prevPrice;
     uint private updateTime;
@@ -88,7 +88,7 @@ contract MockAggregator is AggregatorV3Interface {
             require(1 == 0, "latestRoundData reverted");
         }
 
-        return (latestRoundId, price, 0, updateTime, 0);
+        return (latestRoundId, price, 0, updateTime == 0 ? block.timestamp : updateTime, 0);
     }
 
     function getRoundData(
@@ -109,7 +109,7 @@ contract MockAggregator is AggregatorV3Interface {
             require(1 == 0, "getRoundData reverted");
         }
 
-        return (prevRoundId, prevPrice, 0, updateTime, 0);
+        return (prevRoundId, prevPrice, 0, updateTime == 0 ? block.timestamp : updateTime, 0);
     }
 
     function description() external pure override returns (string memory) {

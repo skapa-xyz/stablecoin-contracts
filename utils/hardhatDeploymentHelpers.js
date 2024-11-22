@@ -57,7 +57,7 @@ class HardhatDeploymentHelper {
 
     deploymentState[name] = {
       address: contract.address,
-      txHash: contract.deployTransaction.hash,
+      txHashes: [contract.deployTransaction.hash],
     };
 
     this.saveDeployment(deploymentState);
@@ -95,7 +95,7 @@ class HardhatDeploymentHelper {
 
     deploymentState[name] = {
       address: contract.address,
-      txHash: contract.deployTransaction.hash,
+      txHashes: [contract.deployTransaction.hash],
     };
 
     this.saveDeployment(deploymentState);
@@ -103,10 +103,55 @@ class HardhatDeploymentHelper {
     return contract;
   }
 
-  async deployProtocolCoreMainnet(deploymentState, cpContracts) {
-    const tellorMasterAddr = this.configParams.externalAddrs.TELLOR_MASTER;
+  async upgradeProxy(factory, name, deploymentState, constructorArgs = []) {
+    if (!deploymentState[name] || !deploymentState[name].address) {
+      throw new Error(`No deployment state for contract ${name}!!`);
+    }
+
+    console.log(`Upgrading ${name} contract...`);
+
+    const contract = await this.hre.upgrades.upgradeProxy(deploymentState[name].address, factory, {
+      unsafeAllow: ["constructor", "state-variable-immutable"],
+      constructorArgs: constructorArgs,
+      timeout: 3000000,
+    });
+    await contract.deployTransaction.wait();
+
+    deploymentState[name] = {
+      address: contract.address,
+      txHashes: [...deploymentState[name].txHashes, contract.deployTransaction.hash],
+    };
+
+    this.saveDeployment(deploymentState);
+
+    return contract;
+  }
+
+  async deployOracleWrappers(deploymentState) {
     const pythPriceFeedAddr = this.configParams.externalAddrs.PYTH_PRICE_FEED;
     const pythPriceId = this.configParams.externalAddrs.PYTH_PRICE_ID;
+    const tellorMasterAddr = this.configParams.externalAddrs.TELLOR_MASTER;
+
+    const pythCallerFactory = await this.getFactory("PythCaller");
+    const tellorCallerFactory = await this.getFactory("TellorCaller");
+
+    const pythCaller = await this.loadOrDeploy(pythCallerFactory, "pythCaller", deploymentState, [
+      pythPriceFeedAddr,
+      pythPriceId,
+      "FIL / USD",
+    ]);
+
+    const tellorCaller = await this.loadOrDeploy(
+      tellorCallerFactory,
+      "tellorCaller",
+      deploymentState,
+      [tellorMasterAddr],
+    );
+
+    return { pythCaller, tellorCaller };
+  }
+
+  async deployProtocolCore(pythCallerAddr, tellorCallerAddr, deploymentState, cpContracts) {
     const constructorBaseArgs = [
       this.configParams.GAS_COMPENSATION,
       this.configParams.MIN_NET_DEBT,
@@ -123,27 +168,12 @@ class HardhatDeploymentHelper {
     const collSurplusPoolFactory = await this.getFactory("CollSurplusPool");
     const borrowerOperationsFactory = await this.getFactory("BorrowerOperations");
     const hintHelpersFactory = await this.getFactory("HintHelpers");
-    const tellorCallerFactory = await this.getFactory("TellorCaller");
-    const pythCallerFactory = await this.getFactory("PythCaller");
     const debtTokenFactory = await this.getFactory("DebtToken");
 
     // Deploy txs
-    const tellorCaller = await this.loadOrDeploy(
-      tellorCallerFactory,
-      "tellorCaller",
-      deploymentState,
-      [tellorMasterAddr],
-    );
-
-    const pythCaller = await this.loadOrDeploy(pythCallerFactory, "pythCaller", deploymentState, [
-      pythPriceFeedAddr,
-      pythPriceId,
-      "FIL / USD",
-    ]);
-
     const priceFeed = await this.loadOrDeployProxy(priceFeedFactory, "priceFeed", deploymentState, [
-      cpContracts.pythCaller,
-      cpContracts.tellorCaller,
+      pythCallerAddr,
+      tellorCallerAddr,
     ]);
 
     const sortedTroves = await this.loadOrDeployProxy(
@@ -273,8 +303,6 @@ class HardhatDeploymentHelper {
     }
 
     const coreContracts = {
-      tellorCaller,
-      pythCaller,
       priceFeed,
       sortedTroves,
       troveManager,
@@ -290,7 +318,7 @@ class HardhatDeploymentHelper {
     return coreContracts;
   }
 
-  async deployProtocolTokenContractsMainnet(deploymentState, cpContracts) {
+  async deployProtocolTokenContracts(deploymentState, cpContracts) {
     const protocolTokenStakingFactory = await this.getFactory("ProtocolTokenStaking");
     const lockupContractFactory_Factory = await this.getFactory("LockupContractFactory");
     const communityIssuanceFactory = await this.getFactory("CommunityIssuance");
@@ -353,7 +381,7 @@ class HardhatDeploymentHelper {
     return protocolTokenContracts;
   }
 
-  async deployUnipoolMainnet(deploymentState) {
+  async deployUnipool(deploymentState) {
     const unipoolFactory = await this.getFactory("Unipool");
     const unipool = await this.loadOrDeployProxy(unipoolFactory, "unipool", deploymentState);
 
@@ -366,7 +394,7 @@ class HardhatDeploymentHelper {
     return unipool;
   }
 
-  async deployMultiTroveGetterMainnet(deploymentState, cpContracts) {
+  async deployMultiTroveGetter(deploymentState, cpContracts) {
     const multiTroveGetterFactory = await this.getFactory("MultiTroveGetter");
     const multiTroveGetterParams = [cpContracts.troveManager, cpContracts.sortedTroves];
     const multiTroveGetter = await this.loadOrDeploy(
@@ -392,7 +420,7 @@ class HardhatDeploymentHelper {
   }
 
   // Connect contracts to their dependencies
-  async connectUnipoolMainnet(uniPool, protocolTokenContracts, DebtTokenWFILPairAddr, duration) {
+  async connectUnipool(uniPool, protocolTokenContracts, DebtTokenWFILPairAddr, duration) {
     (await this.isOwnershipRenounced(uniPool)) ||
       (await this.sendAndWaitForTransaction(
         uniPool.setParams(

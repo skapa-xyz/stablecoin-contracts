@@ -25,11 +25,12 @@ async function main(configParams) {
   deployerFILBalance = await ethers.provider.getBalance(deployerWallet.address);
   console.log(`deployer's FIL balance before deployments: ${deployerFILBalance}`);
 
+  const oracleWrapperContracts = await mdh.deployOracleWrappers(deploymentState);
+  await mdh.logContractObjects(oracleWrapperContracts);
+
   // Computed contracts address
   // Note: This contract list order is the same as the order in which the contracts are deployed.
   // This is necessary for the deployment helper to compute the correct addresses.
-  const contractList = ["tellorCaller", "pythCaller"];
-
   const proxyContractList = [
     "priceFeed",
     "sortedTroves",
@@ -49,44 +50,42 @@ async function main(configParams) {
     "protocolToken",
   ];
 
-  const addressList = await mdh.computeContractAddresses(
-    contractList.length + proxyContractList.length * 2,
-  );
+  const addressList = await mdh.computeContractAddresses(proxyContractList.length * 2 + 1);
+  addressList.shift(); // skip first contract
 
-  const cpContracts = {
-    ...contractList.reduce((acc, contract) => {
-      acc[contract] = deploymentState[contract]?.address || addressList.shift();
-      return acc;
-    }, {}),
-    ...proxyContractList.reduce((acc, contract) => {
-      if (deploymentState[contract]) {
-        acc[contract] = deploymentState[contract].address;
-      } else {
-        addressList.shift(); // skip implementation contract
-        acc[contract] = addressList.shift();
-      }
-      return acc;
-    }, {}),
-  };
+  const cpContracts = proxyContractList.reduce((acc, contract) => {
+    if (deploymentState[contract]) {
+      acc[contract] = deploymentState[contract].address;
+    } else {
+      addressList.shift(); // skip implementation contract
+      acc[contract] = addressList.shift();
+    }
+    return acc;
+  }, {});
 
   // Deploy core logic contracts
-  const coreContracts = await mdh.deployProtocolCoreMainnet(deploymentState, cpContracts);
+  const coreContracts = await mdh.deployProtocolCore(
+    oracleWrapperContracts.pythCaller.address,
+    oracleWrapperContracts.tellorCaller.address,
+    deploymentState,
+    cpContracts,
+  );
   await mdh.checkContractAddresses(coreContracts, cpContracts);
   await mdh.logContractObjects(coreContracts);
 
   // Deploy Unipool
-  const unipool = await mdh.deployUnipoolMainnet(deploymentState, cpContracts);
+  const unipool = await mdh.deployUnipool(deploymentState, cpContracts);
   await mdh.checkContractAddresses({ unipool }, cpContracts);
 
   // Deploy ProtocolToken Contracts
-  const protocolTokenContracts = await mdh.deployProtocolTokenContractsMainnet(
+  const protocolTokenContracts = await mdh.deployProtocolTokenContracts(
     deploymentState,
     cpContracts,
   );
   await mdh.checkContractAddresses(protocolTokenContracts, cpContracts);
 
   // Deploy a read-only multi-trove getter
-  await mdh.deployMultiTroveGetterMainnet(deploymentState, cpContracts);
+  await mdh.deployMultiTroveGetter(deploymentState, cpContracts);
 
   // Get UniswapV2Factory instance at its deployed address
   const uniswapExits = !!configParams.externalAddrs.UNISWAP_V2_FACTORY;
@@ -168,7 +167,7 @@ async function main(configParams) {
 
     // Connect Unipool to ProtocolToken and the DebtToken-WFIL pair address, with a 6 week duration
     const LPRewardsDuration = timeVals.SECONDS_IN_SIX_WEEKS;
-    await mdh.connectUnipoolMainnet(
+    await mdh.connectUnipool(
       unipool,
       protocolTokenContracts,
       DebtTokenWFILPairAddr,
@@ -195,12 +194,12 @@ async function main(configParams) {
   // Check oracle proxy prices ---
 
   // Get latest price
-  let pythPriceResponse = await coreContracts.pythCaller.latestRoundData();
+  let pythPriceResponse = await oracleWrapperContracts.pythCaller.latestRoundData();
   console.log(`current Pyth price: ${pythPriceResponse[1]}`);
   console.log(`current Pyth timestamp: ${pythPriceResponse[3]}`);
 
   // Check Tellor price directly (through our TellorCaller)
-  let tellorPriceResponse = await coreContracts.tellorCaller.getTellorCurrentValue(); // id == 1: the FIL-USD request ID
+  let tellorPriceResponse = await oracleWrapperContracts.tellorCaller.getTellorCurrentValue(); // id == 1: the FIL-USD request ID
   console.log(`current Tellor price: ${tellorPriceResponse[1]}`);
   console.log(`current Tellor timestamp: ${tellorPriceResponse[2]}`);
 
@@ -216,10 +215,10 @@ async function main(configParams) {
   // const priceFeedCLAddress = await coreContracts.priceFeed.priceAggregator()
   // const priceFeedTellorCallerAddress = await coreContracts.priceFeed.tellorCaller()
   // assert.equal(priceFeedCLAddress, configParams.externalAddrs.CHAINLINK_FILUSD_PROXY)
-  // assert.equal(priceFeedTellorCallerAddress, coreContracts.tellorCaller.address)
+  // assert.equal(priceFeedTellorCallerAddress, oracleWrapperContracts.tellorCaller.address)
 
   // // Check Tellor address
-  // const tellorCallerTellorMasterAddress = await coreContracts.tellorCaller.tellor()
+  // const tellorCallerTellorMasterAddress = await oracleWrapperContracts.tellorCaller.tellor()
   // assert.equal(tellorCallerTellorMasterAddress, configParams.externalAddrs.TELLOR_MASTER)
 
   // // --- Unipool ---
