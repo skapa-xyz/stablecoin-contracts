@@ -200,7 +200,7 @@ class HardhatDeploymentHelper {
         cpContracts.protocolToken,
         cpContracts.protocolTokenStaking,
       ],
-      constructorBaseArgs,
+      [...constructorBaseArgs, this.configParams.BOOTSTRAP_PERIOD],
     );
 
     const activePool = await this.loadOrDeployProxy(

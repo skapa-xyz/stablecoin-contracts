@@ -10,8 +10,9 @@ for testing the parent's internal functions. */
 contract TroveManagerTester is TroveManager {
     constructor(
         uint _gasCompensation,
-        uint _minNetDebt
-    ) TroveManager(_gasCompensation, _minNetDebt) {}
+        uint _minNetDebt,
+        uint _bootstrapPeriod
+    ) TroveManager(_gasCompensation, _minNetDebt, _bootstrapPeriod) {}
 
     function computeICR(uint _coll, uint _debt, uint _price) external pure returns (uint) {
         return ProtocolMath._computeCR(_coll, _debt, _price);

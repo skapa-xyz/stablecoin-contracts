@@ -40,6 +40,7 @@ const beneficiaries = {
 
 const GAS_COMPENSATION = dec(20, 18);
 const MIN_NET_DEBT = dec(180, 18);
+const BOOTSTRAP_PERIOD = 1 * 24 * 60 * 60; // 1 day
 const ETHERSCAN_BASE_URL = undefined;
 
 module.exports = {
@@ -51,4 +52,5 @@ module.exports = {
   ETHERSCAN_BASE_URL,
   GAS_COMPENSATION,
   MIN_NET_DEBT,
+  BOOTSTRAP_PERIOD,
 };

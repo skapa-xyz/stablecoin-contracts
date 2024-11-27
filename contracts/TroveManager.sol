@@ -47,7 +47,7 @@ contract TroveManager is ProtocolBase, OwnableUpgradeable, CheckContract, ITrove
     uint public constant MAX_BORROWING_FEE = (DECIMAL_PRECISION / 100) * 5; // 5%
 
     // During bootsrap period redemptions are not allowed
-    uint public constant BOOTSTRAP_PERIOD = 14 days;
+    uint public immutable BOOTSTRAP_PERIOD;
 
     /*
      * BETA: 18 digit decimal. Parameter by which to divide the redeemed fraction, in order to calc the new base rate from a redemption.
@@ -193,8 +193,10 @@ contract TroveManager is ProtocolBase, OwnableUpgradeable, CheckContract, ITrove
 
     constructor(
         uint _gasCompensation,
-        uint _minNetDebt
+        uint _minNetDebt,
+        uint _bootstrapPeriod
     ) ProtocolBase(_gasCompensation, _minNetDebt) {
+        BOOTSTRAP_PERIOD = _bootstrapPeriod;
         deploymentStartTime = block.timestamp;
     }
 

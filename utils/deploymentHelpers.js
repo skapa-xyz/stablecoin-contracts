@@ -23,6 +23,7 @@ ProtocolToken contracts consist of only those contracts related to the ProtocolT
 */
 
 const maxBytes32 = "0x" + "f".repeat(64);
+const bootstrapPeriod = 2 * 7 * 24 * 60 * 60; // 2 weeks
 
 upgrades.silenceWarnings();
 
@@ -86,7 +87,7 @@ class DeploymentHelper {
         cpContracts.protocolToken,
         cpContracts.protocolTokenStaking,
       ],
-      constructorBaseArgs,
+      [...constructorBaseArgs, bootstrapPeriod],
     );
     const activePool = await this.deployProxy(activePoolFactory, [
       cpContracts.borrowerOperations,
@@ -341,7 +342,7 @@ class DeploymentHelper {
         cpContracts.protocolToken,
         cpContracts.protocolTokenStaking,
       ],
-      [gasCompensation, minNetDebt],
+      [gasCompensation, minNetDebt, bootstrapPeriod],
     );
   }
 
