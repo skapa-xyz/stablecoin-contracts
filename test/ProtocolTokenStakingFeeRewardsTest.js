@@ -156,6 +156,9 @@ contract("ProtocolTokenStaking -  Revenue share tests", async () => {
     const F_FIL_Before = await protocolTokenStaking.F_FIL();
     assert.equal(F_FIL_Before, "0");
 
+    const unallocatedFIL_Before = await protocolTokenStaking.unallocatedFIL();
+    assert.equal(unallocatedFIL_Before, "0");
+
     const B_BalBeforeREdemption = await debtToken.balanceOf(B.address);
     // B redeems
     const redemptionTx = await th.redeemCollateralAndGetTxObject(
@@ -179,6 +182,9 @@ contract("ProtocolTokenStaking -  Revenue share tests", async () => {
     const expected_F_FIL_After = emittedFILFee.div(toBN("100"));
 
     assert.isTrue(expected_F_FIL_After.eq(F_FIL_After));
+
+    const unallocatedFIL_After = await protocolTokenStaking.unallocatedFIL();
+    assert.isTrue(unallocatedFIL_After.eq(toBN("0")));
   });
 
   it("FIL fee per ProtocolToken staked doesn't change when a redemption fee is triggered and totalStakes == 0", async () => {
@@ -220,6 +226,9 @@ contract("ProtocolTokenStaking -  Revenue share tests", async () => {
     const F_FIL_Before = await protocolTokenStaking.F_FIL();
     assert.equal(F_FIL_Before, "0");
 
+    const unallocatedFIL_Before = await protocolTokenStaking.unallocatedFIL();
+    assert.equal(unallocatedFIL_Before, "0");
+
     const B_BalBeforeREdemption = await debtToken.balanceOf(B.address);
     // B redeems
     const redemptionTx = await th.redeemCollateralAndGetTxObject(
@@ -239,6 +248,9 @@ contract("ProtocolTokenStaking -  Revenue share tests", async () => {
     // Check FIL fee per unit staked has not increased
     const F_FIL_After = await protocolTokenStaking.F_FIL();
     assert.equal(F_FIL_After, "0");
+
+    const unallocatedFIL_After = await protocolTokenStaking.unallocatedFIL();
+    assert.isTrue(unallocatedFIL_After.gt(toBN("0")));
   });
 
   it("DebtToken fee per ProtocolToken staked increases when a redemption fee is triggered and totalStakes > 0", async () => {
@@ -279,7 +291,7 @@ contract("ProtocolTokenStaking -  Revenue share tests", async () => {
     await protocolTokenStaking.connect(A).stake(dec(100, 18));
 
     // Check DebtToken fee per unit staked is zero
-    const F_DebtToken_Before = await protocolTokenStaking.F_FIL();
+    const F_DebtToken_Before = await protocolTokenStaking.F_DebtToken();
     assert.equal(F_DebtToken_Before, "0");
 
     const B_BalBeforeREdemption = await debtToken.balanceOf(B.address);
@@ -1080,21 +1092,22 @@ contract("ProtocolTokenStaking -  Revenue share tests", async () => {
       from: A.address,
       value: dec(1, "ether"),
     });
+    await assertRevert(ethSendTxPromise1);
+
     const ethSendTxPromise2 = web3.eth.sendTransaction({
       to: protocolTokenStaking.address,
       from: owner.address,
       value: dec(1, "ether"),
     });
 
-    await assertRevert(ethSendTxPromise1);
     await assertRevert(ethSendTxPromise2);
   });
 
   it("unstake(): reverts if user has no stake", async () => {
     const unstakeTxPromise1 = protocolTokenStaking.connect(A).unstake(1);
-    const unstakeTxPromise2 = protocolTokenStaking.connect(owner).unstake(1);
-
     await assertRevert(unstakeTxPromise1);
+
+    const unstakeTxPromise2 = protocolTokenStaking.connect(owner).unstake(1);
     await assertRevert(unstakeTxPromise2);
   });
 
@@ -1107,5 +1120,175 @@ contract("ProtocolTokenStaking -  Revenue share tests", async () => {
       protocolTokenStakingTester.requireCallerIsTroveManager(),
       "ProtocolTokenStaking: caller is not TroveM",
     );
+  });
+
+  it("FIL fee per ProtocolToken staked increases after withdrawal of unallocated FIL", async () => {
+    await openTrove({
+      extraDebtTokenAmount: toBN(dec(10000, 18)),
+      ICR: toBN(dec(10, 18)),
+      extraParams: { from: whale },
+    });
+    await openTrove({
+      extraDebtTokenAmount: toBN(dec(20000, 18)),
+      ICR: toBN(dec(2, 18)),
+      extraParams: { from: A },
+    });
+    await openTrove({
+      extraDebtTokenAmount: toBN(dec(30000, 18)),
+      ICR: toBN(dec(2, 18)),
+      extraParams: { from: B },
+    });
+
+    // FF time one year so owner can transfer ProtocolToken
+    await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
+
+    // multisig transfers ProtocolToken to staker A
+    await protocolToken
+      .connect(multisig)
+      .transfer(A.address, dec(100, 18), { gasPrice: GAS_PRICE });
+
+    // B redeems
+    await th.redeemCollateralAndGetTxObject(B, contracts, dec(100, 18), GAS_PRICE);
+
+    // Check FIL fee per unit staked has not increased
+    const F_FIL_Before = await protocolTokenStaking.F_FIL();
+    assert.equal(F_FIL_Before, "0");
+
+    const unallocatedFIL_Before = await protocolTokenStaking.unallocatedFIL();
+    assert.isTrue(unallocatedFIL_Before.gt(toBN("0")));
+    const FILBalance_Before = toBN(await web3.eth.getBalance(owner.address));
+
+    const GAS_Used = await th.gasUsed(
+      await protocolTokenStaking.connect(owner).withdrawUnallocatedFIL({ gasPrice: GAS_PRICE }),
+    );
+
+    const unallocatedFIL_After = await protocolTokenStaking.unallocatedFIL();
+    assert.equal(unallocatedFIL_After, "0");
+
+    const FILBalance_After = toBN(await web3.eth.getBalance(owner.address));
+    const FILGain = FILBalance_After.sub(FILBalance_Before).add(toBN(GAS_Used * GAS_PRICE));
+
+    assert.isTrue(FILGain.eq(unallocatedFIL_Before));
+
+    // multisig transfers ProtocolToken to staker A
+    await protocolToken.connect(multisig).transfer(A.address, dec(100, 18));
+
+    // A makes stake
+    await protocolToken.connect(A).approve(protocolTokenStaking.address, dec(100, 18));
+    await protocolTokenStaking.connect(A).stake(dec(100, 18));
+
+    // B redeems
+    await th.redeemCollateralAndGetTxObject(B, contracts, dec(100, 18), GAS_PRICE);
+
+    const F_FIL_After = await protocolTokenStaking.F_FIL();
+    assert.isTrue(F_FIL_After.gt(toBN("0")));
+
+    const unallocatedFIL_After2 = await protocolTokenStaking.unallocatedFIL();
+    assert.equal(unallocatedFIL_After2, "0");
+
+    const A_FILBalance_Before = toBN(await web3.eth.getBalance(A.address));
+
+    // A un-stakes
+    const A_GAS_Used = await th.gasUsed(
+      await protocolTokenStaking.connect(A).unstake(dec(100, 18), { gasPrice: GAS_PRICE }),
+    );
+
+    // Check FIL fee per unit staked has increased
+    const A_FILBalance_After = toBN(await web3.eth.getBalance(A.address));
+    const A_FILGain = A_FILBalance_After.sub(A_FILBalance_Before).add(toBN(A_GAS_Used * GAS_PRICE));
+    const expected_A_FILGain = F_FIL_After.mul(toBN("100"));
+
+    assert.isTrue(expected_A_FILGain.eq(A_FILGain));
+  });
+
+  it("DebtToken fee per ProtocolToken staked increases withdrawal of unallocated DebtToken", async () => {
+    await openTrove({
+      extraDebtTokenAmount: toBN(dec(10000, 18)),
+      ICR: toBN(dec(10, 18)),
+      extraParams: { from: whale },
+    });
+    await openTrove({
+      extraDebtTokenAmount: toBN(dec(20000, 18)),
+      ICR: toBN(dec(2, 18)),
+      extraParams: { from: A },
+    });
+    await openTrove({
+      extraDebtTokenAmount: toBN(dec(30000, 18)),
+      ICR: toBN(dec(2, 18)),
+      extraParams: { from: B },
+    });
+
+    // FF time one year so owner can transfer ProtocolToken
+    await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider);
+
+    // multisig transfers ProtocolToken to staker A
+    await protocolToken.connect(multisig).transfer(A.address, dec(100, 18), {});
+
+    const F_DebtToken_Before = await protocolTokenStaking.F_DebtToken();
+    assert.equal(F_DebtToken_Before, "0");
+
+    const balBefore = await debtToken.balanceOf(owner.address);
+    const unallocatedDebtToken_Before = await protocolTokenStaking.unallocatedDebtToken();
+    assert.isTrue(unallocatedDebtToken_Before.gt(toBN("0")));
+
+    await protocolTokenStaking.connect(owner).withdrawUnallocatedDebtToken();
+
+    const unallocatedDebtToken_After = await protocolTokenStaking.unallocatedDebtToken();
+    assert.equal(unallocatedDebtToken_After, "0");
+
+    const balAfter = await debtToken.balanceOf(owner.address);
+    const owner_TokenGain = balAfter.sub(balBefore);
+
+    assert.isTrue(owner_TokenGain.eq(unallocatedDebtToken_Before));
+
+    // multisig transfers ProtocolToken to staker A
+    await protocolToken
+      .connect(multisig)
+      .transfer(A.address, dec(100, 18), { gasPrice: GAS_PRICE });
+
+    // A makes stake
+    await protocolToken.connect(A).approve(protocolTokenStaking.address, dec(100, 18));
+    await protocolTokenStaking.connect(A).stake(dec(100, 18));
+
+    await openTrove({
+      extraDebtTokenAmount: toBN(dec(40000, 18)),
+      ICR: toBN(dec(2, 18)),
+      extraParams: { from: C },
+    });
+    await openTrove({
+      extraDebtTokenAmount: toBN(dec(50000, 18)),
+      ICR: toBN(dec(2, 18)),
+      extraParams: { from: D },
+    });
+
+    const F_DebtToken_After = await protocolTokenStaking.F_DebtToken();
+    assert.isTrue(F_DebtToken_After.gt(toBN("0")));
+
+    const unallocatedDebtToken_After2 = await protocolTokenStaking.unallocatedDebtToken();
+    assert.equal(unallocatedDebtToken_After2, "0");
+
+    const A_BalBefore = await debtToken.balanceOf(A.address);
+
+    // A un-stakes
+    await protocolTokenStaking.connect(A).unstake(dec(100, 18));
+
+    // Check DebtToken fee per unit staked has increased
+    const A_BalAfter = await debtToken.balanceOf(A.address);
+    const A_tokenGain = A_BalAfter.sub(A_BalBefore);
+    const expected_A_TokenGain = F_DebtToken_After.mul(toBN("100"));
+
+    assert.isTrue(expected_A_TokenGain.eq(A_tokenGain));
+  });
+
+  it("withdrawUnallocatedFIL(): reverts if caller is not owner", async () => {
+    const withdrawUnallocatedFILPromise = protocolTokenStaking.connect(A).withdrawUnallocatedFIL();
+    await assertRevert(withdrawUnallocatedFILPromise);
+  });
+
+  it("withdrawUnallocatedDebtToken(): reverts if caller is not owner", async () => {
+    const withdrawUnallocatedDebtTokenPromise = protocolTokenStaking
+      .connect(A)
+      .withdrawUnallocatedDebtToken();
+    await assertRevert(withdrawUnallocatedDebtTokenPromise);
   });
 });

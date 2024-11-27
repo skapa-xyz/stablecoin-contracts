@@ -19,6 +19,9 @@ interface IProtocolTokenStaking {
     event FILSent(address _account, uint _amount);
     event StakerSnapshotsUpdated(address _staker, uint _F_FIL, uint _F_DebtToken);
 
+    event UnallocatedFILUpdated(uint _unallocatedFIL);
+    event UnallocatedDebtTokenUpdated(uint _unallocatedDebtToken);
+
     // --- Functions ---
 
     function stake(uint _tokenAmount) external;

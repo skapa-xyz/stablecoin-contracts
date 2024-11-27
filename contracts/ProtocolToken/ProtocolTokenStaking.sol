@@ -29,6 +29,9 @@ contract ProtocolTokenStaking is
     uint public F_FIL; // Running sum of FIL fees per-ProtocolToken-staked
     uint public F_DebtToken; // Running sum of ProtocolToken fees per-ProtocolToken-staked
 
+    uint public unallocatedFIL; // FIL fees accumulated the period with no stake amount
+    uint public unallocatedDebtToken; // ProtocolToken fees accumulated the period with no stake amount
+
     // User snapshots of F_FIL and F_DebtToken, taken at the point at which their latest deposit was made
     mapping(address => Snapshot) public snapshots;
 
@@ -164,30 +167,32 @@ contract ProtocolTokenStaking is
 
     function increaseF_FIL(uint _FILFee) external override {
         _requireCallerIsTroveManager();
-        uint FILFeePerProtocolTokenStaked;
 
         if (totalProtocolTokenStaked > 0) {
-            FILFeePerProtocolTokenStaked = _FILFee.mul(DECIMAL_PRECISION).div(
+            uint FILFeePerProtocolTokenStaked = _FILFee.mul(DECIMAL_PRECISION).div(
                 totalProtocolTokenStaked
             );
+            F_FIL = F_FIL.add(FILFeePerProtocolTokenStaked);
+            emit F_FILUpdated(F_FIL);
+        } else {
+            unallocatedFIL = unallocatedFIL.add(_FILFee);
+            emit UnallocatedFILUpdated(unallocatedFIL);
         }
-
-        F_FIL = F_FIL.add(FILFeePerProtocolTokenStaked);
-        emit F_FILUpdated(F_FIL);
     }
 
     function increaseF_DebtToken(uint _debtTokenFee) external override {
         _requireCallerIsBorrowerOperations();
-        uint debtTokenFeePerProtocolTokenStaked;
 
         if (totalProtocolTokenStaked > 0) {
-            debtTokenFeePerProtocolTokenStaked = _debtTokenFee.mul(DECIMAL_PRECISION).div(
+            uint debtTokenFeePerProtocolTokenStaked = _debtTokenFee.mul(DECIMAL_PRECISION).div(
                 totalProtocolTokenStaked
             );
+            F_DebtToken = F_DebtToken.add(debtTokenFeePerProtocolTokenStaked);
+            emit F_DebtTokenUpdated(F_DebtToken);
+        } else {
+            unallocatedDebtToken = unallocatedDebtToken.add(_debtTokenFee);
+            emit UnallocatedDebtTokenUpdated(unallocatedDebtToken);
         }
-
-        F_DebtToken = F_DebtToken.add(debtTokenFeePerProtocolTokenStaked);
-        emit F_DebtTokenUpdated(F_DebtToken);
     }
 
     // --- Pending reward functions ---
@@ -212,6 +217,22 @@ contract ProtocolTokenStaking is
             DECIMAL_PRECISION
         );
         return debtTokenGain;
+    }
+
+    // --- Unallocated reward functions ---
+
+    function withdrawUnallocatedFIL() external onlyOwner {
+        uint _unallocatedFIL = unallocatedFIL;
+        unallocatedFIL = 0;
+        emit UnallocatedFILUpdated(0);
+        _sendFILGainToUser(_unallocatedFIL);
+    }
+
+    function withdrawUnallocatedDebtToken() external onlyOwner {
+        uint _unallocatedDebtToken = unallocatedDebtToken;
+        unallocatedDebtToken = 0;
+        emit UnallocatedDebtTokenUpdated(0);
+        debtToken.transfer(msg.sender, _unallocatedDebtToken);
     }
 
     // --- Internal helper functions ---
