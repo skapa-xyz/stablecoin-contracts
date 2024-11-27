@@ -46,8 +46,8 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
 
     // --- ERC20 Data ---
 
-    string internal constant _NAME = "Secured Finance";
-    string internal constant _SYMBOL = "SCR";
+    string internal constant _NAME = "SFC";
+    string internal constant _SYMBOL = "SFC";
     string internal constant _VERSION = "1";
     uint8 internal constant _DECIMALS = 18;
 

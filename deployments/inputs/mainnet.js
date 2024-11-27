@@ -20,7 +20,7 @@ const allocationAmounts = {
 };
 
 const annualAllocationSettings = {
-  RATE: dec(2, 16), // 2%
+  RATE: dec(4, 16), // 4%
   RECIPIENT: walletAddrs.ADMIN,
 };
 
@@ -62,8 +62,8 @@ const beneficiaries = {
   ACCOUNT_34: "0x895870D281E4761237f4465AFb51D16c3e124EFC",
 };
 
-const GAS_COMPENSATION = dec(20, 18);
-const MIN_NET_DEBT = dec(180, 18);
+const GAS_COMPENSATION = dec(20, 18); // 20 USDFC
+const MIN_NET_DEBT = dec(180, 18); // 180 USDFC
 const BOOTSTRAP_PERIOD = 2 * 7 * 24 * 60 * 60; // 2 weeks
 const ETHERSCAN_BASE_URL = "https://etherscan.io/address";
 
