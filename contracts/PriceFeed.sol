@@ -117,7 +117,7 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
         // --- CASE 1: System fetched last price from Chainlink  ---
         if (status == Status.chainlinkWorking) {
             // If Chainlink is broken, try Tellor
-            if (_badChainlinkResponse(chainlinkResponse)) {
+            if (_chainlinkIsBroken(chainlinkResponse)) {
                 // If Tellor is broken then both oracles are untrusted, so return the last good price
                 if (_tellorIsBroken(tellorResponse)) {
                     _changeStatus(Status.bothOraclesUntrusted);
@@ -207,7 +207,7 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
 
         // --- CASE 4: Using Tellor, and Chainlink is frozen ---
         if (status == Status.usingTellorChainlinkFrozen) {
-            if (_badChainlinkResponse(chainlinkResponse)) {
+            if (_chainlinkIsBroken(chainlinkResponse)) {
                 // If both Oracles are broken, return last good price
                 if (_tellorIsBroken(tellorResponse)) {
                     _changeStatus(Status.bothOraclesUntrusted);
@@ -267,7 +267,7 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
         // --- CASE 5: Using Chainlink, Tellor is untrusted ---
         if (status == Status.usingChainlinkTellorUntrusted) {
             // If Chainlink breaks, now both oracles are untrusted
-            if (_badChainlinkResponse(chainlinkResponse)) {
+            if (_chainlinkIsBroken(chainlinkResponse)) {
                 _changeStatus(Status.bothOraclesUntrusted);
                 return lastGoodPrice;
             }
@@ -290,9 +290,7 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
     }
 
     // --- Helper functions ---
-    function _badChainlinkResponse(
-        ChainlinkResponse memory _response
-    ) internal view returns (bool) {
+    function _chainlinkIsBroken(ChainlinkResponse memory _response) internal view returns (bool) {
         // Check for response call reverted
         if (!_response.success) {
             return true;
@@ -346,6 +344,7 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
         if (
             _tellorIsBroken(_tellorResponse) ||
             _tellorIsFrozen(_tellorResponse) ||
+            _chainlinkIsBroken(_chainlinkResponse) ||
             _chainlinkIsFrozen(_chainlinkResponse)
         ) {
             return false;
