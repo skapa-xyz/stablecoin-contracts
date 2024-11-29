@@ -31,18 +31,17 @@ contract MockTellor {
 
     // --- Mock data reporting functions ---
 
-    function getTimestampbyRequestIDandIndex(uint, uint) external view returns (uint) {
-        return updateTime;
-    }
-
-    function getNewValueCountbyRequestId(uint) external view returns (uint) {
+    function getDataBefore(
+        bytes32, // Here this variable is not used
+        uint256 // Here this variable is not used
+    ) external view returns (bool _ifRetrieve, bytes memory _value, uint256 _timestampRetrieved) {
         if (revertRequest) {
             require(1 == 0, "Tellor request reverted");
         }
-        return 1;
+        return (didRetrieve, abi.encodePacked(price), updateTime);
     }
 
-    function retrieveData(uint256, uint256) external view returns (uint256) {
-        return price;
+    function getTimestampbyRequestIDandIndex(uint, uint) external view returns (uint) {
+        return updateTime;
     }
 }

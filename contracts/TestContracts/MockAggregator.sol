@@ -7,9 +7,8 @@ import "../Dependencies/console.sol";
 
 contract MockAggregator is AggregatorV3Interface {
     // storage variables to hold the mock data
-    uint8 private decimalsVal = 18;
+    uint8 private decimalsVal = 8;
     int private price;
-    int private prevPrice;
     uint private updateTime;
     uint private prevUpdateTime;
 
@@ -19,6 +18,7 @@ contract MockAggregator is AggregatorV3Interface {
     bool latestRevert;
     bool prevRevert;
     bool decimalsRevert;
+    bool useBlockTimestamp;
 
     // --- Functions ---
 
@@ -28,10 +28,6 @@ contract MockAggregator is AggregatorV3Interface {
 
     function setPrice(int _price) external {
         price = _price;
-    }
-
-    function setPrevPrice(int _prevPrice) external {
-        prevPrice = _prevPrice;
     }
 
     function setPrevUpdateTime(uint _prevUpdateTime) external {
@@ -62,6 +58,10 @@ contract MockAggregator is AggregatorV3Interface {
         prevRoundId = _prevRoundId;
     }
 
+    function setUseBlockTimestamp(bool _useBlockTimestamp) external {
+        useBlockTimestamp = _useBlockTimestamp;
+    }
+
     // --- Getters that adhere to the AggregatorV3 interface ---
 
     function decimals() external view override returns (uint8) {
@@ -88,7 +88,7 @@ contract MockAggregator is AggregatorV3Interface {
             require(1 == 0, "latestRoundData reverted");
         }
 
-        return (latestRoundId, price, 0, updateTime == 0 ? block.timestamp : updateTime, 0);
+        return (latestRoundId, price, 0, useBlockTimestamp ? block.timestamp : updateTime, 0);
     }
 
     function getRoundData(
@@ -109,7 +109,7 @@ contract MockAggregator is AggregatorV3Interface {
             require(1 == 0, "getRoundData reverted");
         }
 
-        return (prevRoundId, prevPrice, 0, updateTime == 0 ? block.timestamp : updateTime, 0);
+        return (prevRoundId, 0, 0, useBlockTimestamp ? block.timestamp : updateTime, 0);
     }
 
     function description() external pure override returns (string memory) {

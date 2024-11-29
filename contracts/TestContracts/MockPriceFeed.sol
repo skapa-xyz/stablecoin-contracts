@@ -11,8 +11,9 @@ contract MockPriceFeed is PriceFeed {
         MockAggregator mockPriceAggregator = MockAggregator(address(priceAggregator));
 
         mockPriceAggregator.setPrice(_price);
+        mockPriceAggregator.setDecimals(18);
         mockPriceAggregator.setLatestRoundId(1);
-        mockPriceAggregator.setUpdateTime(0);
+        mockPriceAggregator.setUseBlockTimestamp(true);
 
         _changeStatus(Status.chainlinkWorking);
     }
