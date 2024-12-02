@@ -37,10 +37,7 @@ contract FunctionCaller {
 
     // --- Non-view wrapper functions used for calculating gas ---
 
-    function troveManager_getCurrentICR(
-        address _address,
-        uint _price
-    ) external view returns (uint) {
+    function troveManager_getCurrentICR(address _address, uint _price) external returns (uint) {
         return troveManager.getCurrentICR(_address, _price);
     }
 
@@ -48,7 +45,7 @@ contract FunctionCaller {
         uint _NICR,
         address _prevId,
         address _nextId
-    ) external view returns (address, address) {
+    ) external returns (address, address) {
         return sortedTroves.findInsertPosition(_NICR, _prevId, _nextId);
     }
 }

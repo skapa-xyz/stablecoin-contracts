@@ -1,3 +1,5 @@
+const BigNumber = require("bignumber.js");
+
 const MoneyValues = {
   negative_5e17: "-" + web3.utils.toWei("500", "finney"),
   negative_1e18: "-" + web3.utils.toWei("1", "ether"),
@@ -118,8 +120,13 @@ class TestHelper {
   }
 
   static randDecayFactor(min, max) {
-    const amount = Math.random() * (max - min) + min;
-    const amountInWei = web3.utils.toWei(amount.toFixed(18), "ether");
+    const max_BN = new BigNumber(max);
+    const min_BN = new BigNumber(min);
+    const random_BN = new BigNumber(Math.random());
+
+    const amount_BN = random_BN.multipliedBy(max_BN.minus(min_BN)).plus(min_BN);
+
+    const amountInWei = web3.utils.toWei(amount_BN.toFixed(18), "ether");
     return amountInWei;
   }
 
@@ -568,7 +575,7 @@ class TestHelper {
       const tx = await contracts.borrowerOperations
         .connect(account)
         .openTrove(this._100pct, debtTokenAmount, upperHint, lowerHint, { value: FILAmount });
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -597,7 +604,7 @@ class TestHelper {
         .openTrove(this._100pct, debtTokenAmount, upperHint, lowerHint, {
           value: randCollAmount,
         });
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -630,7 +637,7 @@ class TestHelper {
         .openTrove(this._100pct, proportionalDebtToken, upperHint, lowerHint, {
           value: randCollAmount,
         });
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -673,13 +680,14 @@ class TestHelper {
         .openTrove(this._100pct, proportionalDebtToken, upperHint, lowerHint, {
           value: randCollAmount,
         });
+      const receipt = await tx.wait();
 
-      if (logging && tx.receipt.status) {
+      if (logging && receipt.status) {
         i++;
         const ICR = await contracts.troveManager.getCurrentICR(account.address, price);
         // console.log(`${i}. Trove opened. addr: ${this.squeezeAddr(account)} coll: ${randCollAmount} debt: ${proportionalDebtToken} ICR: ${ICR}`)
       }
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -708,7 +716,7 @@ class TestHelper {
         .openTrove(this._100pct, randDebtTokenAmount, upperHint, lowerHint, {
           value: FILAmount,
         });
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -719,7 +727,7 @@ class TestHelper {
 
     for (const account of accounts) {
       const tx = await contracts.borrowerOperations.connect(account).closeTrove();
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -749,7 +757,7 @@ class TestHelper {
         .openTrove(this._100pct, debtTokenAmountWei, upperHint, lowerHint, {
           value: FILAmount,
         });
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
       i += 1;
     }
@@ -896,7 +904,7 @@ class TestHelper {
           );
       }
 
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -957,7 +965,7 @@ class TestHelper {
           );
       }
 
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       // console.log(`FIL change: ${FILChangeBN},  Debt Token Change: ${debtTokenChangeBN}, gas: ${gas} `)
 
       gasCostList.push(gas);
@@ -978,7 +986,7 @@ class TestHelper {
       const tx = await contracts.borrowerOperations.connect(account).addColl(upperHint, lowerHint, {
         value: amount,
       });
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -1003,7 +1011,7 @@ class TestHelper {
       const tx = await contracts.borrowerOperations.connect(account).addColl(upperHint, lowerHint, {
         value: randCollAmount,
       });
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -1028,7 +1036,7 @@ class TestHelper {
       const tx = await contracts.borrowerOperations
         .connect(account)
         .withdrawColl(amount, upperHint, lowerHint);
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -1054,7 +1062,7 @@ class TestHelper {
       const tx = await contracts.borrowerOperations
         .connect(account)
         .withdrawColl(randCollAmount, upperHint, lowerHint);
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
       // console.log("gasCostlist length is " + gasCostList.length)
     }
@@ -1079,7 +1087,7 @@ class TestHelper {
       const tx = await contracts.borrowerOperations
         .connect(account)
         .withdrawDebtToken(this._100pct, amount, upperHint, lowerHint);
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -1105,7 +1113,7 @@ class TestHelper {
       const tx = await contracts.borrowerOperations
         .connect(account)
         .withdrawDebtToken(this._100pct, randDebtTokenAmount, upperHint, lowerHint);
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -1128,8 +1136,8 @@ class TestHelper {
 
       const tx = await contracts.borrowerOperations
         .connect(account)
-        .repayDebtToken(amount.address, upperHint, lowerHint);
-      const gas = this.gasUsed(tx);
+        .repayDebtToken(amount, upperHint, lowerHint);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -1155,7 +1163,7 @@ class TestHelper {
       const tx = await contracts.borrowerOperations
         .connect(account)
         .repayDebtToken(randDebtTokenAmount, upperHint, lowerHint);
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -1167,7 +1175,7 @@ class TestHelper {
 
     for (const account of accounts) {
       const tx = await functionCaller.troveManager_getCurrentICR(account.address, price);
-      const gas = this.gasUsed(tx) - 21000;
+      const gas = (await this.gasUsed(tx)) - 21000;
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -1226,7 +1234,7 @@ class TestHelper {
       const randDebtTokenAmount = this.randAmountInWei(min, max);
 
       await this.performRedemptionTx(redeemer, price, contracts, randDebtTokenAmount);
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -1299,7 +1307,7 @@ class TestHelper {
     const gasCostList = [];
     for (const account of accounts) {
       const tx = await stabilityPool.connect(account).provideToSP(amount, this.ZERO_ADDRESS);
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -1312,7 +1320,7 @@ class TestHelper {
       const tx = await stabilityPool
         .connect(account)
         .provideToSP(randomDebtTokenAmount, this.ZERO_ADDRESS);
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -1322,7 +1330,7 @@ class TestHelper {
     const gasCostList = [];
     for (const account of accounts) {
       const tx = await stabilityPool.connect(account).withdrawFromSP(amount);
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -1333,7 +1341,7 @@ class TestHelper {
     for (const account of accounts) {
       const randomDebtTokenAmount = this.randAmountInWei(min, max);
       const tx = await stabilityPool.connect(account).withdrawFromSP(randomDebtTokenAmount);
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);
@@ -1356,7 +1364,7 @@ class TestHelper {
       const tx = await contracts.stabilityPool
         .connect(account)
         .withdrawFILGainToTrove(upperHint, lowerHint);
-      const gas = this.gasUsed(tx);
+      const gas = await this.gasUsed(tx);
       gasCostList.push(gas);
     }
     return this.getGasMetrics(gasCostList);

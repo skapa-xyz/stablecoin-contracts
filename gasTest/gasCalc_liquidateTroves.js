@@ -19,9 +19,6 @@ const _100pct = th._100pct;
 contract("Gas cost tests", async () => {
   let signers;
   let owner;
-  let bountyAddress;
-  let lpRewardsAddress;
-  let multisig;
 
   let priceFeed;
   let sortedTroves;
@@ -33,10 +30,7 @@ contract("Gas cost tests", async () => {
   let data = [];
 
   before(async () => {
-    signers = await ethers.getSigners();
-
-    [owner] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [owner, ...signers] = await ethers.getSigners();
   });
 
   beforeEach(async () => {
@@ -48,14 +42,14 @@ contract("Gas cost tests", async () => {
       transactionCount + 1,
     );
     contracts = await deploymentHelper.deployProtocolCore(
-      th.GAS_COMPENSATION,
-      th.MIN_NET_DEBT,
+      // th.GAS_COMPENSATION,
+      // th.MIN_NET_DEBT,
+      th.dec(2, 18),
+      th.dec(18, 18),
       cpContracts,
     );
     const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress.address,
-      lpRewardsAddress.address,
-      multisig.address,
+      owner.address,
       cpContracts,
     );
 
@@ -2302,7 +2296,11 @@ contract("Gas cost tests", async () => {
   });
 
   it("Export test data", async () => {
-    fs.writeFile("gasTest/outputs/liquidateTrovesGasData.csv", data, (err) => {
+    if (!fs.existsSync("gasTest/outputs")) {
+      fs.mkdirSync("gasTest/outputs");
+    }
+
+    fs.writeFile("gasTest/outputs/liquidateTrovesGasData.csv", data.join(""), (err) => {
       if (err) {
         console.log(err);
       } else {

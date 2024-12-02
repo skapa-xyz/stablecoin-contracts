@@ -20,9 +20,6 @@ const toBN = th.toBN;
 contract("Gas cost tests", async () => {
   let signers;
   let owner;
-  let bountyAddress;
-  let lpRewardsAddress;
-  let multisig;
 
   let priceFeed;
 
@@ -35,10 +32,7 @@ contract("Gas cost tests", async () => {
   let data = [];
 
   before(async () => {
-    signers = await ethers.getSigners();
-
-    [owner] = signers;
-    [bountyAddress, lpRewardsAddress, multisig] = signers.slice(997, 1000);
+    [owner, ...signers] = await ethers.getSigners();
   });
 
   beforeEach(async () => {
@@ -50,14 +44,12 @@ contract("Gas cost tests", async () => {
       transactionCount + 1,
     );
     contracts = await deploymentHelper.deployProtocolCore(
-      th.GAS_COMPENSATION,
-      th.MIN_NET_DEBT,
+      th.dec(2, 18),
+      th.dec(18, 18),
       cpContracts,
     );
     const protocolTokenContracts = await deploymentHelper.deployProtocolTokenContracts(
-      bountyAddress.address,
-      lpRewardsAddress.address,
-      multisig.address,
+      owner.address,
       cpContracts,
     );
 
@@ -92,7 +84,7 @@ contract("Gas cost tests", async () => {
 
     //1 accts open Trove with 1 ether and withdraw 100 token
     const _1_Defaulter = signers.slice(1, 2);
-    await th.openTrove_allAccounts(_1_Defaulter, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_1_Defaulter, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _1_Defaulter) {
@@ -108,7 +100,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     const price = await priceFeed.getPrice();
 
     // Account 500 is liquidated, creates pending distribution rewards for all
@@ -157,7 +149,7 @@ contract("Gas cost tests", async () => {
 
     //2 accts open Trove with 1 ether and withdraw 100 token
     const _2_Defaulters = signers.slice(1, 3);
-    await th.openTrove_allAccounts(_2_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_2_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _2_Defaulters) {
@@ -173,7 +165,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
@@ -221,7 +213,7 @@ contract("Gas cost tests", async () => {
 
     //3 accts open Trove with 1 ether and withdraw 100 token
     const _3_Defaulters = signers.slice(1, 4);
-    await th.openTrove_allAccounts(_3_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_3_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _3_Defaulters) {
@@ -237,7 +229,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
@@ -285,7 +277,7 @@ contract("Gas cost tests", async () => {
 
     //5 accts open Trove with 1 ether and withdraw 100 token
     const _5_Defaulters = signers.slice(1, 6);
-    await th.openTrove_allAccounts(_5_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_5_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _5_Defaulters) {
@@ -301,7 +293,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
@@ -349,7 +341,7 @@ contract("Gas cost tests", async () => {
 
     //10 accts open Trove with 1 ether and withdraw 100 token
     const _10_Defaulters = signers.slice(1, 11);
-    await th.openTrove_allAccounts(_10_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_10_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _10_Defaulters) {
@@ -365,7 +357,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
@@ -413,7 +405,7 @@ contract("Gas cost tests", async () => {
 
     //20 accts open Trove with 1 ether and withdraw 100 token
     const _20_Defaulters = signers.slice(1, 21);
-    await th.openTrove_allAccounts(_20_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_20_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _20_Defaulters) {
@@ -429,7 +421,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
@@ -477,7 +469,7 @@ contract("Gas cost tests", async () => {
 
     //30 accts open Trove with 1 ether and withdraw 100 token
     const _30_Defaulters = signers.slice(1, 31);
-    await th.openTrove_allAccounts(_30_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_30_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _30_Defaulters) {
@@ -493,7 +485,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
@@ -541,7 +533,7 @@ contract("Gas cost tests", async () => {
 
     //40 accts open Trove with 1 ether and withdraw 100 token
     const _40_Defaulters = signers.slice(1, 41);
-    await th.openTrove_allAccounts(_40_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_40_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _40_Defaulters) {
@@ -557,7 +549,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
@@ -621,7 +613,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Price drops, defaulters' troves fall below MCR
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
@@ -685,7 +677,7 @@ contract("Gas cost tests", async () => {
 
     //1 acct opens Trove with 1 ether and withdraw 100 token
     const _1_Defaulter = signers.slice(1, 2);
-    await th.openTrove_allAccounts(_1_Defaulter, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_1_Defaulter, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _1_Defaulter) {
@@ -693,7 +685,7 @@ contract("Gas cost tests", async () => {
     }
 
     // Price drops, defaulters falls below MCR
-    await priceFeed.setPrice(dec(120, 18));
+    await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
     // Check Recovery Mode is true
@@ -701,7 +693,7 @@ contract("Gas cost tests", async () => {
 
     // Check defaulter ICRs are all between 100% and 110%
     for (const signer of _1_Defaulter) {
-      console.log(`ICR: ${await troveManager.getCurrentICR(signer, price)}`);
+      console.log(`ICR: ${await troveManager.getCurrentICR(signer.address, price)}`);
       assert.isTrue(await th.ICRbetween100and110(signer, troveManager, price));
     }
 
@@ -767,7 +759,7 @@ contract("Gas cost tests", async () => {
 
     //2 acct opens Trove with 1 ether and withdraw 100 token
     const _2_Defaulters = signers.slice(1, 3);
-    await th.openTrove_allAccounts(_2_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_2_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _2_Defaulters) {
@@ -775,7 +767,7 @@ contract("Gas cost tests", async () => {
     }
 
     // Price drops, defaulters falls below MCR
-    await priceFeed.setPrice(dec(120, 18));
+    await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
     // Check Recovery Mode is true
@@ -848,7 +840,7 @@ contract("Gas cost tests", async () => {
 
     //3 accts open Trove with 1 ether and withdraw 100 token
     const _3_Defaulters = signers.slice(1, 4);
-    await th.openTrove_allAccounts(_3_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_3_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _3_Defaulters) {
@@ -856,7 +848,7 @@ contract("Gas cost tests", async () => {
     }
 
     // Price drops, defaulters falls below MCR
-    await priceFeed.setPrice(dec(120, 18));
+    await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
     // Check Recovery Mode is true
@@ -929,7 +921,7 @@ contract("Gas cost tests", async () => {
 
     //5 accts open Trove with 1 ether and withdraw 100 token
     const _5_Defaulters = signers.slice(1, 6);
-    await th.openTrove_allAccounts(_5_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_5_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _5_Defaulters) {
@@ -937,7 +929,7 @@ contract("Gas cost tests", async () => {
     }
 
     // Price drops, defaulters falls below MCR
-    await priceFeed.setPrice(dec(120, 18));
+    await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
     // Check Recovery Mode is true
@@ -1010,7 +1002,7 @@ contract("Gas cost tests", async () => {
 
     //10 accts open Trove with 1 ether and withdraw 100 token
     const _10_Defaulters = signers.slice(1, 11);
-    await th.openTrove_allAccounts(_10_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_10_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _10_Defaulters) {
@@ -1018,7 +1010,7 @@ contract("Gas cost tests", async () => {
     }
 
     // Price drops, defaulters falls below MCR
-    await priceFeed.setPrice(dec(120, 18));
+    await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
     // Check Recovery Mode is true
@@ -1091,7 +1083,7 @@ contract("Gas cost tests", async () => {
 
     //30 accts open Trove with 1 ether and withdraw 100 token
     const _20_Defaulters = signers.slice(1, 21);
-    await th.openTrove_allAccounts(_20_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_20_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _20_Defaulters) {
@@ -1099,7 +1091,7 @@ contract("Gas cost tests", async () => {
     }
 
     // Price drops, defaulters falls below MCR
-    await priceFeed.setPrice(dec(120, 18));
+    await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
     // Check Recovery Mode is true
@@ -1172,7 +1164,7 @@ contract("Gas cost tests", async () => {
 
     //30 accts open Trove with 1 ether and withdraw 100 token
     const _30_Defaulters = signers.slice(1, 31);
-    await th.openTrove_allAccounts(_30_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_30_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _30_Defaulters) {
@@ -1180,7 +1172,7 @@ contract("Gas cost tests", async () => {
     }
 
     // Price drops, defaulters falls below MCR
-    await priceFeed.setPrice(dec(120, 18));
+    await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
     // Check Recovery Mode is true
@@ -1253,7 +1245,7 @@ contract("Gas cost tests", async () => {
 
     //40 accts open Trove with 1 ether and withdraw 100 token
     const _40_Defaulters = signers.slice(1, 41);
-    await th.openTrove_allAccounts(_40_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_40_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _40_Defaulters) {
@@ -1261,7 +1253,7 @@ contract("Gas cost tests", async () => {
     }
 
     // Price drops, defaulters falls below MCR
-    await priceFeed.setPrice(dec(120, 18));
+    await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
     // Check Recovery Mode is true
@@ -1404,7 +1396,7 @@ contract("Gas cost tests", async () => {
 
     //1 acct opens Trove with 1 ether and withdraw 100 token
     const _1_Defaulter = signers.slice(1, 2);
-    await th.openTrove_allAccounts(_1_Defaulter, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_1_Defaulter, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _1_Defaulter) {
@@ -1420,7 +1412,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
     assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
@@ -1444,7 +1436,7 @@ contract("Gas cost tests", async () => {
     assert.equal(debtTokenInSP, dec(9, 28));
 
     // Price drops, defaulters falls below MCR
-    await priceFeed.setPrice(dec(120, 18));
+    await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
     // Check Recovery Mode is true
@@ -1504,7 +1496,7 @@ contract("Gas cost tests", async () => {
 
     //2 accts open Trove with 1 ether and withdraw 100 token
     const _2_Defaulters = signers.slice(1, 3);
-    await th.openTrove_allAccounts(_2_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_2_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _2_Defaulters) {
@@ -1520,7 +1512,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
     assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
@@ -1544,7 +1536,7 @@ contract("Gas cost tests", async () => {
     assert.equal(debtTokenInSP, dec(9, 28));
 
     // Price drops, defaulters falls below MCR
-    await priceFeed.setPrice(dec(120, 18));
+    await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
     // Check Recovery Mode is true
@@ -1604,7 +1596,7 @@ contract("Gas cost tests", async () => {
 
     //3 accts open Trove with 1 ether and withdraw 100 token
     const _3_Defaulters = signers.slice(1, 4);
-    await th.openTrove_allAccounts(_3_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_3_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _3_Defaulters) {
@@ -1620,7 +1612,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
     assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
@@ -1644,7 +1636,7 @@ contract("Gas cost tests", async () => {
     assert.equal(debtTokenInSP, dec(9, 28));
 
     // Price drops, defaulters falls below MCR
-    await priceFeed.setPrice(dec(120, 18));
+    await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
     // Check Recovery Mode is true
@@ -1704,7 +1696,7 @@ contract("Gas cost tests", async () => {
 
     //5 accts open Trove with 1 ether and withdraw 100 token
     const _5_Defaulters = signers.slice(1, 6);
-    await th.openTrove_allAccounts(_5_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_5_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _5_Defaulters) {
@@ -1720,7 +1712,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
     assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
@@ -1744,7 +1736,7 @@ contract("Gas cost tests", async () => {
     assert.equal(debtTokenInSP, dec(9, 28));
 
     // Price drops, defaulters falls below MCR
-    await priceFeed.setPrice(dec(120, 18));
+    await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
     // Check Recovery Mode is true
@@ -1804,7 +1796,7 @@ contract("Gas cost tests", async () => {
 
     //10 accts open Trove with 1 ether and withdraw 100 token
     const _10_Defaulters = signers.slice(1, 11);
-    await th.openTrove_allAccounts(_10_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_10_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _10_Defaulters) {
@@ -1820,7 +1812,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
     assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
@@ -1844,7 +1836,7 @@ contract("Gas cost tests", async () => {
     assert.equal(debtTokenInSP, dec(9, 28));
 
     // Price drops, defaulters falls below MCR
-    await priceFeed.setPrice(dec(120, 18));
+    await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
     // Check Recovery Mode is true
@@ -1904,7 +1896,7 @@ contract("Gas cost tests", async () => {
 
     //20 accts open Trove with 1 ether and withdraw 100 token
     const _20_Defaulters = signers.slice(1, 21);
-    await th.openTrove_allAccounts(_20_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_20_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _20_Defaulters) {
@@ -1920,7 +1912,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
     assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
@@ -1944,7 +1936,7 @@ contract("Gas cost tests", async () => {
     assert.equal(debtTokenInSP, dec(9, 28));
 
     // Price drops, defaulters falls below MCR
-    await priceFeed.setPrice(dec(120, 18));
+    await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
     // Check Recovery Mode is true
@@ -2004,7 +1996,7 @@ contract("Gas cost tests", async () => {
 
     //30 accts open Trove with 1 ether and withdraw 100 token
     const _30_Defaulters = signers.slice(1, 31);
-    await th.openTrove_allAccounts(_30_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_30_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _30_Defaulters) {
@@ -2020,7 +2012,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
     assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
@@ -2044,7 +2036,7 @@ contract("Gas cost tests", async () => {
     assert.equal(debtTokenInSP, dec(9, 28));
 
     // Price drops, defaulters falls below MCR
-    await priceFeed.setPrice(dec(120, 18));
+    await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
     // Check Recovery Mode is true
@@ -2104,7 +2096,7 @@ contract("Gas cost tests", async () => {
 
     //40 accts open Trove with 1 ether and withdraw 100 token
     const _40_Defaulters = signers.slice(1, 41);
-    await th.openTrove_allAccounts(_40_Defaulters, contracts, dec(1, "ether"), dec(60, 18));
+    await th.openTrove_allAccounts(_40_Defaulters, contracts, dec(1, "ether"), dec(100, 18));
 
     // Check all defaulters are active
     for (const signer of _40_Defaulters) {
@@ -2120,7 +2112,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
     assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
@@ -2144,7 +2136,7 @@ contract("Gas cost tests", async () => {
     assert.equal(debtTokenInSP, dec(9, 28));
 
     // Price drops, defaulters falls below MCR
-    await priceFeed.setPrice(dec(120, 18));
+    await priceFeed.setPrice(dec(110, 18));
     const price = await priceFeed.getPrice();
 
     // Check Recovery Mode is true
@@ -2220,7 +2212,7 @@ contract("Gas cost tests", async () => {
     assert.isTrue(await sortedTroves.contains(signers[500].address));
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
     assert.isFalse(await sortedTroves.contains(signers[500].address));
     await priceFeed.setPrice(dec(200, 18));
@@ -2321,12 +2313,12 @@ contract("Gas cost tests", async () => {
     }
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
     await priceFeed.setPrice(dec(200, 18));
 
     // Price drops, signer[1]'s ICR falls below MCR
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
 
     const tx = await troveManager
       .connect(signers[0])
@@ -2373,12 +2365,12 @@ contract("Gas cost tests", async () => {
     }
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
     await priceFeed.setPrice(dec(200, 18));
 
     // Price drops, signer[1]'s ICR falls below MCR
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
 
     const tx = await troveManager
       .connect(signers[0])
@@ -2425,12 +2417,12 @@ contract("Gas cost tests", async () => {
     }
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
     await priceFeed.setPrice(dec(200, 18));
 
     // Price drops, signer[1]'s ICR falls below MCR
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
 
     const tx = await troveManager
       .connect(signers[0])
@@ -2477,12 +2469,12 @@ contract("Gas cost tests", async () => {
     }
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
     await priceFeed.setPrice(dec(200, 18));
 
     // Price drops, signer[1]'s ICR falls below MCR
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
 
     const tx = await troveManager
       .connect(signers[0])
@@ -2531,7 +2523,7 @@ contract("Gas cost tests", async () => {
     }
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
     await priceFeed.setPrice(dec(200, 18));
 
@@ -2544,7 +2536,7 @@ contract("Gas cost tests", async () => {
     await stabilityPool.connect(signers[999]).provideToSP(dec(1, 27), ZERO_ADDRESS);
 
     // Price drops, signer[1]'s ICR falls below MCR
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
@@ -2593,7 +2585,7 @@ contract("Gas cost tests", async () => {
     }
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
     await priceFeed.setPrice(dec(200, 18));
 
@@ -2606,7 +2598,7 @@ contract("Gas cost tests", async () => {
     await stabilityPool.connect(signers[999]).provideToSP(dec(1, 27), ZERO_ADDRESS);
 
     // Price drops, signer[1]'s ICR falls below MCR
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
@@ -2655,7 +2647,7 @@ contract("Gas cost tests", async () => {
     }
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
     await priceFeed.setPrice(dec(200, 18));
 
@@ -2668,7 +2660,7 @@ contract("Gas cost tests", async () => {
     await stabilityPool.connect(signers[999]).provideToSP(dec(1, 27), ZERO_ADDRESS);
 
     // Price drops, signer[1]'s ICR falls below MCR
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
@@ -2717,7 +2709,7 @@ contract("Gas cost tests", async () => {
     }
 
     // Account 500 is liquidated, creates pending distribution rewards for all
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
     await troveManager.connect(signers[0]).liquidate(signers[500].address);
     await priceFeed.setPrice(dec(200, 18));
 
@@ -2730,7 +2722,7 @@ contract("Gas cost tests", async () => {
     await stabilityPool.connect(signers[999]).provideToSP(dec(1, 27), ZERO_ADDRESS);
 
     // Price drops, signer[1]'s ICR falls below MCR
-    await priceFeed.setPrice(dec(100, 18));
+    await priceFeed.setPrice(dec(10, 18));
 
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider);
 
@@ -2750,12 +2742,16 @@ contract("Gas cost tests", async () => {
   });
 
   it("Export test data", async () => {
-    fs.writeFile("gasTest/outputs/liquidateTrovesGasData.csv", data, (err) => {
+    if (!fs.existsSync("gasTest/outputs")) {
+      fs.mkdirSync("gasTest/outputs");
+    }
+
+    fs.writeFile("gasTest/outputs/liquidateTrovesRecoveryModeGasData.csv", data.join(""), (err) => {
       if (err) {
         console.log(err);
       } else {
         console.log(
-          "LiquidateTroves() gas test data written to gasTest/outputs/liquidateTrovesGasData.csv",
+          "LiquidateTroves() gas test data written to gasTest/outputs/liquidateTrovesRecoveryModeGasData.csv",
         );
       }
     });

@@ -12,6 +12,10 @@ contract("Gas costs for math functions", async () => {
   before(async () => {
     const protocolMathTesterFactory = await ethers.getContractFactory("ProtocolMathTester");
     mathTester = await protocolMathTesterFactory.deploy();
+
+    if (!fs.existsSync("gasTest/outputs")) {
+      fs.mkdirSync("gasTest/outputs");
+    }
   });
 
   // performs n runs of exponentiation on a random base
@@ -133,13 +137,17 @@ contract("Gas costs for math functions", async () => {
 
     // console.log(data)
 
-    fs.writeFile("gasTest/outputs/exponentiationCostsOneMonth.csv", dataOneMonth, (err) => {
-      if (err) {
-        console.log(err);
-      } else {
-        console.log("Gas test data written to gasTest/outputs/exponentiationCostsOneMonth.csv");
-      }
-    });
+    fs.writeFile(
+      "gasTest/outputs/exponentiationCostsOneMonth.csv",
+      dataOneMonth.join(""),
+      (err) => {
+        if (err) {
+          console.log(err);
+        } else {
+          console.log("Gas test data written to gasTest/outputs/exponentiationCostsOneMonth.csv");
+        }
+      },
+    );
   });
 
   // --- Using the issuance factor (base) that corresponds to 50% issuance in year 1:  0.999998681227695000 ----
@@ -156,7 +164,9 @@ contract("Gas costs for math functions", async () => {
       console.log(`n: ${n}`);
       const runs = 1;
       const message = `exponentiation: minutes n = ${n}, runs = ${runs}`;
-      const gasResults = await exponentiate(mathTester, n, runs, issuanceFactor);
+      const gasResults = await exponentiate(mathTester, issuanceFactor, undefined, n, runs);
+
+      console.log("Gas results: ", gasResults);
 
       th.logGasMetrics(gasResults, message);
       th.logAllGasCosts(gasResults);
@@ -164,7 +174,7 @@ contract("Gas costs for math functions", async () => {
       data50Years.push(n + "," + gasResults.medianGas + "\n");
     }
 
-    fs.writeFile("gasTest/outputs/exponentiationCosts30Years.csv", data50Years, (err) => {
+    fs.writeFile("gasTest/outputs/exponentiationCosts30Years.csv", data50Years.join(""), (err) => {
       if (err) {
         console.log(err);
       } else {

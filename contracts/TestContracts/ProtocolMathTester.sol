@@ -14,7 +14,7 @@ contract ProtocolMathTester {
     // Non-view wrapper for gas test
     // Note: `pure` modifier is set to remove the state mutability warning.
     // For gas tests, `pure` modifier should be removed.
-    function callDecPowTx(uint _base, uint _n) external pure returns (uint) {
+    function callDecPowTx(uint _base, uint _n) external returns (uint) {
         return ProtocolMath._decPow(_base, _n);
     }
 
