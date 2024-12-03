@@ -3956,7 +3956,7 @@ contract("BorrowerOperations", async () => {
               value: dec(3, "ether"),
             },
           ),
-        "BorrowerOperations: Cannot withdraw and add coll",
+        "BorrowerOps: Cannot withdraw and add coll",
       );
     });
 

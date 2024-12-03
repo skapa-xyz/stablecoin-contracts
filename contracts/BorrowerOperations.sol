@@ -175,6 +175,8 @@ contract BorrowerOperations is
         address _upperHint,
         address _lowerHint
     ) external payable override {
+        _requireAmountGreaterThanZero(_debtTokenAmount);
+
         ContractsCache memory contractsCache = ContractsCache(troveManager, activePool, debtToken);
         LocalVariables_openTrove memory vars;
 
@@ -182,7 +184,7 @@ contract BorrowerOperations is
         bool isRecoveryMode = _checkRecoveryMode(vars.price);
 
         _requireValidMaxFeePercentage(_maxFeePercentage, isRecoveryMode);
-        _requireTroveisNotActive(contractsCache.troveManager, msg.sender);
+        _requireTroveIsNotActive(contractsCache.troveManager, msg.sender);
 
         vars.debtTokenFee;
         vars.netDebt = _debtTokenAmount;
@@ -357,7 +359,7 @@ contract BorrowerOperations is
         }
         _requireSingularCollChange(_collWithdrawal);
         _requireNonZeroAdjustment(_collWithdrawal, _debtTokenChange);
-        _requireTroveisActive(contractsCache.troveManager, _borrower);
+        _requireTroveIsActive(contractsCache.troveManager, _borrower);
 
         // Confirm the operation is either a borrower adjusting their own trove, or a pure FIL transfer from the Stability Pool to a trove
         assert(
@@ -466,7 +468,7 @@ contract BorrowerOperations is
         IActivePool activePoolCached = activePool;
         IDebtToken debtTokenCached = debtToken;
 
-        _requireTroveisActive(troveManagerCached, msg.sender);
+        _requireTroveIsActive(troveManagerCached, msg.sender);
         uint price = priceFeed.fetchPrice();
         _requireNotInRecoveryMode(price);
 
@@ -618,10 +620,14 @@ contract BorrowerOperations is
 
     // --- 'Require' wrapper functions ---
 
+    function _requireAmountGreaterThanZero(uint _amount) internal pure {
+        require(_amount != 0, "BorrowerOps: Amount must be greater than zero");
+    }
+
     function _requireSingularCollChange(uint _collWithdrawal) internal view {
         require(
             msg.value == 0 || _collWithdrawal == 0,
-            "BorrowerOperations: Cannot withdraw and add coll"
+            "BorrowerOps: Cannot withdraw and add coll"
         );
     }
 
@@ -639,12 +645,12 @@ contract BorrowerOperations is
         );
     }
 
-    function _requireTroveisActive(ITroveManager _troveManager, address _borrower) internal view {
+    function _requireTroveIsActive(ITroveManager _troveManager, address _borrower) internal view {
         uint status = _troveManager.getTroveStatus(_borrower);
         require(status == 1, "BorrowerOps: Trove does not exist or is closed");
     }
 
-    function _requireTroveisNotActive(
+    function _requireTroveIsNotActive(
         ITroveManager _troveManager,
         address _borrower
     ) internal view {
