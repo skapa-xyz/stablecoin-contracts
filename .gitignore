@@ -42,6 +42,7 @@ node_modules
 
 # echidna
 /crytic-export
+/fuzzTests/corpus
 
 # brownie
 __pycache__

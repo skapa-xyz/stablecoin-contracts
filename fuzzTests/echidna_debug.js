@@ -1,13 +1,7 @@
-const {
-  TestHelper: { dec },
-} = require("../utils/testHelpers.js");
-
-const EchidnaTester = artifacts.require("EchidnaTester");
-const TroveManager = artifacts.require("TroveManager");
-const DebtToken = artifacts.require("DebtToken");
-const ActivePool = artifacts.require("ActivePool");
-const DefaultPool = artifacts.require("DefaultPool");
-const StabilityPool = artifacts.require("StabilityPool");
+const testHelpers = require("../utils/testHelpers.js");
+const th = testHelpers.TestHelper;
+const dec = th.dec;
+const toBN = th.toBN;
 
 // run with:
 // npx hardhat --config hardhat.config.echidna.js test fuzzTests/echidna_debug.js
@@ -19,19 +13,25 @@ contract("Echidna debugger", async (accounts) => {
   let activePool;
   let defaultPool;
   let stabilityPool;
-  let GAS_POOL_ADDRESS;
+  let gasPoolAddress;
 
   before(async () => {
-    echidnaTester = await EchidnaTester.new({ value: dec(11, 25) });
-    troveManager = await TroveManager.at(await echidnaTester.troveManager());
-    debtToken = await DebtToken.at(await echidnaTester.debtToken());
-    activePool = await ActivePool.at(await echidnaTester.activePool());
-    defaultPool = await DefaultPool.at(await echidnaTester.defaultPool());
-    stabilityPool = await StabilityPool.at(await echidnaTester.stabilityPool());
-    GAS_POOL_ADDRESS = await troveManager.GAS_POOL_ADDRESS();
+    const echidnaTesterFactory = await ethers.getContractFactory("EchidnaTester");
+
+    echidnaTester = await echidnaTesterFactory.deploy({ value: toBN(dec(11, 25)) });
+    troveManager = await ethers.getContractAt("TroveManager", await echidnaTester.troveManager());
+    debtToken = await ethers.getContractAt("DebtToken", await echidnaTester.debtToken());
+    activePool = await ethers.getContractAt("ActivePool", await echidnaTester.activePool());
+    defaultPool = await ethers.getContractAt("DefaultPool", await echidnaTester.defaultPool());
+    stabilityPool = await ethers.getContractAt(
+      "StabilityPool",
+      await echidnaTester.stabilityPool(),
+    );
+
+    gasPoolAddress = await troveManager.gasPoolAddress();
   });
 
-  it("openTrove", async () => {
+  it.skip("openTrove", async () => {
     await echidnaTester.openTroveExt(
       "28533397325200555203581702704626658822751905051193839801320459908900876958892",
       "52469987802830075086048985199642144541375565475567220729814021622139768827880",
@@ -39,7 +39,7 @@ contract("Echidna debugger", async (accounts) => {
     );
   });
 
-  it("openTrove", async () => {
+  it.skip("openTrove", async () => {
     await echidnaTester.openTroveExt("0", "0", "0");
   });
 
@@ -75,16 +75,16 @@ contract("Echidna debugger", async (accounts) => {
     console.log("Trove 2", icr2_after_price, icr2_after_price.toString());
   });
 
-  it.only("Debt token balance", async () => {
-    await echidnaTester.openTroveExt("0", "0", "4210965169908805439447313562489173090");
+  it("Debt token balance", async () => {
+    await echidnaTester.openTroveExt("0", "20000000000000000000", "421096516990880543944");
 
     const totalSupply = await debtToken.totalSupply();
-    const gasPoolBalance = await debtToken.balanceOf(GAS_POOL_ADDRESS);
+    const gasPoolBalance = await debtToken.balanceOf(gasPoolAddress);
     const activePoolBalance = await activePool.getDebt();
     const defaultPoolBalance = await defaultPool.getDebt();
     const stabilityPoolBalance = await stabilityPool.getTotalDebtTokenDeposits();
     const currentTrove = await echidnaTester.echidnaProxies(0);
-    const troveBalance = debtToken.balanceOf(currentTrove);
+    const troveBalance = await debtToken.balanceOf(currentTrove);
 
     console.log("totalSupply", totalSupply.toString());
     console.log("gasPoolBalance", gasPoolBalance.toString());

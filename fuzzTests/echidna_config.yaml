@@ -1,8 +1,8 @@
-#checkAsserts checks assertions
-checkAsserts: true
+#select the mode to test, which can be property, assertion, overflow, exploration, optimization
+testMode: "assertion"
 
-#codeSize max code size for deployed contratcs (default 24576, per EIP-170)
-codeSize: 124576
+#codeSize max code size for deployed contratcs (default 0xffffffff)
+# codeSize: 0xffffffff
 
 #whether ot not to use the multi-abi mode of testing
 #it’s not working for us, see: https://github.com/crytic/echidna/issues/547
@@ -11,7 +11,7 @@ codeSize: 124576
 #balanceAddr is default balance for addresses
 balanceAddr: 0xffffffffffffffffffffffff
 #balanceContract overrides balanceAddr for the contract address (2^128 = ~3e38)
-balanceContract: 0xffffffffffffffffffffffffffffffffffffffffffffffff
+# balanceContract: 0xffffffffffffffffffffffffffffffffffffffffffffffff
 
 #testLimit is the number of test sequences to run
 testLimit: 50000

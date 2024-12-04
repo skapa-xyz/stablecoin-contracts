@@ -28,6 +28,27 @@ $ npx hardhat run --network testnet deployments/allocate.js
 $ npx hardhat run --network mainnet deployments/allocate.js
 ```
 
+## Tests
+
+```sh
+# unit test
+$ npm run test
+
+# gas cost test
+$ npm run test ./gasTest/*.js
+
+# fuzzing test: hardhat
+$ npm run test ./fuzzTests/PoolManager_AllDepositorsCanWithdrawTest.js
+
+# fuzzing test: echidna
+$ rm -f fuzzTests/corpus/* # (optional)
+$ docker pull ghcr.io/crytic/echidna/echidna:v2.2.5 --platform linux/amd64
+$ docker run --rm --platform linux/amd64 -it -v `pwd`:/src ghcr.io/crytic/echidna/echidna bash -c "solc-select install 0.7.6 && solc-select use 0.7.6 && echidna /src/contracts/TestContracts/EchidnaTester.sol --config /src/fuzzTests/echidna_config.yaml --corpus-dir 'src/fuzzTests/corpus'"
+
+# fuzzing test: echidna(debug)
+$ npm run test ./fuzzTests/echidna_debug.js -- --config hardhat.config.echidna.js
+```
+
 ## Directories
 
 - `contracts` - The core back end smart contracts written in Solidity

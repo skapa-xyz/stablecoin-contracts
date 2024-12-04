@@ -13,21 +13,23 @@ import "../CollSurplusPool.sol";
 import "../DebtToken.sol";
 import "./PriceFeedTestnet.sol";
 import "../SortedTroves.sol";
+import "../ProtocolToken/ProtocolToken.sol";
+import "../ProtocolToken/ProtocolTokenStaking.sol";
+import "../ProtocolToken/CommunityIssuance.sol";
+
 import "./EchidnaProxy.sol";
 //import "../Dependencies/console.sol";
-
-// Run with:
-// rm -f fuzzTests/corpus/* # (optional)
-// ~/.local/bin/echidna-test contracts/TestContracts/EchidnaTester.sol --contract EchidnaTester --config fuzzTests/echidna_config.yaml
 
 contract EchidnaTester {
     using SafeMath for uint;
 
     uint private constant NUMBER_OF_ACTORS = 100;
     uint private constant INITIAL_BALANCE = 1e24;
+    uint private constant GAS_COMPENSATION = 20000000000000000000;
+    uint private constant MIN_NET_DEBT = 180000000000000000000;
+    uint private constant BOOTSTRAP_PERIOD = 14 days;
     uint private MCR;
     uint private CCR;
-    uint private GAS_COMPENSATION;
 
     TroveManager public troveManager;
     BorrowerOperations public borrowerOperations;
@@ -40,16 +42,20 @@ contract EchidnaTester {
     PriceFeedTestnet priceFeedTestnet;
     SortedTroves sortedTroves;
 
+    ProtocolToken public protocolToken;
+    ProtocolTokenStaking public protocolTokenStaking;
+    CommunityIssuance public communityIssuance;
+
     EchidnaProxy[NUMBER_OF_ACTORS] public echidnaProxies;
 
     uint private numberOfTroves;
 
-    constructor(uint _gasCompensation, uint _minNetDebt, uint _bootstrapPeriod) payable {
-        troveManager = new TroveManager(_gasCompensation, _minNetDebt, _bootstrapPeriod);
-        borrowerOperations = new BorrowerOperations(_gasCompensation, _minNetDebt);
+    constructor() payable {
+        troveManager = new TroveManager(GAS_COMPENSATION, MIN_NET_DEBT, BOOTSTRAP_PERIOD);
+        borrowerOperations = new BorrowerOperations(GAS_COMPENSATION, MIN_NET_DEBT);
         activePool = new ActivePool();
         defaultPool = new DefaultPool();
-        stabilityPool = new StabilityPool(_gasCompensation, _minNetDebt);
+        stabilityPool = new StabilityPool(GAS_COMPENSATION, MIN_NET_DEBT);
         gasPool = new GasPool();
         debtToken = new DebtToken();
 
@@ -57,6 +63,10 @@ contract EchidnaTester {
         priceFeedTestnet = new PriceFeedTestnet();
 
         sortedTroves = new SortedTroves();
+
+        protocolToken = new ProtocolToken();
+        protocolTokenStaking = new ProtocolTokenStaking();
+        communityIssuance = new CommunityIssuance();
 
         troveManager.initialize(
             address(borrowerOperations),
@@ -68,8 +78,8 @@ contract EchidnaTester {
             address(priceFeedTestnet),
             address(debtToken),
             address(sortedTroves),
-            address(0),
-            address(0)
+            address(protocolToken),
+            address(protocolTokenStaking)
         );
 
         borrowerOperations.initialize(
@@ -82,7 +92,7 @@ contract EchidnaTester {
             address(priceFeedTestnet),
             address(sortedTroves),
             address(debtToken),
-            address(0)
+            address(protocolTokenStaking)
         );
 
         activePool.initialize(
@@ -101,7 +111,7 @@ contract EchidnaTester {
             address(debtToken),
             address(sortedTroves),
             address(priceFeedTestnet),
-            address(0)
+            address(communityIssuance)
         );
 
         debtToken.initialize(
@@ -118,6 +128,18 @@ contract EchidnaTester {
 
         sortedTroves.initialize(1e18, address(troveManager), address(borrowerOperations));
 
+        protocolToken.initialize(address(protocolTokenStaking), msg.sender, 40000000000000000);
+
+        protocolTokenStaking.initialize(
+            address(protocolToken),
+            address(debtToken),
+            address(troveManager),
+            address(borrowerOperations),
+            address(activePool)
+        );
+
+        communityIssuance.initialize(address(protocolToken), address(stabilityPool));
+
         for (uint i = 0; i < NUMBER_OF_ACTORS; i++) {
             echidnaProxies[i] = new EchidnaProxy(
                 troveManager,
@@ -131,7 +153,7 @@ contract EchidnaTester {
 
         MCR = borrowerOperations.MCR();
         CCR = borrowerOperations.CCR();
-        GAS_COMPENSATION = borrowerOperations.GAS_COMPENSATION();
+
         require(MCR > 0);
         require(CCR > 0);
 
@@ -215,7 +237,7 @@ contract EchidnaTester {
         //console.log('FIL', FIL);
         //console.log('debtTokenAmount', debtTokenAmount);
 
-        echidnaProxy.openTrovePrx(FIL, debtTokenAmount, address(0), address(0), 0);
+        echidnaProxy.openTrovePrx(FIL, debtTokenAmount, address(0), address(0), 10000000000000000);
 
         numberOfTroves = troveManager.getTroveOwnersCount();
         assert(numberOfTroves > 0);
@@ -535,9 +557,7 @@ contract EchidnaTester {
         return true;
     }
 
-    /*
-    function echidna_test() public view returns(bool) {
-        return true;
-    }
-    */
+    // function echidna_test() public view returns (bool) {
+    //     return true;
+    // }
 }
