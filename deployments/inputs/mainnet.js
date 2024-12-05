@@ -1,3 +1,6 @@
+const { TestHelper: th } = require("../../utils/testHelpers.js");
+const dec = th.dec;
+
 const externalAddrs = {
   // https://docs.tellor.io/tellor/integration/reference-page
   TELLOR_MASTER: "0x88dF592F8eb5D7Bd38bFeF7dEb0fBc02cf3778a0",
@@ -65,6 +68,7 @@ const beneficiaries = {
 const GAS_COMPENSATION = dec(20, 18); // 20 USDFC
 const MIN_NET_DEBT = dec(180, 18); // 180 USDFC
 const BOOTSTRAP_PERIOD = 2 * 7 * 24 * 60 * 60; // 2 weeks
+const PRICE_FEED_TIMEOUT = 24 * 60 * 60; // 1 day
 const ETHERSCAN_BASE_URL = "https://etherscan.io/address";
 
 module.exports = {
@@ -77,4 +81,5 @@ module.exports = {
   GAS_COMPENSATION,
   MIN_NET_DEBT,
   BOOTSTRAP_PERIOD,
+  PRICE_FEED_TIMEOUT,
 };

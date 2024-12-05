@@ -37,10 +37,7 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
     uint public constant TELLOR_DIGITS = 18;
 
     // Maximum time period allowed since Chainlink's latest round data timestamp, beyond which Chainlink is considered frozen.
-    uint public constant TIMEOUT = 14400; // 4 hours: 60 * 60 * 4
-
-    // Maximum deviation allowed between two consecutive Chainlink oracle prices. 18-digit precision.
-    uint public constant MAX_PRICE_DEVIATION_FROM_PREVIOUS_ROUND = 5e17; // 50%
+    uint public immutable TIMEOUT;
 
     /*
      * The maximum relative price difference between two oracle responses allowed in order for the PriceFeed
@@ -68,6 +65,10 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
 
     // The current status of the PricFeed, which determines the conditions for the next price fetch attempt
     Status public status;
+
+    constructor(uint _timeout) {
+        TIMEOUT = _timeout;
+    }
 
     // --- Dependency setters ---
 

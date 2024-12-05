@@ -1505,6 +1505,7 @@ TestHelper._100pct = "1000000000000000000";
 TestHelper.latestRandomSeed = 31337;
 TestHelper.GAS_COMPENSATION = TestHelper.dec(200, 18);
 TestHelper.MIN_NET_DEBT = TestHelper.dec(1800, 18);
+TestHelper.PRICE_FEED_TIMEOUT = 4 * 60 * 60; // 4 hours
 
 module.exports = {
   TestHelper,

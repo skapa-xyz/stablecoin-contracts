@@ -33,6 +33,7 @@ async function main(configParams) {
     await mdh.getFactory("MockPriceFeed"),
     "priceFeed",
     deploymentState,
+    [configParams.PRICE_FEED_TIMEOUT],
   );
 
   await mdh.sendAndWaitForTransaction(

@@ -7,6 +7,8 @@ import "../Dependencies/AggregatorV3Interface.sol";
 import "./MockAggregator.sol";
 
 contract MockPriceFeed is PriceFeed {
+    constructor(uint _timeout) PriceFeed(_timeout) {}
+
     function setPrice(int _price) public onlyOwner {
         MockAggregator mockPriceAggregator = MockAggregator(address(priceAggregator));
 

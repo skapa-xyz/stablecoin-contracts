@@ -27,14 +27,16 @@ contract("PriceFeed", async () => {
     mockTellor = await mockTellorFactory.deploy();
     tellorCaller = await tellorCallerFactory.deploy(mockTellor.address);
 
-    priceFeed = await deploymentHelper.deployProxy(priceFeedTesterFactory, [
-      mockChainlink.address,
-      tellorCaller.address,
-    ]);
-    invalidAddressPriceFeed = await deploymentHelper.deployProxy(priceFeedTesterFactory, [
-      dumbContract.address,
-      dumbContract.address,
-    ]);
+    priceFeed = await deploymentHelper.deployProxy(
+      priceFeedTesterFactory,
+      [mockChainlink.address, tellorCaller.address],
+      [th.PRICE_FEED_TIMEOUT],
+    );
+    invalidAddressPriceFeed = await deploymentHelper.deployProxy(
+      priceFeedTesterFactory,
+      [dumbContract.address, dumbContract.address],
+      [th.PRICE_FEED_TIMEOUT],
+    );
 
     // Set Chainlink latest and prev round Id's to non-zero
     await mockChainlink.setLatestRoundId(3);

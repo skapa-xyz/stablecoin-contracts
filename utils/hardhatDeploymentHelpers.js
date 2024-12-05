@@ -171,10 +171,13 @@ class HardhatDeploymentHelper {
     const debtTokenFactory = await this.getFactory("DebtToken");
 
     // Deploy txs
-    const priceFeed = await this.loadOrDeployProxy(priceFeedFactory, "priceFeed", deploymentState, [
-      pythCallerAddr,
-      tellorCallerAddr,
-    ]);
+    const priceFeed = await this.loadOrDeployProxy(
+      priceFeedFactory,
+      "priceFeed",
+      deploymentState,
+      [pythCallerAddr, tellorCallerAddr],
+      [this.configParams.PRICE_FEED_TIMEOUT],
+    );
 
     const sortedTroves = await this.loadOrDeployProxy(
       sortedTrovesFactory,
