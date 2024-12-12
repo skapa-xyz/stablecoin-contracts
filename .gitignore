@@ -44,15 +44,6 @@ node_modules
 /crytic-export
 /fuzzTests/corpus
 
-# brownie
-__pycache__
-.pytest_cache
-.history
-.hypothesis/
-build/
-reports/
-tests/simulation.csv
-
 # Security tools
 .mythril
 .solcx

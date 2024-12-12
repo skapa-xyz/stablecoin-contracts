@@ -63,7 +63,6 @@ $ docker run --rm --platform linux/amd64  -it -w /src -v `pwd`:/src mythril/myth
 - `contracts` - The core back end smart contracts written in Solidity
 - `deployments` - Deployment scripts, inputs, and outputs for the smart contracts
 - `test` - JS test suite for the system. Tests run in Mocha/Chai
-- `tests` - Python test suite for the system. Tests run in Brownie
 - `gasTest` - Non-assertive tests that return gas costs for protocol operations under various scenarios
 - `fuzzTests` - Echidna tests, and naive "random operation" tests
 - `utils` - external Hardhat and node scripts - deployment helpers, gas calculators, etc
