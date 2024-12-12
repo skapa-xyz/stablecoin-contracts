@@ -3692,7 +3692,7 @@ contract("TroveManager - in Recovery Mode", async () => {
      so Erin won’t liquidated. */
     const tx = await troveManager.liquidateTroves(10);
     const receipt = await tx.wait();
-    console.log("gasUsed: ", receipt.gasUsed);
+    console.log("gasUsed: ", receipt.gasUsed.toString());
 
     // Check A, B and D are closed
     assert.isFalse(await sortedTroves.contains(alice.address));
@@ -3765,7 +3765,7 @@ contract("TroveManager - in Recovery Mode", async () => {
      so it will consume more gas. */
     const tx = await troveManager.liquidateTroves(10);
     const receipt = await tx.wait();
-    console.log("gasUsed: ", receipt.gasUsed);
+    console.log("gasUsed: ", receipt.gasUsed.toString());
 
     // Check A, B and D are closed
     assert.isFalse(await sortedTroves.contains(alice.address));
@@ -4577,7 +4577,7 @@ contract("TroveManager - in Recovery Mode", async () => {
     ];
     const tx = await troveManager.batchLiquidateTroves(trovesToLiquidate);
     const receipt = await tx.wait();
-    console.log("gasUsed: ", receipt.gasUsed);
+    console.log("gasUsed: ", receipt.gasUsed.toString());
 
     // Check A, B and D are closed
     assert.isFalse(await sortedTroves.contains(alice.address));
@@ -4655,7 +4655,7 @@ contract("TroveManager - in Recovery Mode", async () => {
     ];
     const tx = await troveManager.batchLiquidateTroves(trovesToLiquidate);
     const receipt = await tx.wait();
-    console.log("gasUsed: ", receipt.gasUsed);
+    console.log("gasUsed: ", receipt.gasUsed.toString());
 
     // Check A, B and D are closed
     assert.isFalse(await sortedTroves.contains(alice.address));

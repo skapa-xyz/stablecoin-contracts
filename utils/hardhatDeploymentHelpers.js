@@ -200,7 +200,6 @@ class HardhatDeploymentHelper {
         cpContracts.priceFeed,
         cpContracts.debtToken,
         cpContracts.sortedTroves,
-        cpContracts.protocolToken,
         cpContracts.protocolTokenStaking,
       ],
       [...constructorBaseArgs, this.configParams.BOOTSTRAP_PERIOD],

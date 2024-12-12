@@ -5,7 +5,7 @@ pragma solidity 0.7.6;
 interface ILockupContractFactory {
     // --- Events ---
 
-    event ProtocolTokenAddressSet(address _protocolTokenAddress);
+    event ProtocolTokenAddressChanged(address _protocolTokenAddress);
     event LockupContractDeployedThroughFactory(
         address _lockupContractAddress,
         address _beneficiary,

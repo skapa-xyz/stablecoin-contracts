@@ -3,8 +3,8 @@
 pragma solidity 0.7.6;
 pragma experimental ABIEncoderV2;
 
-import "./TroveManager.sol";
-import "./SortedTroves.sol";
+import "./Interfaces/ITroveManager.sol";
+import "./Interfaces/ISortedTroves.sol";
 
 /*  Helper contract for grabbing Trove data for the front end. Not part of the core system. */
 contract MultiTroveGetter {
@@ -17,10 +17,10 @@ contract MultiTroveGetter {
         uint snapshotDebt;
     }
 
-    TroveManager public troveManager; // XXX Troves missing from ITroveManager?
-    ISortedTroves public sortedTroves;
+    ITroveManager public immutable troveManager;
+    ISortedTroves public immutable sortedTroves;
 
-    constructor(TroveManager _troveManager, ISortedTroves _sortedTroves) {
+    constructor(ITroveManager _troveManager, ISortedTroves _sortedTroves) {
         troveManager = _troveManager;
         sortedTroves = _sortedTroves;
     }

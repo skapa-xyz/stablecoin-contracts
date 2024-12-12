@@ -7,16 +7,17 @@ import "./Interfaces/ITroveManager.sol";
 import "./Interfaces/IDebtToken.sol";
 import "./Interfaces/ICollSurplusPool.sol";
 import "./Interfaces/ISortedTroves.sol";
+import "./Interfaces/IPriceFeed.sol";
 import "./Interfaces/IProtocolTokenStaking.sol";
 import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
-import "./Dependencies/ProtocolBase.sol";
-import "./Dependencies/CheckContract.sol";
+import "./Dependencies/OpenZeppelin/utils/ReentrancyGuardUpgradeable.sol";
+import "./Dependencies/TroveBase.sol";
 import "./Dependencies/console.sol";
 
 contract BorrowerOperations is
-    ProtocolBase,
+    TroveBase,
     OwnableUpgradeable,
-    CheckContract,
+    ReentrancyGuardUpgradeable,
     IBorrowerOperations
 {
     using SafeMath for uint;
@@ -26,18 +27,13 @@ contract BorrowerOperations is
     // --- Connected contract declarations ---
 
     ITroveManager public troveManager;
-
-    address stabilityPoolAddress;
-
-    address gasPoolAddress;
-
-    ICollSurplusPool collSurplusPool;
-
+    address public stabilityPoolAddress;
+    address public gasPoolAddress;
+    ICollSurplusPool public collSurplusPool;
+    IPriceFeed public priceFeed;
     IProtocolTokenStaking public protocolTokenStaking;
     address public protocolTokenStakingAddress;
-
     IDebtToken public debtToken;
-
     // A doubly linked list of Troves, sorted by their collateral ratios
     ISortedTroves public sortedTroves;
 
@@ -81,10 +77,7 @@ contract BorrowerOperations is
 
     // --- Functions ---
 
-    constructor(
-        uint _gasCompensation,
-        uint _minNetDebt
-    ) ProtocolBase(_gasCompensation, _minNetDebt) {}
+    constructor(uint _gasCompensation, uint _minNetDebt) TroveBase(_gasCompensation, _minNetDebt) {}
 
     // --- Dependency setters ---
 
@@ -101,10 +94,10 @@ contract BorrowerOperations is
         address _protocolTokenStakingAddress
     ) external initializer {
         __Ownable_init();
+        __ReentrancyGuard_init();
+        __TroveBase_setAddresses(_activePoolAddress, _defaultPoolAddress);
         _setAddresses(
             _troveManagerAddress,
-            _activePoolAddress,
-            _defaultPoolAddress,
             _stabilityPoolAddress,
             _gasPoolAddress,
             _collSurplusPoolAddress,
@@ -117,8 +110,6 @@ contract BorrowerOperations is
 
     function _setAddresses(
         address _troveManagerAddress,
-        address _activePoolAddress,
-        address _defaultPoolAddress,
         address _stabilityPoolAddress,
         address _gasPoolAddress,
         address _collSurplusPoolAddress,
@@ -131,8 +122,6 @@ contract BorrowerOperations is
         assert(MIN_NET_DEBT > 0);
 
         checkContract(_troveManagerAddress);
-        checkContract(_activePoolAddress);
-        checkContract(_defaultPoolAddress);
         checkContract(_stabilityPoolAddress);
         checkContract(_gasPoolAddress);
         checkContract(_collSurplusPoolAddress);
@@ -144,8 +133,6 @@ contract BorrowerOperations is
         _requireSameInitialParameters(_troveManagerAddress);
 
         troveManager = ITroveManager(_troveManagerAddress);
-        activePool = IActivePool(_activePoolAddress);
-        defaultPool = IDefaultPool(_defaultPoolAddress);
         stabilityPoolAddress = _stabilityPoolAddress;
         gasPoolAddress = _gasPoolAddress;
         collSurplusPool = ICollSurplusPool(_collSurplusPoolAddress);
@@ -156,8 +143,6 @@ contract BorrowerOperations is
         protocolTokenStaking = IProtocolTokenStaking(_protocolTokenStakingAddress);
 
         emit TroveManagerAddressChanged(_troveManagerAddress);
-        emit ActivePoolAddressChanged(_activePoolAddress);
-        emit DefaultPoolAddressChanged(_defaultPoolAddress);
         emit StabilityPoolAddressChanged(_stabilityPoolAddress);
         emit GasPoolAddressChanged(_gasPoolAddress);
         emit CollSurplusPoolAddressChanged(_collSurplusPoolAddress);
@@ -174,7 +159,7 @@ contract BorrowerOperations is
         uint _debtTokenAmount,
         address _upperHint,
         address _lowerHint
-    ) external payable override {
+    ) external payable override nonReentrant {
         _requireAmountGreaterThanZero(_debtTokenAmount);
 
         ContractsCache memory contractsCache = ContractsCache(troveManager, activePool, debtToken);
@@ -262,7 +247,10 @@ contract BorrowerOperations is
     }
 
     // Send FIL as collateral to a trove
-    function addColl(address _upperHint, address _lowerHint) external payable override {
+    function addColl(
+        address _upperHint,
+        address _lowerHint
+    ) external payable override nonReentrant {
         _adjustTrove(msg.sender, 0, 0, false, _upperHint, _lowerHint, 0);
     }
 
@@ -281,7 +269,7 @@ contract BorrowerOperations is
         uint _collWithdrawal,
         address _upperHint,
         address _lowerHint
-    ) external override {
+    ) external override nonReentrant {
         _adjustTrove(msg.sender, _collWithdrawal, 0, false, _upperHint, _lowerHint, 0);
     }
 
@@ -291,7 +279,7 @@ contract BorrowerOperations is
         uint _debtTokenAmount,
         address _upperHint,
         address _lowerHint
-    ) external override {
+    ) external override nonReentrant {
         _adjustTrove(
             msg.sender,
             0,
@@ -308,7 +296,7 @@ contract BorrowerOperations is
         uint _debtTokenAmount,
         address _upperHint,
         address _lowerHint
-    ) external override {
+    ) external override nonReentrant {
         _adjustTrove(msg.sender, 0, _debtTokenAmount, false, _upperHint, _lowerHint, 0);
     }
 
@@ -319,7 +307,7 @@ contract BorrowerOperations is
         bool _isDebtIncrease,
         address _upperHint,
         address _lowerHint
-    ) external payable override {
+    ) external payable override nonReentrant {
         _adjustTrove(
             msg.sender,
             _collWithdrawal,
@@ -463,7 +451,7 @@ contract BorrowerOperations is
         );
     }
 
-    function closeTrove() external override {
+    function closeTrove() external override nonReentrant {
         ITroveManager troveManagerCached = troveManager;
         IActivePool activePoolCached = activePool;
         IDebtToken debtTokenCached = debtToken;

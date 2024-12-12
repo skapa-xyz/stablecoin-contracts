@@ -5,7 +5,6 @@ pragma solidity 0.7.6;
 import "../Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "../Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "../Dependencies/CheckContract.sol";
-import "../Interfaces/ICommunityIssuance.sol";
 import "../Interfaces/IProtocolToken.sol";
 import "../Dependencies/console.sol";
 

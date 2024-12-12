@@ -56,6 +56,7 @@ module.exports = {
       blockGasLimit: 15000000,
       gasPrice: 20000000000,
       initialBaseFeePerGas: 0,
+      allowUnlimitedContractSize: true,
     },
     localhost: {
       url: "http://127.0.0.1:8545",

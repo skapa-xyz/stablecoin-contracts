@@ -3,7 +3,7 @@ const testHelpers = require("../../utils/testHelpers.js");
 
 const th = testHelpers.TestHelper;
 const timeValues = testHelpers.TimeValues;
-const { dec, toBN, assertRevert } = th;
+const { dec, toBN, assertRevert, ZERO_ADDRESS } = th;
 
 contract("Deploying and funding One Year Lockup Contracts", async () => {
   let deployer, A, B, C, D, E, F, G, H, I, J;
@@ -393,6 +393,14 @@ contract("Deploying and funding One Year Lockup Contracts", async () => {
         LCDeploymentPromise_C,
         "LockupContract: unlock time must be at least one year after system deployment",
       );
+    });
+
+    it("LC deployment through the Factory reverts when the _beneficiary is zero address", async () => {
+      const LCDeploymentPromise = lockupContractFactory
+        .connect(deployer)
+        .deployLockupContract(ZERO_ADDRESS, oneYearFromAllocation);
+
+      await assertRevert(LCDeploymentPromise, "LockupContract: beneficiary cannot be zero address");
     });
   });
 

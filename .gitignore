@@ -52,3 +52,10 @@ __pycache__
 build/
 reports/
 tests/simulation.csv
+
+# Security tools
+.mythril
+.solcx
+.cache
+mythril-log.md
+slither.log

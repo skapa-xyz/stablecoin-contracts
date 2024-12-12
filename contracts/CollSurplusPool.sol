@@ -109,5 +109,6 @@ contract CollSurplusPool is OwnableUpgradeable, CheckContract, ICollSurplusPool 
     receive() external payable {
         _requireCallerIsActivePool();
         FIL = FIL.add(msg.value);
+        emit CollSurplusPoolFILBalanceUpdated(FIL);
     }
 }

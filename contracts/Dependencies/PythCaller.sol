@@ -12,8 +12,8 @@ import "./AggregatorV3Interface.sol";
  * as pyth network does not have a concept of rounds.
  */
 contract PythCaller is AggregatorV3Interface {
-    bytes32 public priceId;
-    IPyth public pyth;
+    bytes32 public immutable priceId;
+    IPyth public immutable pyth;
     string private _description;
 
     constructor(address pyth_, bytes32 priceId_, string memory description_) {

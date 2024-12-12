@@ -28,10 +28,6 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
     AggregatorV3Interface public priceAggregator; // Mainnet Chainlink aggregator
     ITellorCaller public tellorCaller; // Wrapper contract that calls the Tellor system
 
-    // Core contracts
-    address borrowerOperationsAddress;
-    address troveManagerAddress;
-
     // Use to convert a price answer to an 18-digit precision uint
     uint public constant TARGET_DIGITS = 18;
     uint public constant TELLOR_DIGITS = 18;

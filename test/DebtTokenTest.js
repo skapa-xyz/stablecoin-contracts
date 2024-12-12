@@ -224,14 +224,14 @@ contract("DebtToken", async () => {
     if (!withProxy) {
       it("approve(): reverts when spender param is address(0)", async () => {
         const txPromise = debtTokenTester.connect(bob).approve(ZERO_ADDRESS, 100);
-        await assertAssert(txPromise);
+        await assertRevert(txPromise, "ERC20: approve to the zero address");
       });
 
       it("approve(): reverts when owner param is address(0)", async () => {
         const txPromise = debtTokenTester
           .connect(bob)
           .callInternalApprove(ZERO_ADDRESS, alice.address, dec(1000, 18));
-        await assertAssert(txPromise);
+        await assertRevert(txPromise, "ERC20: approve from the zero address");
       });
     }
 
@@ -436,7 +436,7 @@ contract("DebtToken", async () => {
         );
 
         // Check that the zero address fails
-        await assertAssert(
+        await assertRevert(
           debtTokenTester.permit(
             "0x0000000000000000000000000000000000000000",
             approve.spender.address,
@@ -446,6 +446,7 @@ contract("DebtToken", async () => {
             r,
             s,
           ),
+          "ERC20: approve from the zero address",
         );
       });
 

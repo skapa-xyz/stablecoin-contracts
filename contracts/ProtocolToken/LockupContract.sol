@@ -26,10 +26,10 @@ contract LockupContract {
 
     address public immutable beneficiary;
 
-    IProtocolToken public protocolToken;
+    IProtocolToken public immutable protocolToken;
 
     // Unlock time is the Unix point in time at which the beneficiary can withdraw.
-    uint public unlockTime;
+    uint public immutable unlockTime;
 
     // --- Events ---
 
@@ -39,16 +39,17 @@ contract LockupContract {
     // --- Functions ---
 
     constructor(address _protocolTokenAddress, address _beneficiary, uint _unlockTime) {
-        protocolToken = IProtocolToken(_protocolTokenAddress);
-
         /*
          * Set the unlock time to a chosen instant in the future, as long as it is at least 1 year after
          * the system was deployed
          */
-        _requireUnlockTimeIsAtLeastOneYearAfterSystemDeployment(_unlockTime);
-        unlockTime = _unlockTime;
+        _requireUnlockTimeIsAtLeastOneYearAfterSystemDeployment(_protocolTokenAddress, _unlockTime);
+        _requireBeneficiaryIsNonZero(_beneficiary);
 
+        protocolToken = IProtocolToken(_protocolTokenAddress);
+        unlockTime = _unlockTime;
         beneficiary = _beneficiary;
+
         emit LockupContractCreated(_beneficiary, _unlockTime);
     }
 
@@ -75,10 +76,15 @@ contract LockupContract {
         );
     }
 
+    function _requireBeneficiaryIsNonZero(address _beneficiary) internal pure {
+        require(_beneficiary != address(0), "LockupContract: beneficiary cannot be zero address");
+    }
+
     function _requireUnlockTimeIsAtLeastOneYearAfterSystemDeployment(
+        address _protocolTokenAddress,
         uint _unlockTime
     ) internal view {
-        uint tokenAllocationTime = protocolToken.getAllocationStartTime();
+        uint tokenAllocationTime = IProtocolToken(_protocolTokenAddress).getAllocationStartTime();
         require(
             _unlockTime >= tokenAllocationTime.add(SECONDS_IN_ONE_YEAR),
             "LockupContract: unlock time must be at least one year after system deployment"

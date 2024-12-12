@@ -21,7 +21,6 @@ module.exports = {
   skipFiles: [
     "TestContracts/",
     "MultiTroveGetter.sol",
-    "Migrations.sol",
     "Interfaces/",
     "Dependencies/OpenZeppelin/",
     "Dependencies/BaseMath.sol",

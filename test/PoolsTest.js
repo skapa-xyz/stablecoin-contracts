@@ -2,7 +2,7 @@ const deploymentHelper = require("../utils/deploymentHelpers.js");
 const testHelpers = require("../utils/testHelpers.js");
 
 const th = testHelpers.TestHelper;
-const dec = th.dec;
+const { dec, assertRevert } = th;
 
 const _minus_1_Ether = web3.utils.toWei("-1", "ether");
 
@@ -72,7 +72,7 @@ contract("ActivePool", async (accounts) => {
     assert.equal(recordedFILBalance, 0);
   });
 
-  it("increaseDebtToken(): increases the recorded DebtToken balance by the correct amount", async () => {
+  it("increaseDebt(): increases the recorded DebtToken balance by the correct amount", async () => {
     const recordedDebtToken_balanceBefore = await activePool.getDebt();
     assert.equal(recordedDebtToken_balanceBefore, 0);
 
@@ -85,7 +85,7 @@ contract("ActivePool", async (accounts) => {
     assert.equal(recordedDebtToken_balanceAfter, 100);
   });
   // Decrease
-  it("decreaseDebtToken(): decreases the recorded DebtToken balance by the correct amount", async () => {
+  it("decreaseDebt(): decreases the recorded DebtToken balance by the correct amount", async () => {
     // start the pool on 100 wei
     //await activePool.increaseDebt(100, { from: mockBorrowerOperationsAddress })
     const increaseDebtData = th.getTransactionData("increaseDebt(uint256)", ["0x64"]);
@@ -144,6 +144,17 @@ contract("ActivePool", async (accounts) => {
     assert.equal(alice_BalanceChange, dec(1, "ether"));
     assert.equal(pool_BalanceChange, _minus_1_Ether);
   });
+
+  it("sendFIL(): reverts when _account is zero address", async () => {
+    const sendFILData = th.getTransactionData("sendFIL(address,uint256)", [
+      th.ZERO_ADDRESS,
+      web3.utils.toHex(dec(1, "ether")),
+    ]);
+    const tx = mockBorrowerOperations.forward(activePool.address, sendFILData, {
+      from: owner,
+    });
+    await assertRevert(tx, "ActivePool: account cannot be zero address");
+  });
 });
 
 contract("DefaultPool", async () => {
@@ -179,7 +190,7 @@ contract("DefaultPool", async () => {
     assert.equal(recordedFILBalance, 0);
   });
 
-  it("increaseDebtToken(): increases the recorded DebtToken balance by the correct amount", async () => {
+  it("increaseDebt(): increases the recorded DebtToken balance by the correct amount", async () => {
     const recordedDebtToken_balanceBefore = await defaultPool.getDebt();
     assert.equal(recordedDebtToken_balanceBefore, 0);
 
@@ -193,7 +204,7 @@ contract("DefaultPool", async () => {
     assert.equal(recordedDebtToken_balanceAfter, 100);
   });
 
-  it("decreaseDebtToken(): decreases the recorded DebtToken balance by the correct amount", async () => {
+  it("decreaseDebt(): decreases the recorded DebtToken balance by the correct amount", async () => {
     // start the pool on 100 wei
     //await defaultPool.increaseDebt(100, { from: mockTroveManagerAddress })
     const increaseDebtData = th.getTransactionData("increaseDebt(uint256)", ["0x64"]);

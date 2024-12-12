@@ -55,10 +55,6 @@ contract BorrowerWrappersScript is
         checkContract(debtTokenCached);
         debtToken = IERC20(debtTokenCached);
 
-        address protocolTokenCached = address(troveManagerCached.protocolToken());
-        checkContract(protocolTokenCached);
-        protocolToken = IERC20(protocolTokenCached);
-
         IProtocolTokenStaking protocolTokenStakingCached = troveManagerCached
             .protocolTokenStaking();
         require(
@@ -66,6 +62,10 @@ contract BorrowerWrappersScript is
             "BorrowerWrappersScript: Wrong ProtocolTokenStaking address"
         );
         protocolTokenStaking = protocolTokenStakingCached;
+
+        address protocolTokenCached = address(protocolTokenStakingCached.protocolToken());
+        checkContract(protocolTokenCached);
+        protocolToken = IERC20(protocolTokenCached);
     }
 
     function claimCollateralAndOpenTrove(

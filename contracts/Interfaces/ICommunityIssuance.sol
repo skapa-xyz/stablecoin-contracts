@@ -5,8 +5,8 @@ pragma solidity 0.7.6;
 interface ICommunityIssuance {
     // --- Events ---
 
-    event ProtocolTokenAddressSet(address _protocolTokenAddress);
-    event StabilityPoolAddressSet(address _stabilityPoolAddress);
+    event ProtocolTokenAddressChanged(address _protocolTokenAddress);
+    event StabilityPoolAddressChanged(address _stabilityPoolAddress);
     event ProtocolTokenSupplyCapUpdated(uint _protocolTokenSupplyCap);
     event TotalProtocolTokenIssuedUpdated(uint _totalProtocolTokenIssued);
 

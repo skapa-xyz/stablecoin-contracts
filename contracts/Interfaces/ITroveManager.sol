@@ -4,26 +4,22 @@ pragma solidity 0.7.6;
 
 import "./ICollSurplusPool.sol";
 import "./IDebtToken.sol";
-import "./IProtocolBase.sol";
-import "./IProtocolToken.sol";
+import "./IPriceFeed.sol";
 import "./IProtocolTokenStaking.sol";
 import "./ISortedTroves.sol";
 import "./IStabilityPool.sol";
 
 // Common interface for the Trove Manager.
-interface ITroveManager is IProtocolBase {
+interface ITroveManager {
     // --- Events ---
 
     event BorrowerOperationsAddressChanged(address _newBorrowerOperationsAddress);
     event PriceFeedAddressChanged(address _newPriceFeedAddress);
     event DebtTokenAddressChanged(address _newDebtTokenAddress);
-    event ActivePoolAddressChanged(address _activePoolAddress);
-    event DefaultPoolAddressChanged(address _defaultPoolAddress);
     event StabilityPoolAddressChanged(address _stabilityPoolAddress);
     event GasPoolAddressChanged(address _gasPoolAddress);
     event CollSurplusPoolAddressChanged(address _collSurplusPoolAddress);
     event SortedTrovesAddressChanged(address _sortedTrovesAddress);
-    event ProtocolTokenAddressChanged(address _protocolTokenAddress);
     event ProtocolTokenStakingAddressChanged(address _protocolTokenStakingAddress);
 
     event Liquidation(
@@ -79,9 +75,12 @@ interface ITroveManager is IProtocolBase {
     function collSurplusPool() external view returns (ICollSurplusPool);
     function stabilityPool() external view returns (IStabilityPool);
     function debtToken() external view returns (IDebtToken);
-    function protocolToken() external view returns (IProtocolToken);
+    function priceFeed() external view returns (IPriceFeed);
     function protocolTokenStaking() external view returns (IProtocolTokenStaking);
     function sortedTroves() external view returns (ISortedTroves);
+
+    function Troves(address _borrower) external view returns (uint, uint, uint, Status, uint128);
+    function rewardSnapshots(address _borrower) external view returns (uint, uint);
 
     function getTroveOwnersCount() external view returns (uint);
 

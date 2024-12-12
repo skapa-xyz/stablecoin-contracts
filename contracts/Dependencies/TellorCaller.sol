@@ -22,7 +22,7 @@ contract TellorCaller is ITellorCaller {
     uint256 public constant DISPUTE_BUFFER = 20 minutes;
     uint256 public constant STALENESS_AGE = 12 hours;
 
-    ITellor public tellor;
+    ITellor public immutable tellor;
 
     constructor(address _tellorMasterAddress) {
         tellor = ITellor(_tellorMasterAddress);

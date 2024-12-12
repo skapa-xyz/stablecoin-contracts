@@ -84,6 +84,8 @@ contract ActivePool is OwnableUpgradeable, CheckContract, IActivePool {
     // --- Pool functionality ---
 
     function sendFIL(address _account, uint _amount) external override {
+        require(_account != address(0), "ActivePool: account cannot be zero address");
+
         _requireCallerIsBOorTroveMorSP();
         FIL = FIL.sub(_amount);
         emit ActivePoolFILBalanceUpdated(FIL);

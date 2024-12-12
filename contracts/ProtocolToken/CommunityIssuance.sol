@@ -69,8 +69,8 @@ contract CommunityIssuance is ICommunityIssuance, OwnableUpgradeable, CheckContr
         protocolToken = IProtocolToken(_protocolTokenAddress);
         stabilityPoolAddress = _stabilityPoolAddress;
 
-        emit ProtocolTokenAddressSet(_protocolTokenAddress);
-        emit StabilityPoolAddressSet(_stabilityPoolAddress);
+        emit ProtocolTokenAddressChanged(_protocolTokenAddress);
+        emit StabilityPoolAddressChanged(_stabilityPoolAddress);
     }
 
     function updateProtocolTokenSupplyCap() external onlyOwner {

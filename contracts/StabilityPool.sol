@@ -6,10 +6,13 @@ import "./Interfaces/IBorrowerOperations.sol";
 import "./Interfaces/IStabilityPool.sol";
 import "./Interfaces/IBorrowerOperations.sol";
 import "./Interfaces/ITroveManager.sol";
+import "./Interfaces/IActivePool.sol";
 import "./Interfaces/IDebtToken.sol";
+import "./Interfaces/IPriceFeed.sol";
 import "./Interfaces/ISortedTroves.sol";
 import "./Interfaces/ICommunityIssuance.sol";
 import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
+import "./Dependencies/OpenZeppelin/utils/ReentrancyGuardUpgradeable.sol";
 import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/ProtocolBase.sol";
 import "./Dependencies/ProtocolSafeMath128.sol";
@@ -145,21 +148,25 @@ import "./Dependencies/console.sol";
  * The product P (and snapshot P_t) is re-used, as the ratio P/P_t tracks a deposit's depletion due to liquidations.
  *
  */
-contract StabilityPool is ProtocolBase, OwnableUpgradeable, CheckContract, IStabilityPool {
+contract StabilityPool is
+    ProtocolBase,
+    OwnableUpgradeable,
+    ReentrancyGuardUpgradeable,
+    CheckContract,
+    IStabilityPool
+{
     using ProtocolSafeMath128 for uint128;
     using SafeMath for uint;
 
     string public constant NAME = "StabilityPool";
 
     IBorrowerOperations public borrowerOperations;
-
     ITroveManager public troveManager;
-
+    IActivePool public activePool;
     IDebtToken public debtToken;
-
     // Needed to check if there are pending liquidations
     ISortedTroves public sortedTroves;
-
+    IPriceFeed public priceFeed;
     ICommunityIssuance public communityIssuance;
 
     uint256 internal FIL; // deposited filecoin tracker
@@ -254,6 +261,7 @@ contract StabilityPool is ProtocolBase, OwnableUpgradeable, CheckContract, IStab
         address _communityIssuanceAddress
     ) external initializer {
         __Ownable_init();
+        __ReentrancyGuard_init();
         _setAddresses(
             _borrowerOperationsAddress,
             _troveManagerAddress,
@@ -322,7 +330,7 @@ contract StabilityPool is ProtocolBase, OwnableUpgradeable, CheckContract, IStab
      * - Sends the tagged front end's accumulated ProtocolToken gains to the tagged front end
      * - Increases deposit and tagged front end's stake, and takes new snapshots for each.
      */
-    function provideToSP(uint _amount, address _frontEndTag) external override {
+    function provideToSP(uint _amount, address _frontEndTag) external override nonReentrant {
         _requireFrontEndIsRegisteredOrZero(_frontEndTag);
         _requireFrontEndNotRegistered(msg.sender);
         _requireNonZeroAmount(_amount);
@@ -371,7 +379,7 @@ contract StabilityPool is ProtocolBase, OwnableUpgradeable, CheckContract, IStab
      *
      * If _amount > userDeposit, the user withdraws all of their compounded deposit.
      */
-    function withdrawFromSP(uint _amount) external override {
+    function withdrawFromSP(uint _amount) external override nonReentrant {
         if (_amount != 0) {
             _requireNoUnderCollateralizedTroves();
         }
@@ -417,7 +425,10 @@ contract StabilityPool is ProtocolBase, OwnableUpgradeable, CheckContract, IStab
      * - Transfers the depositor's entire FIL gain from the Stability Pool to the caller's trove
      * - Leaves their compounded deposit in the Stability Pool
      * - Updates snapshots for deposit and tagged front end stake */
-    function withdrawFILGainToTrove(address _upperHint, address _lowerHint) external override {
+    function withdrawFILGainToTrove(
+        address _upperHint,
+        address _lowerHint
+    ) external override nonReentrant {
         uint initialDeposit = deposits[msg.sender].initialValue;
         _requireUserHasDeposit(initialDeposit);
         _requireUserHasTrove(msg.sender);
@@ -526,7 +537,7 @@ contract StabilityPool is ProtocolBase, OwnableUpgradeable, CheckContract, IStab
      * and transfers the Trove's FIL collateral from ActivePool to StabilityPool.
      * Only called by liquidation functions in the TroveManager.
      */
-    function offset(uint _debtToOffset, uint _collToAdd) external override {
+    function offset(uint _debtToOffset, uint _collToAdd) external override nonReentrant {
         _requireCallerIsTroveManager();
         uint totalDebtToken = totalDebtTokenDeposits; // cached to save an SLOAD
         if (totalDebtToken == 0 || _debtToOffset == 0) {
@@ -1066,6 +1077,6 @@ contract StabilityPool is ProtocolBase, OwnableUpgradeable, CheckContract, IStab
     receive() external payable {
         _requireCallerIsActivePool();
         FIL = FIL.add(msg.value);
-        StabilityPoolFILBalanceUpdated(FIL);
+        emit StabilityPoolFILBalanceUpdated(FIL);
     }
 }

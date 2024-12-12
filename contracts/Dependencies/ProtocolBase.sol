@@ -4,16 +4,11 @@ pragma solidity 0.7.6;
 
 import "./BaseMath.sol";
 import "./ProtocolMath.sol";
-import "../Interfaces/IActivePool.sol";
-import "../Interfaces/IDefaultPool.sol";
-import "../Interfaces/IPriceFeed.sol";
-import "../Interfaces/IProtocolBase.sol";
 
 /*
- * Base contract for TroveManager, BorrowerOperations and StabilityPool. Contains global system constants and
- * common functions.
+ * Base contract that contains global system constants and common functions.
  */
-contract ProtocolBase is BaseMath, IProtocolBase {
+contract ProtocolBase is BaseMath {
     using SafeMath for uint;
 
     uint public constant _100pct = 1000000000000000000; // 1e18 == 100%
@@ -34,12 +29,6 @@ contract ProtocolBase is BaseMath, IProtocolBase {
     // Minimum amount of net debt a trove must have
     uint public immutable MIN_NET_DEBT;
 
-    IActivePool public activePool;
-
-    IDefaultPool public defaultPool;
-
-    IPriceFeed public override priceFeed;
-
     constructor(uint _gasCompensation, uint _minNetDebt) {
         GAS_COMPENSATION = _gasCompensation;
         MIN_NET_DEBT = _minNetDebt;
@@ -59,35 +48,6 @@ contract ProtocolBase is BaseMath, IProtocolBase {
     // Return the amount of FIL to be drawn from a trove's collateral and sent as gas compensation.
     function _getCollGasCompensation(uint _entireColl) internal pure returns (uint) {
         return _entireColl / PERCENT_DIVISOR;
-    }
-
-    function getEntireSystemColl() public view returns (uint entireSystemColl) {
-        uint activeColl = activePool.getFIL();
-        uint liquidatedColl = defaultPool.getFIL();
-
-        return activeColl.add(liquidatedColl);
-    }
-
-    function getEntireSystemDebt() public view returns (uint entireSystemDebt) {
-        uint activeDebt = activePool.getDebt();
-        uint closedDebt = defaultPool.getDebt();
-
-        return activeDebt.add(closedDebt);
-    }
-
-    function _getTCR(uint _price) internal view returns (uint TCR) {
-        uint entireSystemColl = getEntireSystemColl();
-        uint entireSystemDebt = getEntireSystemDebt();
-
-        TCR = ProtocolMath._computeCR(entireSystemColl, entireSystemDebt, _price);
-
-        return TCR;
-    }
-
-    function _checkRecoveryMode(uint _price) internal view returns (bool) {
-        uint TCR = _getTCR(_price);
-
-        return TCR < CCR;
     }
 
     function _requireUserAcceptsFee(uint _fee, uint _amount, uint _maxFeePercentage) internal pure {

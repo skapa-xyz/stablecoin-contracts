@@ -2,19 +2,13 @@
 
 pragma solidity 0.7.6;
 
-import "./Interfaces/ICollSurplusPool.sol";
-import "./Interfaces/IDebtToken.sol";
-import "./Interfaces/IProtocolToken.sol";
-import "./Interfaces/IProtocolTokenStaking.sol";
-import "./Interfaces/ISortedTroves.sol";
-import "./Interfaces/IStabilityPool.sol";
 import "./Interfaces/ITroveManager.sol";
 import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
-import "./Dependencies/ProtocolBase.sol";
-import "./Dependencies/CheckContract.sol";
+import "./Dependencies/OpenZeppelin/utils/ReentrancyGuardUpgradeable.sol";
+import "./Dependencies/TroveBase.sol";
 import "./Dependencies/console.sol";
 
-contract TroveManager is ProtocolBase, OwnableUpgradeable, CheckContract, ITroveManager {
+contract TroveManager is TroveBase, OwnableUpgradeable, ReentrancyGuardUpgradeable, ITroveManager {
     using SafeMath for uint;
 
     string public constant NAME = "TroveManager";
@@ -29,7 +23,7 @@ contract TroveManager is ProtocolBase, OwnableUpgradeable, CheckContract, ITrove
     ICollSurplusPool public override collSurplusPool;
     IStabilityPool public override stabilityPool;
     IDebtToken public override debtToken;
-    IProtocolToken public override protocolToken;
+    IPriceFeed public override priceFeed;
     IProtocolTokenStaking public override protocolTokenStaking;
 
     // A doubly linked list of Troves, sorted by their sorted by their collateral ratios
@@ -69,7 +63,7 @@ contract TroveManager is ProtocolBase, OwnableUpgradeable, CheckContract, ITrove
         uint128 arrayIndex;
     }
 
-    mapping(address => Trove) public Troves;
+    mapping(address => Trove) public override Troves;
 
     uint public totalStakes;
 
@@ -91,7 +85,7 @@ contract TroveManager is ProtocolBase, OwnableUpgradeable, CheckContract, ITrove
     uint public L_Debt;
 
     // Map addresses with active troves to their RewardSnapshot
-    mapping(address => RewardSnapshot) public rewardSnapshots;
+    mapping(address => RewardSnapshot) public override rewardSnapshots;
 
     // Object containing the FIL and Debt snapshots for a given active trove
     struct RewardSnapshot {
@@ -195,7 +189,7 @@ contract TroveManager is ProtocolBase, OwnableUpgradeable, CheckContract, ITrove
         uint _gasCompensation,
         uint _minNetDebt,
         uint _bootstrapPeriod
-    ) ProtocolBase(_gasCompensation, _minNetDebt) {
+    ) TroveBase(_gasCompensation, _minNetDebt) {
         BOOTSTRAP_PERIOD = _bootstrapPeriod;
         deploymentStartTime = block.timestamp;
     }
@@ -212,72 +206,58 @@ contract TroveManager is ProtocolBase, OwnableUpgradeable, CheckContract, ITrove
         address _priceFeedAddress,
         address _debtTokenAddress,
         address _sortedTrovesAddress,
-        address _protocolTokenAddress,
         address _protocolTokenStakingAddress
     ) external initializer {
         __Ownable_init();
+        __ReentrancyGuard_init();
+        __TroveBase_setAddresses(_activePoolAddress, _defaultPoolAddress);
         _setAddresses(
             _borrowerOperationsAddress,
-            _activePoolAddress,
-            _defaultPoolAddress,
             _stabilityPoolAddress,
             _gasPoolAddress,
             _collSurplusPoolAddress,
             _priceFeedAddress,
             _debtTokenAddress,
             _sortedTrovesAddress,
-            _protocolTokenAddress,
             _protocolTokenStakingAddress
         );
     }
 
     function _setAddresses(
         address _borrowerOperationsAddress,
-        address _activePoolAddress,
-        address _defaultPoolAddress,
         address _stabilityPoolAddress,
         address _gasPoolAddress,
         address _collSurplusPoolAddress,
         address _priceFeedAddress,
         address _debtTokenAddress,
         address _sortedTrovesAddress,
-        address _protocolTokenAddress,
         address _protocolTokenStakingAddress
     ) private {
         checkContract(_borrowerOperationsAddress);
-        checkContract(_activePoolAddress);
-        checkContract(_defaultPoolAddress);
         checkContract(_stabilityPoolAddress);
         checkContract(_gasPoolAddress);
         checkContract(_collSurplusPoolAddress);
         checkContract(_priceFeedAddress);
         checkContract(_debtTokenAddress);
         checkContract(_sortedTrovesAddress);
-        checkContract(_protocolTokenAddress);
         checkContract(_protocolTokenStakingAddress);
 
         borrowerOperationsAddress = _borrowerOperationsAddress;
-        activePool = IActivePool(_activePoolAddress);
-        defaultPool = IDefaultPool(_defaultPoolAddress);
         stabilityPool = IStabilityPool(_stabilityPoolAddress);
         gasPoolAddress = _gasPoolAddress;
         collSurplusPool = ICollSurplusPool(_collSurplusPoolAddress);
         priceFeed = IPriceFeed(_priceFeedAddress);
         debtToken = IDebtToken(_debtTokenAddress);
         sortedTroves = ISortedTroves(_sortedTrovesAddress);
-        protocolToken = IProtocolToken(_protocolTokenAddress);
         protocolTokenStaking = IProtocolTokenStaking(_protocolTokenStakingAddress);
 
         emit BorrowerOperationsAddressChanged(_borrowerOperationsAddress);
-        emit ActivePoolAddressChanged(_activePoolAddress);
-        emit DefaultPoolAddressChanged(_defaultPoolAddress);
         emit StabilityPoolAddressChanged(_stabilityPoolAddress);
         emit GasPoolAddressChanged(_gasPoolAddress);
         emit CollSurplusPoolAddressChanged(_collSurplusPoolAddress);
         emit PriceFeedAddressChanged(_priceFeedAddress);
         emit DebtTokenAddressChanged(_debtTokenAddress);
         emit SortedTrovesAddressChanged(_sortedTrovesAddress);
-        emit ProtocolTokenAddressChanged(_protocolTokenAddress);
         emit ProtocolTokenStakingAddressChanged(_protocolTokenStakingAddress);
     }
 
@@ -555,7 +535,7 @@ contract TroveManager is ProtocolBase, OwnableUpgradeable, CheckContract, ITrove
      * Liquidate a sequence of troves. Closes a maximum number of n under-collateralized Troves,
      * starting from the one with the lowest collateral ratio in the system, and moving upwards
      */
-    function liquidateTroves(uint _n) external override {
+    function liquidateTroves(uint _n) external override nonReentrant {
         ContractsCache memory contractsCache = ContractsCache(
             activePool,
             defaultPool,
@@ -759,7 +739,7 @@ contract TroveManager is ProtocolBase, OwnableUpgradeable, CheckContract, ITrove
     /*
      * Attempt to liquidate a custom list of troves provided by the caller.
      */
-    function batchLiquidateTroves(address[] memory _troveArray) public override {
+    function batchLiquidateTroves(address[] memory _troveArray) public override nonReentrant {
         require(_troveArray.length != 0, "TroveManager: Calldata address array must not be empty");
 
         IActivePool activePoolCached = activePool;
@@ -1150,7 +1130,7 @@ contract TroveManager is ProtocolBase, OwnableUpgradeable, CheckContract, ITrove
         uint _partialRedemptionHintNICR,
         uint _maxIterations,
         uint _maxFeePercentage
-    ) external override {
+    ) external override nonReentrant {
         ContractsCache memory contractsCache = ContractsCache(
             activePool,
             defaultPool,

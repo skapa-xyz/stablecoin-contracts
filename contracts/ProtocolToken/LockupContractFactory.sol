@@ -47,7 +47,7 @@ contract LockupContractFactory is ILockupContractFactory, OwnableUpgradeable, Ch
         checkContract(_protocolTokenAddress);
 
         protocolTokenAddress = _protocolTokenAddress;
-        emit ProtocolTokenAddressSet(_protocolTokenAddress);
+        emit ProtocolTokenAddressChanged(_protocolTokenAddress);
     }
 
     function deployLockupContract(address _beneficiary, uint _unlockTime) external override {

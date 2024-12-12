@@ -37,16 +37,22 @@ $ npm run test
 # gas cost test
 $ npm run test ./gasTest/*.js
 
-# fuzzing test: hardhat
+# fuzzing test: Hardhat
 $ npm run test ./fuzzTests/PoolManager_AllDepositorsCanWithdrawTest.js
 
-# fuzzing test: echidna
+# fuzzing test: Echidna
 $ rm -f fuzzTests/corpus/* # (optional)
 $ docker pull ghcr.io/crytic/echidna/echidna:v2.2.5 --platform linux/amd64
 $ docker run --rm --platform linux/amd64 -it -v `pwd`:/src ghcr.io/crytic/echidna/echidna bash -c "solc-select install 0.7.6 && solc-select use 0.7.6 && echidna /src/contracts/TestContracts/EchidnaTester.sol --config /src/fuzzTests/echidna_config.yaml --corpus-dir 'src/fuzzTests/corpus'"
 
-# fuzzing test: echidna(debug)
+# fuzzing test: Echidna(debug)
 $ npm run test ./fuzzTests/echidna_debug.js -- --config hardhat.config.echidna.js
+
+# Slither
+$ docker run --rm --platform linux/amd64 -it -w /src -v `pwd`:/src "trailofbits/eth-security-toolbox":nightly-20241209 bash -c "solc-select install 0.7.6 && solc-select use 0.7.6 && slither . --config-file slither.config.json --exclude-informational > slither.log 2>&1"
+
+# Mythril
+$ docker run --rm --platform linux/amd64  -it -w /src -v `pwd`:/src mythril/myth:0.24.8 scripts/mythril.sh
 ```
 
 ## Directories

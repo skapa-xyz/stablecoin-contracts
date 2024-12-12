@@ -1,4 +1,3 @@
 {
-  "detectors_to_exclude": "naming-convention",
-  "filter_paths": "TestContracts|Dependencies|Migrations.sol|MultiTroveGetter.sol"
+  "filter_paths": "node_modules,contracts/TestContracts,contracts/Dependencies/OpenZeppelin,contracts/Proxy"
 }

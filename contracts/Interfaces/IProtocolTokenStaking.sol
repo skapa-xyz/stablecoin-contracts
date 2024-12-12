@@ -2,14 +2,17 @@
 
 pragma solidity 0.7.6;
 
+import "./IProtocolToken.sol";
+import "./IDebtToken.sol";
+
 interface IProtocolTokenStaking {
     // --- Events --
 
-    event ProtocolTokenAddressSet(address _protocolTokenAddress);
-    event DebtTokenAddressSet(address _debtTokenAddress);
-    event TroveManagerAddressSet(address _troveManager);
-    event BorrowerOperationsAddressSet(address _borrowerOperationsAddress);
-    event ActivePoolAddressSet(address _activePoolAddress);
+    event ProtocolTokenAddressChanged(address _protocolTokenAddress);
+    event DebtTokenAddressChanged(address _debtTokenAddress);
+    event TroveManagerAddressChanged(address _troveManager);
+    event BorrowerOperationsAddressChanged(address _borrowerOperationsAddress);
+    event ActivePoolAddressChanged(address _activePoolAddress);
 
     event StakeChanged(address indexed staker, uint newStake);
     event StakingGainsWithdrawn(address indexed staker, uint debtTokenGain, uint FILGain);
@@ -23,6 +26,9 @@ interface IProtocolTokenStaking {
     event UnallocatedDebtTokenUpdated(uint _unallocatedDebtToken);
 
     // --- Functions ---
+
+    function protocolToken() external view returns (IProtocolToken);
+    function debtToken() external view returns (IDebtToken);
 
     function stake(uint _tokenAmount) external;
 

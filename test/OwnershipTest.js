@@ -65,7 +65,7 @@ contract("All functions with onlyOwner modifier", async () => {
 
   describe("TroveManager", async () => {
     it("initialize(): reverts when called", async () => {
-      await testInitialize(troveManager, 11);
+      await testInitialize(troveManager, 10);
     });
   });
 
@@ -97,7 +97,6 @@ contract("All functions with onlyOwner modifier", async () => {
     it("setParams(): reverts when called", async () => {
       const protocolBaseFactory = await ethers.getContractFactory("ProtocolBase");
       const dumbContract = await protocolBaseFactory.deploy(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-      // const dumbContract = await ProtocolBase.new(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
       const params = [10000001, dumbContract.address, dumbContract.address];
 
       // fails if called

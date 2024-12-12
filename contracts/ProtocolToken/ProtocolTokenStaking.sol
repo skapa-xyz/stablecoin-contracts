@@ -3,18 +3,18 @@
 pragma solidity 0.7.6;
 
 import "../Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
+import "../Dependencies/OpenZeppelin/utils/ReentrancyGuardUpgradeable.sol";
 import "../Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "../Dependencies/BaseMath.sol";
 import "../Dependencies/CheckContract.sol";
-import "../Dependencies/console.sol";
-import "../Interfaces/IProtocolToken.sol";
-import "../Interfaces/IProtocolTokenStaking.sol";
 import "../Dependencies/ProtocolMath.sol";
-import "../Interfaces/IDebtToken.sol";
+import "../Interfaces/IProtocolTokenStaking.sol";
+import "../Dependencies/console.sol";
 
 contract ProtocolTokenStaking is
     IProtocolTokenStaking,
     OwnableUpgradeable,
+    ReentrancyGuardUpgradeable,
     CheckContract,
     BaseMath
 {
@@ -40,8 +40,8 @@ contract ProtocolTokenStaking is
         uint F_DebtToken_Snapshot;
     }
 
-    IProtocolToken public protocolToken;
-    IDebtToken public debtToken;
+    IProtocolToken public override protocolToken;
+    IDebtToken public override debtToken;
 
     address public troveManagerAddress;
     address public borrowerOperationsAddress;
@@ -57,6 +57,7 @@ contract ProtocolTokenStaking is
         address _activePoolAddress
     ) external initializer {
         __Ownable_init();
+        __ReentrancyGuard_init();
         _setAddresses(
             _protocolTokenAddress,
             _debtTokenAddress,
@@ -85,15 +86,15 @@ contract ProtocolTokenStaking is
         borrowerOperationsAddress = _borrowerOperationsAddress;
         activePoolAddress = _activePoolAddress;
 
-        emit ProtocolTokenAddressSet(_protocolTokenAddress);
-        emit DebtTokenAddressSet(_debtTokenAddress);
-        emit TroveManagerAddressSet(_troveManagerAddress);
-        emit BorrowerOperationsAddressSet(_borrowerOperationsAddress);
-        emit ActivePoolAddressSet(_activePoolAddress);
+        emit ProtocolTokenAddressChanged(_protocolTokenAddress);
+        emit DebtTokenAddressChanged(_debtTokenAddress);
+        emit TroveManagerAddressChanged(_troveManagerAddress);
+        emit BorrowerOperationsAddressChanged(_borrowerOperationsAddress);
+        emit ActivePoolAddressChanged(_activePoolAddress);
     }
 
     // If caller has a pre-existing stake, send any accumulated FIL and Debt Token gains to them.
-    function stake(uint _tokenAmount) external override {
+    function stake(uint _tokenAmount) external override nonReentrant {
         _requireNonZeroAmount(_tokenAmount);
 
         uint currentStake = stakes[msg.sender];
@@ -130,7 +131,7 @@ contract ProtocolTokenStaking is
 
     // Unstake the ProtocolToken and send the it back to the caller, along with their accumulated Debt Token & FIL gains.
     // If requested amount > stake, send their entire stake.
-    function unstake(uint _tokenAmount) external override {
+    function unstake(uint _tokenAmount) external override nonReentrant {
         uint currentStake = stakes[msg.sender];
         _requireUserHasStake(currentStake);
 

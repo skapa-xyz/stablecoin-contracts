@@ -78,7 +78,6 @@ contract EchidnaTester {
             address(priceFeedTestnet),
             address(debtToken),
             address(sortedTroves),
-            address(protocolToken),
             address(protocolTokenStaking)
         );
 
