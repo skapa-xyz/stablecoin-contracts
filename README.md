@@ -34,6 +34,9 @@ $ npx hardhat run --network mainnet deployments/allocate.js
 # unit test
 $ npm run test
 
+# coverage test
+$ npm run coverage
+
 # gas cost test
 $ npm run test ./gasTest/*.js
 
