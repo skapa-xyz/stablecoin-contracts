@@ -28,11 +28,15 @@ const bootstrapPeriod = 2 * 7 * 24 * 60 * 60; // 2 weeks
 upgrades.silenceWarnings();
 
 class DeploymentHelper {
-  static async getFactory(name) {
-    const factory = await ethers.getContractFactory(name);
-    return factory;
-  }
+  static factoryCache = {};
 
+  static async getFactory(name) {
+    if (!this.factoryCache[name]) {
+      this.factoryCache[name] = await ethers.getContractFactory(name);
+    }
+
+    return this.factoryCache[name];
+  }
   static async deploy(factory, params = []) {
     const contract = await factory.deploy(...params);
     await contract.deployed();

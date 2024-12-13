@@ -201,12 +201,10 @@ contract("Fee arithmetic tests", async () => {
     });
 
     [owner] = await ethers.getSigners();
-  });
 
-  beforeEach(async () => {
     await hre.network.provider.send("hardhat_reset");
 
-    const protocolMathTesterFactory = await ethers.getContractFactory("ProtocolMathTester");
+    const protocolMathTesterFactory = await deploymentHelper.getFactory("ProtocolMathTester");
     mathTester = await deploymentHelper.deploy(protocolMathTesterFactory);
 
     const transactionCount = await owner.getTransactionCount();

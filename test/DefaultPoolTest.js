@@ -12,8 +12,8 @@ contract("DefaultPool", async (accounts) => {
   let [owner] = accounts;
 
   beforeEach("Deploy contracts", async () => {
-    const defaultPoolFactory = await ethers.getContractFactory("DefaultPool");
-    const nonPayableFactory = await ethers.getContractFactory("NonPayable");
+    const defaultPoolFactory = await deploymentHelper.getFactory("DefaultPool");
+    const nonPayableFactory = await deploymentHelper.getFactory("NonPayable");
 
     mockTroveManager = await nonPayableFactory.deploy();
     mockActivePool = await nonPayableFactory.deploy();

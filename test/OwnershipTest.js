@@ -55,7 +55,7 @@ contract("All functions with onlyOwner modifier", async () => {
   });
 
   const testInitialize = async (contract, numberOfAddresses) => {
-    const protocolBaseFactory = await ethers.getContractFactory("ProtocolBase");
+    const protocolBaseFactory = await deploymentHelper.getFactory("ProtocolBase");
     const dumbContract = await protocolBaseFactory.deploy(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     const params = Array(numberOfAddresses).fill(dumbContract.address);
 
@@ -95,7 +95,7 @@ contract("All functions with onlyOwner modifier", async () => {
 
   describe("SortedTroves", async () => {
     it("setParams(): reverts when called", async () => {
-      const protocolBaseFactory = await ethers.getContractFactory("ProtocolBase");
+      const protocolBaseFactory = await deploymentHelper.getFactory("ProtocolBase");
       const dumbContract = await protocolBaseFactory.deploy(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
       const params = [10000001, dumbContract.address, dumbContract.address];
 

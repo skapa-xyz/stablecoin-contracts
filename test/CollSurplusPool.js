@@ -8,7 +8,7 @@ const mv = testHelpers.MoneyValues;
 const timeValues = testHelpers.TimeValues;
 
 contract("CollSurplusPool", async () => {
-  let owner, A, B, C, D, E;
+  let owner, A, B, C, D, E, F;
 
   let borrowerOperations;
   let priceFeed;
@@ -20,9 +20,7 @@ contract("CollSurplusPool", async () => {
 
   before(async () => {
     [owner, A, B, C, D, E] = await ethers.getSigners();
-  });
 
-  beforeEach(async () => {
     await hre.network.provider.send("hardhat_reset");
 
     const transactionCount = await owner.getTransactionCount();
@@ -104,7 +102,9 @@ contract("CollSurplusPool", async () => {
   });
 
   it("CollSurplusPool: claimColl(): Reverts if owner cannot receive FIL surplus", async () => {
-    const nonPayableFactory = await ethers.getContractFactory("NonPayable");
+    const FIL_Before = await collSurplusPool.getFIL();
+
+    const nonPayableFactory = await deploymentHelper.getFactory("NonPayable");
     const nonPayable = await nonPayableFactory.deploy();
 
     const price = toBN(dec(100, 18));
@@ -116,24 +116,28 @@ contract("CollSurplusPool", async () => {
     const B_netDebt = await th.getAmountWithBorrowingFee(contracts, B_debtTokenAmount);
     const openTroveData = th.getTransactionData("openTrove(uint256,uint256,address,address)", [
       "0xde0b6b3a7640000",
-      web3.utils.toHex(B_debtTokenAmount),
+      B_debtTokenAmount.toString(),
       B.address,
       B.address,
     ]);
     await nonPayable.forward(borrowerOperations.address, openTroveData, { value: B_coll });
     await openTrove({
       extraDebtTokenAmount: B_netDebt,
-      extraParams: { from: A, value: dec(3000, "ether") },
+      extraParams: { from: D, value: dec(3000, "ether") },
     });
 
     // skip bootstrapping phase
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_WEEK * 2, web3.currentProvider);
 
     // At FIL:USD = 100, this redemption should leave 1 ether of coll surplus for B
-    await th.redeemCollateralAndGetTxObject(A, contracts, B_netDebt);
+    await th.redeemCollateralAndGetTxObject(D, contracts, B_netDebt);
 
-    const FIL_2 = await collSurplusPool.getFIL();
-    th.assertIsApproximatelyEqual(FIL_2, B_coll.sub(B_netDebt.mul(mv._1e18BN).div(price)));
+    const FIL_After = await collSurplusPool.getFIL();
+
+    th.assertIsApproximatelyEqual(
+      FIL_After.sub(FIL_Before),
+      B_coll.sub(B_netDebt.mul(mv._1e18BN).div(price)),
+    );
 
     const claimCollateralData = th.getTransactionData("claimCollateral()", []);
     await th.assertRevert(

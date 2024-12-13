@@ -15,6 +15,7 @@ async function main(configParams) {
   const mdh = new HardhatDeploymentHelper(configParams, deployerWallet);
 
   const deploymentState = mdh.loadPreviousDeployment();
+  const isFirstDeployment = Object.keys(deploymentState).length === 0;
 
   console.log(`deployer address: ${deployerWallet.address}`);
   assert.equal(deployerWallet.address, configParams.walletAddrs.DEPLOYER);
@@ -51,7 +52,11 @@ async function main(configParams) {
   ];
 
   const addressList = await mdh.computeContractAddresses(proxyContractList.length * 2 + 1);
-  addressList.shift(); // skip first contract
+  console.log("addressList:", addressList);
+
+  if (isFirstDeployment) {
+    addressList.shift(); // skip first contract
+  }
 
   const cpContracts = proxyContractList.reduce((acc, contract) => {
     if (deploymentState[contract]) {
@@ -62,6 +67,8 @@ async function main(configParams) {
     }
     return acc;
   }, {});
+
+  console.log("cpContracts:", cpContracts);
 
   // Deploy core logic contracts
   const coreContracts = await mdh.deployProtocolCore(

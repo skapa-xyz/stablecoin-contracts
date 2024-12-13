@@ -30,12 +30,7 @@ contract("Gas compensation tests", async () => {
     }
   };
 
-  before(async () => {
-    signers = await ethers.getSigners();
-    [owner, liquidator, alice, bob, carol, dennis, erin, flyn, harriet, whale] = signers;
-  });
-
-  beforeEach(async () => {
+  const deployContracts = async () => {
     await hre.network.provider.send("hardhat_reset");
 
     const transactionCount = await owner.getTransactionCount();
@@ -81,6 +76,19 @@ contract("Gas compensation tests", async () => {
     activePool = contracts.activePool;
     stabilityPool = contracts.stabilityPool;
     defaultPool = contracts.defaultPool;
+  };
+
+  before(async () => {
+    signers = await ethers.getSigners();
+    owner = signers.shift();
+
+    await deployContracts();
+  });
+
+  beforeEach(async () => {
+    [liquidator, alice, bob, carol, dennis, erin, flyn, harriet, whale] = signers.splice(0, 9);
+
+    await priceFeed.setPrice(dec(200, 18));
   });
 
   // --- Raw gas compensation calculations ---
@@ -816,6 +824,8 @@ contract("Gas compensation tests", async () => {
   // --- Event emission in single liquidation ---
 
   it("Gas compensation from pool-offset liquidations. Liquidation event emits the correct gas compensation and total liquidated coll and debt", async () => {
+    await deployContracts();
+
     await openTrove({ ICR: toBN(dec(2000, 18)), extraParams: { from: whale } });
 
     // A-E open troves
@@ -1137,6 +1147,7 @@ contract("Gas compensation tests", async () => {
 
   // liquidateTroves - full offset
   it("liquidateTroves(): full offset.  Compensates the correct amount, and liquidates the remainder", async () => {
+    await deployContracts();
     await priceFeed.setPrice(dec(1000, 18));
 
     await openTrove({ ICR: toBN(dec(2000, 18)), extraParams: { from: whale } });
@@ -1254,6 +1265,7 @@ contract("Gas compensation tests", async () => {
 
   // liquidateTroves - full redistribution
   it("liquidateTroves(): full redistribution. Compensates the correct amount, and liquidates the remainder", async () => {
+    await deployContracts();
     await priceFeed.setPrice(dec(1000, 18));
 
     await openTrove({ ICR: toBN(dec(200, 18)), extraParams: { from: whale } });
@@ -1353,6 +1365,7 @@ contract("Gas compensation tests", async () => {
 
   //  --- event emission in liquidation sequence ---
   it("liquidateTroves(): full offset. Liquidation event emits the correct gas compensation and total liquidated coll and debt", async () => {
+    await deployContracts();
     await priceFeed.setPrice(dec(1000, 18));
 
     await openTrove({ ICR: toBN(dec(2000, 18)), extraParams: { from: whale } });
@@ -1462,6 +1475,7 @@ contract("Gas compensation tests", async () => {
   });
 
   it("liquidateTroves(): full redistribution. Liquidation event emits the correct gas compensation and total liquidated coll and debt", async () => {
+    await deployContracts();
     await priceFeed.setPrice(dec(1000, 18));
 
     await openTrove({ ICR: toBN(dec(2000, 18)), extraParams: { from: whale } });
@@ -1562,7 +1576,7 @@ contract("Gas compensation tests", async () => {
   // --- Trove ordering by ICR tests ---
 
   it("Trove ordering: same collateral, decreasing debt. Price successively increases. Troves should maintain ordering by ICR", async () => {
-    const _10_accounts = signers.slice(1, 11);
+    const _10_accounts = signers.splice(0, 10);
 
     let debt = 50;
     // create 10 troves, constant coll, descending debt 100 to 90 debt token
@@ -1619,7 +1633,7 @@ contract("Gas compensation tests", async () => {
   });
 
   it("Trove ordering: increasing collateral, constant debt. Price successively increases. Troves should maintain ordering by ICR", async () => {
-    const _20_accounts = signers.slice(1, 21);
+    const _20_accounts = signers.splice(0, 20);
 
     let coll = 50;
     // create 20 troves, increasing collateral, constant debt = 100 debt token
@@ -1666,7 +1680,7 @@ contract("Gas compensation tests", async () => {
     let collVals = [
       1, 5, 10, 25, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000, 1000000, 5000000,
     ].map((v) => v * 20);
-    const accountsList = signers.slice(1, collVals.length + 1);
+    const accountsList = signers.splice(0, collVals.length);
 
     let accountIdx = 0;
     for (const coll of collVals) {

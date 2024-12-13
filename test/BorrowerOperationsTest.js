@@ -6797,7 +6797,7 @@ contract("BorrowerOperations", async () => {
 
     if (!withProxy) {
       it("closeTrove(): fails if owner cannot receive FIL", async () => {
-        const nonPayableFactory = await ethers.getContractFactory("NonPayable");
+        const nonPayableFactory = await deploymentHelper.getFactory("NonPayable");
         const nonPayable = await nonPayableFactory.deploy();
 
         // we need 2 troves to be able to close 1 and have 1 remaining in the system

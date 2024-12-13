@@ -72,12 +72,13 @@ const getPermitDigest = (
 };
 
 contract("DebtToken", async () => {
+  let signers;
   let owner, alice, bob, carol, dennis;
 
   let approve;
 
-  // the second account our hardhatenv creates (for Alice) from `hardhatAccountsList2k.js`
-  const alicePrivateKey = "0xeaa445c85f7b438dEd6e831d06a4eD0CEBDc2f8527f84Fcda6EBB5fCfAd4C0e9";
+  // the second account our hardhatenv creates (for owner) from `hardhatAccountsList2k.js`
+  const ownerPrivateKey = "0x60ddFE7f579aB6867cbE7A2Dc03853dC141d7A4aB6DBEFc0Dae2d2B1Bd4e487F";
 
   let chainId;
   let debtTokenOriginal;
@@ -86,21 +87,27 @@ contract("DebtToken", async () => {
   let troveManager;
   let borrowerOperations;
 
+  let contracts;
+  let protocolTokenContracts;
+
   let tokenName;
   let tokenVersion;
 
   before(async () => {
-    [owner, alice, bob, carol, dennis] = await ethers.getSigners();
+    // [owner, alice, bob, carol, dennis] = await ethers.getSigners();
+    signers = await ethers.getSigners();
+    [owner, alice, bob, carol, dennis] = await signers.splice(0, 5);
+    // owner = signers.shift();
 
     approve = {
-      owner: alice,
-      spender: bob,
+      owner: owner,
+      spender: alice,
       value: 1,
     };
   });
 
   const testCorpus = ({ withProxy = false }) => {
-    beforeEach(async () => {
+    before(async () => {
       await hre.network.provider.send("hardhat_reset");
 
       const transactionCount = await owner.getTransactionCount();
@@ -119,7 +126,7 @@ contract("DebtToken", async () => {
 
       debtTokenTester = await deploymentHelper.deployDebtTokenTester(cpContracts);
 
-      const contracts = await deploymentHelper.deployProtocolCore(
+      contracts = await deploymentHelper.deployProtocolCore(
         GAS_COMPENSATION,
         MIN_NET_DEBT,
         cpContracts,
@@ -127,17 +134,12 @@ contract("DebtToken", async () => {
 
       contracts.debtToken = debtTokenTester;
 
-      const protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
+      protocolTokenContracts = await deploymentHelper.deployProtocolTokenTesterContracts(
         owner.address,
         cpContracts,
       );
 
       debtTokenOriginal = contracts.debtToken;
-      if (withProxy) {
-        const users = [alice, bob, carol, dennis];
-        await deploymentHelper.deployProxyScripts(contracts, protocolTokenContracts, owner, users);
-      }
-
       debtTokenTester = contracts.debtToken;
       // for some reason this doesn’t work with coverage network
       //chainId = await web3.eth.getChainId()
@@ -149,9 +151,19 @@ contract("DebtToken", async () => {
 
       tokenVersion = await debtTokenOriginal.version();
       tokenName = await debtTokenOriginal.name();
+    });
 
-      // mint some tokens
+    beforeEach(async () => {
       if (withProxy) {
+        const users = [alice, bob, carol, dennis];
+        await deploymentHelper.deployProxyScripts(contracts, protocolTokenContracts, owner, users);
+
+        debtTokenTester = contracts.debtToken;
+        stabilityPool = contracts.stabilityPool;
+        troveManager = contracts.stabilityPool;
+        borrowerOperations = contracts.borrowerOperations;
+
+        // mint some tokens
         await debtTokenOriginal.unprotectedMint(
           debtTokenTester.getProxyAddressFromUser(alice.address),
           150,
@@ -171,6 +183,21 @@ contract("DebtToken", async () => {
       }
     });
 
+    afterEach(async () => {
+      [alice, bob, carol, dennis] = signers.splice(0, 4);
+
+      approve = {
+        owner: owner,
+        spender: alice,
+        value: 1,
+      };
+    });
+
+    it("totalSupply(): gets the total supply", async () => {
+      const total = (await debtTokenTester.totalSupply()).toString();
+      assert.equal(total, "300"); // 300
+    });
+
     it("balanceOf(): gets the balance of the account", async () => {
       const aliceBalance = (await debtTokenTester.balanceOf(alice.address)).toNumber();
       const bobBalance = (await debtTokenTester.balanceOf(bob.address)).toNumber();
@@ -179,11 +206,6 @@ contract("DebtToken", async () => {
       assert.equal(aliceBalance, 150);
       assert.equal(bobBalance, 100);
       assert.equal(carolBalance, 50);
-    });
-
-    it("totalSupply(): gets the total supply", async () => {
-      const total = (await debtTokenTester.totalSupply()).toString();
-      assert.equal(total, "300"); // 300
     });
 
     it("name(): returns the token's name", async () => {
@@ -329,14 +351,15 @@ contract("DebtToken", async () => {
         /// --- TEST ---
         const stabilityPool_BalanceBefore = await debtTokenTester.balanceOf(stabilityPool.address);
         const bob_BalanceBefore = await debtTokenTester.balanceOf(bob.address);
-        assert.equal(stabilityPool_BalanceBefore, 100);
+
         assert.equal(bob_BalanceBefore, 100);
 
         await debtTokenTester.unprotectedReturnFromPool(stabilityPool.address, bob.address, 75);
 
         const stabilityPool_BalanceAfter = await debtTokenTester.balanceOf(stabilityPool.address);
         const bob_BalanceAfter = await debtTokenTester.balanceOf(bob.address);
-        assert.equal(stabilityPool_BalanceAfter, 25);
+
+        assert.equal(stabilityPool_BalanceBefore.sub(stabilityPool_BalanceAfter), 75);
         assert.equal(bob_BalanceAfter, 175);
       });
     }
@@ -390,7 +413,7 @@ contract("DebtToken", async () => {
           deadline,
         );
 
-        const { v, r, s } = sign(digest, alicePrivateKey);
+        const { v, r, s } = sign(digest, ownerPrivateKey);
 
         const tx = debtTokenTester.permit(
           approve.owner.address,

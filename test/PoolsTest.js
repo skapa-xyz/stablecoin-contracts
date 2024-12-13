@@ -13,8 +13,8 @@ contract("StabilityPool", async () => {
   let stabilityPool;
 
   beforeEach(async () => {
-    const protocolBaseFactory = await ethers.getContractFactory("ProtocolBase");
-    const stabilityPoolFactory = await ethers.getContractFactory("StabilityPool");
+    const protocolBaseFactory = await deploymentHelper.getFactory("ProtocolBase");
+    const stabilityPoolFactory = await deploymentHelper.getFactory("StabilityPool");
 
     const dumbContract = await protocolBaseFactory.deploy(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     stabilityPool = await deploymentHelper.deployProxy(
@@ -48,9 +48,9 @@ contract("ActivePool", async (accounts) => {
 
   const [owner, alice] = accounts;
   beforeEach(async () => {
-    const activePoolFactory = await ethers.getContractFactory("ActivePool");
-    const nonPayableFactory = await ethers.getContractFactory("NonPayable");
-    const protocolBaseFactory = await ethers.getContractFactory("ProtocolBase");
+    const activePoolFactory = await deploymentHelper.getFactory("ActivePool");
+    const nonPayableFactory = await deploymentHelper.getFactory("NonPayable");
+    const protocolBaseFactory = await deploymentHelper.getFactory("ProtocolBase");
 
     const dumbContract = await protocolBaseFactory.deploy(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
     mockBorrowerOperations = await nonPayableFactory.deploy();
@@ -169,8 +169,8 @@ contract("DefaultPool", async () => {
   beforeEach(async () => {
     await hre.network.provider.send("hardhat_reset");
 
-    const nonPayableFactory = await ethers.getContractFactory("NonPayable");
-    const defaultPoolFactory = await ethers.getContractFactory("DefaultPool");
+    const nonPayableFactory = await deploymentHelper.getFactory("NonPayable");
+    const defaultPoolFactory = await deploymentHelper.getFactory("DefaultPool");
 
     mockTroveManager = await nonPayableFactory.deploy();
     mockActivePool = await nonPayableFactory.deploy();

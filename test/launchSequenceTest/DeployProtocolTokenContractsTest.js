@@ -28,9 +28,7 @@ contract(
 
       [deployer] = signers;
       [lpRewardsAddress, multisig] = signers.slice(998, 1000);
-    });
 
-    beforeEach(async () => {
       await hre.network.provider.send("hardhat_reset");
 
       const transactionCount = await deployer.getTransactionCount();

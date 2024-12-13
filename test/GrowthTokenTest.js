@@ -18,11 +18,12 @@ const ZERO_ADDRESS = th.ZERO_ADDRESS;
 const assertRevert = th.assertRevert;
 
 contract("ProtocolToken", async () => {
+  let signers;
   let owner, A, B, C, D;
   let lpRewardsAddress, multisig;
   let approve;
 
-  const A_PrivateKey = "0xeaa445c85f7b438dEd6e831d06a4eD0CEBDc2f8527f84Fcda6EBB5fCfAd4C0e9";
+  const ownerPrivateKey = "0x60ddFE7f579aB6867cbE7A2Dc03853dC141d7A4aB6DBEFc0Dae2d2B1Bd4e487F";
 
   let protocolTokenTester;
   let protocolTokenStaking;
@@ -116,7 +117,7 @@ contract("ProtocolToken", async () => {
       deadline,
     );
 
-    const { v, r, s } = sign(digest, A_PrivateKey);
+    const { v, r, s } = sign(digest, ownerPrivateKey);
 
     const tx = protocolTokenTester.permit(
       approve.owner.address,
@@ -132,20 +133,11 @@ contract("ProtocolToken", async () => {
   };
 
   before(async () => {
-    const signers = await ethers.getSigners();
+    signers = await ethers.getSigners();
 
-    [owner, A, B, C, D] = signers;
+    owner = signers.shift();
     [lpRewardsAddress, multisig] = signers.slice(998, 1000);
 
-    // Create the approval tx data, for use in permit()
-    approve = {
-      owner: A,
-      spender: B,
-      value: 1,
-    };
-  });
-
-  beforeEach(async () => {
     await hre.network.provider.send("hardhat_reset");
 
     const transactionCount = await owner.getTransactionCount();
@@ -178,6 +170,22 @@ contract("ProtocolToken", async () => {
     chainId = await protocolTokenTester.getChainId();
   });
 
+  beforeEach(async () => {
+    [A, B, C, D] = signers.splice(0, 4);
+
+    approve = {
+      owner,
+      spender: A,
+      value: 1,
+    };
+  });
+
+  it("totalSupply(): gets the total supply", async () => {
+    const total = (await protocolTokenTester.totalSupply()).toString();
+
+    assert.equal(total, dec(100, 24));
+  });
+
   it("balanceOf(): gets the balance of the account", async () => {
     await mintToABC();
 
@@ -188,12 +196,6 @@ contract("ProtocolToken", async () => {
     assert.equal(A_Balance, dec(150, 18));
     assert.equal(B_Balance, dec(100, 18));
     assert.equal(C_Balance, dec(50, 18));
-  });
-
-  it("totalSupply(): gets the total supply", async () => {
-    const total = (await protocolTokenTester.totalSupply()).toString();
-
-    assert.equal(total, dec(100, 24));
   });
 
   it("name(): returns the token's name", async () => {

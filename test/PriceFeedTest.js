@@ -14,12 +14,12 @@ contract("PriceFeed", async () => {
   let tellorCaller;
 
   beforeEach(async () => {
-    const nonPayableFactory = await ethers.getContractFactory("NonPayable");
-    const priceFeedTestnetFactory = await ethers.getContractFactory("PriceFeedTestnet");
-    const priceFeedTesterFactory = await ethers.getContractFactory("PriceFeedTester");
-    const mockChainlinkFactory = await ethers.getContractFactory("MockAggregator");
-    const mockTellorFactory = await ethers.getContractFactory("MockTellor");
-    const tellorCallerFactory = await ethers.getContractFactory("TellorCaller");
+    const nonPayableFactory = await deploymentHelper.getFactory("NonPayable");
+    const priceFeedTestnetFactory = await deploymentHelper.getFactory("PriceFeedTestnet");
+    const priceFeedTesterFactory = await deploymentHelper.getFactory("PriceFeedTester");
+    const mockChainlinkFactory = await deploymentHelper.getFactory("MockAggregator");
+    const mockTellorFactory = await deploymentHelper.getFactory("MockTellor");
+    const tellorCallerFactory = await deploymentHelper.getFactory("TellorCaller");
 
     const dumbContract = await nonPayableFactory.deploy();
     priceFeedTestnet = await priceFeedTestnetFactory.deploy();

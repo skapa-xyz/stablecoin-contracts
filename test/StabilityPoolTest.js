@@ -498,7 +498,7 @@ contract("StabilityPool", async () => {
 
       // --- TEST ---
 
-      const nonPayableFactory = await ethers.getContractFactory("NonPayable");
+      const nonPayableFactory = await deploymentHelper.getFactory("NonPayable");
       nonPayable = await nonPayableFactory.deploy();
       await debtToken.connect(whale).transfer(nonPayable.address, dec(250, 18));
 

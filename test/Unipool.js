@@ -42,11 +42,11 @@ contract("Unipool", function () {
   let multisig = "0x5b5e5CC89636CA2685b4e4f50E66099EBCFAb638"; // Arbitrary address for the multisig, which is not tested in this file
 
   const deploy = async (that) => {
-    const erc20Factory = await ethers.getContractFactory("ERC20Mock");
-    const unipoolFactory = await ethers.getContractFactory("Unipool");
-    const nonPayableFactory = await ethers.getContractFactory("NonPayable");
-    const communityIssuanceFactory = await ethers.getContractFactory("CommunityIssuance");
-    const protocolTokenFactory = await ethers.getContractFactory("ProtocolToken");
+    const erc20Factory = await deploymentHelper.getFactory("ERC20Mock");
+    const unipoolFactory = await deploymentHelper.getFactory("Unipool");
+    const nonPayableFactory = await deploymentHelper.getFactory("NonPayable");
+    const communityIssuanceFactory = await deploymentHelper.getFactory("CommunityIssuance");
+    const protocolTokenFactory = await deploymentHelper.getFactory("ProtocolToken");
 
     that.uni = await erc20Factory.deploy("Uniswap token", "LPT", owner.address, 0);
     that.pool = await deploymentHelper.deployProxy(unipoolFactory);

@@ -87,7 +87,7 @@ contract("ProtocolTokenStaking -  Revenue share tests", async () => {
 
     contracts.troveManager = troveManagerTester;
 
-    const nonPayableFactory = await ethers.getContractFactory("NonPayable");
+    const nonPayableFactory = await deploymentHelper.getFactory("NonPayable");
     nonPayable = await nonPayableFactory.deploy();
 
     debtToken = contracts.debtToken;
@@ -1112,7 +1112,7 @@ contract("ProtocolTokenStaking -  Revenue share tests", async () => {
   });
 
   it("Test requireCallerIsTroveManager", async () => {
-    const protocolTokenStakingTesterFactory = await ethers.getContractFactory(
+    const protocolTokenStakingTesterFactory = await deploymentHelper.getFactory(
       "ProtocolTokenStakingTester",
     );
     const protocolTokenStakingTester = await protocolTokenStakingTesterFactory.deploy();

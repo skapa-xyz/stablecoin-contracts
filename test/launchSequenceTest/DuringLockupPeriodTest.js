@@ -74,10 +74,7 @@ contract("During the initial lockup period", async () => {
       I,
     ] = signers;
     [lpRewardsAddress, multisig] = signers.slice(998, 1000);
-  });
 
-  beforeEach(async () => {
-    // Deploy all contracts from the first account
     await hre.network.provider.send("hardhat_reset");
 
     const transactionCount = await deployer.getTransactionCount();
@@ -157,6 +154,120 @@ contract("During the initial lockup period", async () => {
     await th.fastForwardTime(SECONDS_IN_364_DAYS, web3.currentProvider);
   });
 
+  describe("Withdrawal Attempts on LCs before unlockTime has passed ", async () => {
+    it("Multisig can't withdraw from a funded LC they deployed for another beneficiary through the Factory before the unlockTime", async () => {
+      // Check currentTime < unlockTime
+      const currentTime = toBN(await th.getLatestBlockTimestamp(web3));
+      const unlockTime = await LC_T1.unlockTime();
+      assert.isTrue(currentTime.lt(unlockTime));
+
+      // Multisig attempts withdrawal from LC they deployed through the Factory
+      try {
+        const withdrawalAttempt = await LC_T1.connect(multisig).withdrawProtocolToken();
+        assert.isFalse(withdrawalAttempt.receipt.status);
+      } catch (error) {
+        assert.include(error.message, "LockupContract: caller is not the beneficiary");
+      }
+    });
+
+    it("Multisig can't withdraw from a funded LC that someone else deployed before the unlockTime", async () => {
+      // Account D deploys a new LC via the Factory
+      const deployedLCtx_B = await lockupContractFactory
+        .connect(D)
+        .deployLockupContract(B.address, oneYearFromAllocation);
+      const LC_B = await th.getLCFromDeploymentTx(deployedLCtx_B);
+
+      //ProtocolToken multisig fund the newly deployed LCs
+      await protocolToken.connect(multisig).transfer(LC_B.address, dec(2, 18));
+
+      // Check currentTime < unlockTime
+      const currentTime = toBN(await th.getLatestBlockTimestamp(web3));
+      const unlockTime = await LC_B.unlockTime();
+      assert.isTrue(currentTime.lt(unlockTime));
+
+      // Multisig attempts withdrawal from LCs
+      try {
+        const withdrawalAttempt_B = await LC_B.connect(multisig).withdrawProtocolToken();
+        const receipt_B = await withdrawalAttempt_B.wait();
+        assert.equal(receipt_B.status, 1);
+      } catch (error) {
+        assert.include(error.message, "LockupContract: caller is not the beneficiary");
+      }
+    });
+
+    it("Beneficiary can't withdraw from their funded LC before the unlockTime", async () => {
+      // Account D deploys a new LC via the Factory
+      const deployedLCtx_B = await lockupContractFactory
+        .connect(D)
+        .deployLockupContract(B.address, oneYearFromAllocation);
+      const LC_B = await th.getLCFromDeploymentTx(deployedLCtx_B);
+
+      // Multisig funds contracts
+      await protocolToken.connect(multisig).transfer(LC_B.address, dec(2, 18));
+
+      // Check currentTime < unlockTime
+      const currentTime = toBN(await th.getLatestBlockTimestamp(web3));
+      const unlockTime = await LC_B.unlockTime();
+      assert.isTrue(currentTime.lt(unlockTime));
+
+      /* Beneficiaries of all LCS - team, investor, and newly created LCs - 
+      attempt to withdraw from their respective funded contracts */
+      const LCs = [LC_T1, LC_T2, LC_T3, LC_I1, LC_I2, LC_T3, LC_B];
+
+      for (LC of LCs) {
+        try {
+          const beneficiaryAddr = await LC.beneficiary();
+          const beneficiary = await ethers.provider.getSigner(beneficiaryAddr);
+          const withdrawalAttempt = await LC.connect(beneficiary).withdrawProtocolToken();
+          const receipt = await withdrawalAttempt.wait();
+          assert.equal(receipt.status, 1);
+        } catch (error) {
+          assert.include(error.message, "LockupContract: The lockup duration must have passed");
+        }
+      }
+    });
+
+    it("No one can withdraw from a beneficiary's funded LC before the unlockTime", async () => {
+      // Account D deploys a new LC via the Factory
+      const deployedLCtx_B = await lockupContractFactory
+        .connect(D)
+        .deployLockupContract(B.address, oneYearFromAllocation);
+      const LC_B = await th.getLCFromDeploymentTx(deployedLCtx_B);
+
+      // Multisig funds contract
+      await protocolToken.connect(multisig).transfer(LC_B.address, dec(2, 18));
+
+      // Check currentTime < unlockTime
+      const currentTime = toBN(await th.getLatestBlockTimestamp(web3));
+      const unlockTime = await LC_B.unlockTime();
+      assert.isTrue(currentTime.lt(unlockTime));
+
+      const variousEOAs = [teamMember_2, deployer, multisig, investor_1, A, C, D, E];
+
+      // Several EOAs attempt to withdraw from LC deployed by D
+      for (const account of variousEOAs) {
+        try {
+          const withdrawalAttempt = await LC_B.connect(account).withdrawProtocolToken();
+          const receipt = await withdrawalAttempt.wait();
+          assert.equal(receipt.status, 1);
+        } catch (error) {
+          assert.include(error.message, "LockupContract: caller is not the beneficiary");
+        }
+      }
+
+      // Several EOAs attempt to withdraw from LC_T1 deployed by ProtocolToken deployer
+      for (const account of variousEOAs) {
+        try {
+          const withdrawalAttempt = await LC_T1.connect(account).withdrawProtocolToken();
+          const receipt = await withdrawalAttempt.wait();
+          assert.equal(receipt.status, 1);
+        } catch (error) {
+          assert.include(error.message, "LockupContract: caller is not the beneficiary");
+        }
+      }
+    });
+  });
+
   describe("ProtocolToken transfer during first year after ProtocolToken deployment", async () => {
     it("Anyone can transfer ProtocolToken to LCs deployed by anyone through the Factory", async () => {
       // Start D, E, F with some ProtocolToken
@@ -202,7 +313,7 @@ contract("During the initial lockup period", async () => {
       await protocolToken.unprotectedMint(E.address, dec(2, 24));
       await protocolToken.unprotectedMint(F.address, dec(3, 24));
 
-      const _lockupContractFactory = await ethers.getContractFactory("LockupContract");
+      const _lockupContractFactory = await deploymentHelper.getFactory("LockupContract");
 
       // H, I, LiqAG deploy lockup contracts with A, B, C as beneficiaries, respectively
       const LC_A = await _lockupContractFactory
@@ -312,8 +423,9 @@ contract("During the initial lockup period", async () => {
       await protocolToken.unprotectedMint(F.address, dec(20, 24));
 
       // deploy new LCF
-      const nonPayableFactory = await ethers.getContractFactory("NonPayable");
-      const lockupContractFactoryFactory = await ethers.getContractFactory("LockupContractFactory");
+      const nonPayableFactory = await deploymentHelper.getFactory("NonPayable");
+      const lockupContractFactoryFactory =
+        await deploymentHelper.getFactory("LockupContractFactory");
       const dumbContract = await nonPayableFactory.deploy();
       const lcfNew = await deploymentHelper.deployProxy(lockupContractFactoryFactory, [
         dumbContract.address,
@@ -503,7 +615,7 @@ contract("During the initial lockup period", async () => {
 
     it("ProtocolToken Deployer can deploy LCs directly", async () => {
       // ProtocolToken deployer deploys LCs
-      const _lockupContractFactory = await ethers.getContractFactory("LockupContract");
+      const _lockupContractFactory = await deploymentHelper.getFactory("LockupContract");
 
       const lcTx_A = await _lockupContractFactory
         .connect(deployer)
@@ -527,7 +639,7 @@ contract("During the initial lockup period", async () => {
 
     it("Multisig can deploy LCs directly", async () => {
       // ProtocolToken deployer deploys LCs
-      const _lockupContractFactory = await ethers.getContractFactory("LockupContract");
+      const _lockupContractFactory = await deploymentHelper.getFactory("LockupContract");
 
       const lcTx_A = await _lockupContractFactory
         .connect(multisig)
@@ -551,7 +663,7 @@ contract("During the initial lockup period", async () => {
 
     it("Anyone can deploy LCs directly", async () => {
       // Various EOAs deploy LCs
-      const _lockupContractFactory = await ethers.getContractFactory("LockupContract");
+      const _lockupContractFactory = await deploymentHelper.getFactory("LockupContract");
 
       const lcTx_A = await _lockupContractFactory
         .connect(D)
@@ -575,7 +687,7 @@ contract("During the initial lockup period", async () => {
 
     it("Anyone can deploy LCs with unlockTime = one year from deployment, directly and through factory", async () => {
       // Deploy directly
-      const _lockupContractFactory = await ethers.getContractFactory("LockupContract");
+      const _lockupContractFactory = await deploymentHelper.getFactory("LockupContract");
 
       const lcTx_1 = await _lockupContractFactory
         .connect(D)
@@ -621,7 +733,7 @@ contract("During the initial lockup period", async () => {
       );
 
       // Deploy directly
-      const _lockupContractFactory = await ethers.getContractFactory("LockupContract");
+      const _lockupContractFactory = await deploymentHelper.getFactory("LockupContract");
 
       const lcTx_1 = await _lockupContractFactory
         .connect(D)
@@ -664,7 +776,7 @@ contract("During the initial lockup period", async () => {
       const justUnderOneYear = oneYearFromAllocation.sub(toBN("1"));
 
       // Attempt to deploy directly
-      const _lockupContractFactory = await ethers.getContractFactory("LockupContract");
+      const _lockupContractFactory = await deploymentHelper.getFactory("LockupContract");
 
       const directDeploymentTxPromise_1 = _lockupContractFactory
         .connect(D)
@@ -712,120 +824,6 @@ contract("During the initial lockup period", async () => {
         factoryDploymentTxPromise_3,
         "LockupContract: unlock time must be at least one year after system deployment",
       );
-    });
-
-    describe("Withdrawal Attempts on LCs before unlockTime has passed ", async () => {
-      it("Multisig can't withdraw from a funded LC they deployed for another beneficiary through the Factory before the unlockTime", async () => {
-        // Check currentTime < unlockTime
-        const currentTime = toBN(await th.getLatestBlockTimestamp(web3));
-        const unlockTime = await LC_T1.unlockTime();
-        assert.isTrue(currentTime.lt(unlockTime));
-
-        // Multisig attempts withdrawal from LC they deployed through the Factory
-        try {
-          const withdrawalAttempt = await LC_T1.connect(multisig).withdrawProtocolToken();
-          assert.isFalse(withdrawalAttempt.receipt.status);
-        } catch (error) {
-          assert.include(error.message, "LockupContract: caller is not the beneficiary");
-        }
-      });
-
-      it("Multisig can't withdraw from a funded LC that someone else deployed before the unlockTime", async () => {
-        // Account D deploys a new LC via the Factory
-        const deployedLCtx_B = await lockupContractFactory
-          .connect(D)
-          .deployLockupContract(B.address, oneYearFromAllocation);
-        const LC_B = await th.getLCFromDeploymentTx(deployedLCtx_B);
-
-        //ProtocolToken multisig fund the newly deployed LCs
-        await protocolToken.connect(multisig).transfer(LC_B.address, dec(2, 18));
-
-        // Check currentTime < unlockTime
-        const currentTime = toBN(await th.getLatestBlockTimestamp(web3));
-        const unlockTime = await LC_B.unlockTime();
-        assert.isTrue(currentTime.lt(unlockTime));
-
-        // Multisig attempts withdrawal from LCs
-        try {
-          const withdrawalAttempt_B = await LC_B.connect(multisig).withdrawProtocolToken();
-          const receipt_B = await withdrawalAttempt_B.wait();
-          assert.equal(receipt_B.status, 1);
-        } catch (error) {
-          assert.include(error.message, "LockupContract: caller is not the beneficiary");
-        }
-      });
-
-      it("Beneficiary can't withdraw from their funded LC before the unlockTime", async () => {
-        // Account D deploys a new LC via the Factory
-        const deployedLCtx_B = await lockupContractFactory
-          .connect(D)
-          .deployLockupContract(B.address, oneYearFromAllocation);
-        const LC_B = await th.getLCFromDeploymentTx(deployedLCtx_B);
-
-        // Multisig funds contracts
-        await protocolToken.connect(multisig).transfer(LC_B.address, dec(2, 18));
-
-        // Check currentTime < unlockTime
-        const currentTime = toBN(await th.getLatestBlockTimestamp(web3));
-        const unlockTime = await LC_B.unlockTime();
-        assert.isTrue(currentTime.lt(unlockTime));
-
-        /* Beneficiaries of all LCS - team, investor, and newly created LCs - 
-        attempt to withdraw from their respective funded contracts */
-        const LCs = [LC_T1, LC_T2, LC_T3, LC_I1, LC_I2, LC_T3, LC_B];
-
-        for (LC of LCs) {
-          try {
-            const beneficiaryAddr = await LC.beneficiary();
-            const beneficiary = await ethers.provider.getSigner(beneficiaryAddr);
-            const withdrawalAttempt = await LC.connect(beneficiary).withdrawProtocolToken();
-            const receipt = await withdrawalAttempt.wait();
-            assert.equal(receipt.status, 1);
-          } catch (error) {
-            assert.include(error.message, "LockupContract: The lockup duration must have passed");
-          }
-        }
-      });
-
-      it("No one can withdraw from a beneficiary's funded LC before the unlockTime", async () => {
-        // Account D deploys a new LC via the Factory
-        const deployedLCtx_B = await lockupContractFactory
-          .connect(D)
-          .deployLockupContract(B.address, oneYearFromAllocation);
-        const LC_B = await th.getLCFromDeploymentTx(deployedLCtx_B);
-
-        // Multisig funds contract
-        await protocolToken.connect(multisig).transfer(LC_B.address, dec(2, 18));
-
-        // Check currentTime < unlockTime
-        const currentTime = toBN(await th.getLatestBlockTimestamp(web3));
-        const unlockTime = await LC_B.unlockTime();
-        assert.isTrue(currentTime.lt(unlockTime));
-
-        const variousEOAs = [teamMember_2, deployer, multisig, investor_1, A, C, D, E];
-
-        // Several EOAs attempt to withdraw from LC deployed by D
-        for (const account of variousEOAs) {
-          try {
-            const withdrawalAttempt = await LC_B.connect(account).withdrawProtocolToken();
-            const receipt = await withdrawalAttempt.wait();
-            assert.equal(receipt.status, 1);
-          } catch (error) {
-            assert.include(error.message, "LockupContract: caller is not the beneficiary");
-          }
-        }
-
-        // Several EOAs attempt to withdraw from LC_T1 deployed by ProtocolToken deployer
-        for (const account of variousEOAs) {
-          try {
-            const withdrawalAttempt = await LC_T1.connect(account).withdrawProtocolToken();
-            const receipt = await withdrawalAttempt.wait();
-            assert.equal(receipt.status, 1);
-          } catch (error) {
-            assert.include(error.message, "LockupContract: caller is not the beneficiary");
-          }
-        }
-      });
     });
   });
 });

@@ -28,10 +28,7 @@ contract("Deploying and funding One Year Lockup Contracts", async () => {
 
     [deployer, A, B, C, D, E, F, G, H, I, J] = signers;
     [lpRewardsAddress, multisig] = signers.slice(998, 1000);
-  });
 
-  beforeEach(async () => {
-    // Deploy all contracts from the first account
     await hre.network.provider.send("hardhat_reset");
 
     const transactionCount = await deployer.getTransactionCount();
@@ -115,7 +112,7 @@ contract("Deploying and funding One Year Lockup Contracts", async () => {
     });
 
     it("ProtocolToken Deployer can deploy LCs directly", async () => {
-      const lockupContractFactory = await ethers.getContractFactory("LockupContract");
+      const lockupContractFactory = await deploymentHelper.getFactory("LockupContract");
 
       // ProtocolToken deployer deploys LCs
       const lcTx_A = await lockupContractFactory
@@ -141,7 +138,7 @@ contract("Deploying and funding One Year Lockup Contracts", async () => {
     });
 
     it("Anyone can deploy LCs directly", async () => {
-      const lockupContractFactory = await ethers.getContractFactory("LockupContract");
+      const lockupContractFactory = await deploymentHelper.getFactory("LockupContract");
 
       // Various EOAs deploy LCs
       const lcTx_A = await lockupContractFactory
@@ -312,7 +309,7 @@ contract("Deploying and funding One Year Lockup Contracts", async () => {
     });
 
     it("Direct deployment of LC sets the unlockTime in the LC", async () => {
-      const lockupContractFactory = await ethers.getContractFactory("LockupContract");
+      const lockupContractFactory = await deploymentHelper.getFactory("LockupContract");
 
       // Deploy 3 LCs directly
       const lcTx_A = await lockupContractFactory
@@ -367,7 +364,7 @@ contract("Deploying and funding One Year Lockup Contracts", async () => {
 
     it("Direct deployment of LC reverts when the unlockTime is < 1 year from system deployment", async () => {
       const nearlyOneYear = toBN(oneYearFromAllocation).sub(toBN("60")); // 1 minute short of 1 year
-      const lockupContractFactory = await ethers.getContractFactory("LockupContract");
+      const lockupContractFactory = await deploymentHelper.getFactory("LockupContract");
 
       // Deploy 3 LCs directly with unlockTime < 1 year from system deployment
       const LCDeploymentPromise_A = lockupContractFactory
