@@ -1,4 +1,4 @@
-const deploymentHelper = require("../utils/deploymentHelpers.js");
+const deploymentHelper = require("../utils/testDeploymentHelpers.js");
 const testHelpers = require("../utils/testHelpers.js");
 
 const th = testHelpers.TestHelper;

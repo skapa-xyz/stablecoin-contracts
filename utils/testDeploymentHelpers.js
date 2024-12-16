@@ -10,7 +10,7 @@ const {
   SortedTrovesProxy,
   TokenProxy,
   ProtocolTokenStakingProxy,
-} = require("../utils/proxyHelpers.js");
+} = require("./proxyHelpers.js");
 
 /* "Protocol core" consists of all contracts in the core protocol system.
 

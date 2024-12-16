@@ -58,6 +58,13 @@ $ docker run --rm --platform linux/amd64 -it -w /src -v `pwd`:/src "trailofbits/
 $ docker run --rm --platform linux/amd64  -it -w /src -v `pwd`:/src mythril/myth:0.24.8 scripts/mythril.sh
 ```
 
+## Scripts
+
+```sh
+# Test account creation
+$ node ./scripts/makeAccounts.js 100
+```
+
 ## Directories
 
 - `contracts` - The core back end smart contracts written in Solidity

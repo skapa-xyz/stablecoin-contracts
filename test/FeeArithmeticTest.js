@@ -1,6 +1,6 @@
 /* eslint-disable no-loss-of-precision */
 const Decimal = require("decimal.js");
-const deploymentHelper = require("../utils/deploymentHelpers.js");
+const deploymentHelper = require("../utils/testDeploymentHelpers.js");
 const { BNConverter } = require("../utils/BNConverter.js");
 const testHelpers = require("../utils/testHelpers.js");
 

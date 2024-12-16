@@ -1,4 +1,4 @@
-const deploymentHelper = require("../utils/deploymentHelpers.js");
+const deploymentHelper = require("../utils/testDeploymentHelpers.js");
 const { TestHelper: th, MoneyValues: mv } = require("../utils/testHelpers.js");
 
 contract("All functions with onlyOwner modifier", async () => {

@@ -1,4 +1,4 @@
-const deploymentHelper = require("../../utils/deploymentHelpers.js");
+const deploymentHelper = require("../../utils/testDeploymentHelpers.js");
 
 const { TestHelper: th, TimeValues: timeValues } = require("../../utils/testHelpers.js");
 const { dec, toBN, assertRevert } = th;
