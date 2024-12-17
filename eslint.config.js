@@ -1,7 +1,6 @@
 const js = require("@eslint/js");
 
 module.exports = [
-  js.configs.recommended,
   {
     rules: {
       "no-undef": 0,
@@ -17,6 +16,8 @@ module.exports = [
       "cache/*",
       "package-lock.json",
       "deployments/outputs/*.json",
+      "accountsList.js",
+      "coverage/*",
     ],
   },
 ];

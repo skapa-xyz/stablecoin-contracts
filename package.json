@@ -10,12 +10,12 @@
   "scripts": {
     "hardhat": "hardhat",
     "prepare": "run-s 'prepare:*'",
+    "prepare:create-test-account": "node ./scripts/makeAccounts.js",
     "prepare:compile": "hardhat compile",
     "prepare:set-version": "node scripts/set-version.js",
     "prepare:husky": "husky",
     "test": "hardhat test",
     "coverage": "hardhat coverage",
-    "coveralls": "cat coverage/lcov.info | coveralls",
     "check": "run-s 'check:*'",
     "check:lint": "eslint",
     "check:prettier": "prettier --check '**/*.{js,json,sol}'",

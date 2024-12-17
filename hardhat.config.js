@@ -5,7 +5,7 @@ require("@openzeppelin/hardhat-upgrades");
 require("solidity-coverage");
 require("hardhat-gas-reporter");
 
-const accounts = require("./hardhatAccountsList2k.js");
+const accounts = require("./accountsList.js");
 const accountsList = accounts.accountsList;
 
 const fs = require("fs");

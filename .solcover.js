@@ -1,4 +1,4 @@
-const { accountsList } = require("./hardhatAccountsList2k.js");
+const { accountsList } = require("./accountsList.js");
 // syntax for solcover network (ganache based) is different:
 // https://hardhat.org/plugins/solidity-coverage.html#configuration
 // Link in providerOptions:
@@ -20,12 +20,10 @@ module.exports = {
 
   skipFiles: [
     "TestContracts/",
-    "MultiTroveGetter.sol",
     "Interfaces/",
     "Dependencies/OpenZeppelin/",
-    "Dependencies/BaseMath.sol",
-    "Dependencies/ProtocolSafeMath128.sol",
     "Dependencies/console.sol",
+    "Proxy/",
   ],
   // https://github.com/sc-forks/solidity-coverage/blob/master/docs/advanced.md#skipping-tests
   mocha: {

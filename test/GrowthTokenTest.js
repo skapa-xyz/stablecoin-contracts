@@ -1,5 +1,6 @@
 const deploymentHelper = require("../utils/testDeploymentHelpers.js");
 const testHelpers = require("../utils/testHelpers.js");
+const { accountsList } = require("../accountsList.js");
 
 const { keccak256 } = require("@ethersproject/keccak256");
 const { defaultAbiCoder } = require("@ethersproject/abi");
@@ -7,8 +8,6 @@ const { toUtf8Bytes } = require("@ethersproject/strings");
 const { pack } = require("@ethersproject/solidity");
 const { hexlify } = require("@ethersproject/bytes");
 const { ecsign } = require("ethereumjs-util");
-
-// the second account our hardhatenv creates (for EOA A) from `hardhatAccountsList2k.js`
 
 const th = testHelpers.TestHelper;
 const toBN = th.toBN;
@@ -23,7 +22,7 @@ contract("ProtocolToken", async () => {
   let lpRewardsAddress, multisig;
   let approve;
 
-  const ownerPrivateKey = "0x60ddFE7f579aB6867cbE7A2Dc03853dC141d7A4aB6DBEFc0Dae2d2B1Bd4e487F";
+  const ownerPrivateKey = accountsList[0].privateKey;
 
   let protocolTokenTester;
   let protocolTokenStaking;

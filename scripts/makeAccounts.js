@@ -1,5 +1,7 @@
 const fs = require("fs");
 
+const FILE_NAME = "accountsList.js";
+
 // Make accounts with 1 trillion Ether
 const makeAccount = () => {
   acc = `{ privateKey: "${randomHex()}", balance: _1e36Str }`;
@@ -47,7 +49,7 @@ const makeHardhatAccountsList = (n) => {
 
   return `const _1e36Str = "1000000000000000000000000000000000000";
 
-  const accountsList = [
+const accountsList = [
 ${accounts.join(",\n")}
 ]
 
@@ -59,5 +61,9 @@ module.exports = {
 // Construct accounts array data
 const arrayList = makeHardhatAccountsList(Number(process.argv[2]) || 2000);
 
+if (fs.existsSync(FILE_NAME)) {
+  fs.unlinkSync(FILE_NAME);
+}
+
 // console.log(arrayList)
-fs.appendFileSync("accountsList.js", arrayList);
+fs.appendFileSync(FILE_NAME, arrayList);
