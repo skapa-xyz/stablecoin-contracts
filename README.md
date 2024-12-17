@@ -1,4 +1,12 @@
-# Stablecoin Contracts
+# Stablecoin Contracts - USDFC
+
+USDFC is a USD-pegged stablecoin minted using Filecoin as collateral on the Filecoin Virtual Machine (FVM).
+
+## Quick Start
+
+1. Use established node version by running `nvm use`
+2. Install repository dependencies by running `npm install`
+3. Execute `npm run test` to run the tests.
 
 ## Deployment
 
@@ -56,13 +64,6 @@ $ docker run --rm --platform linux/amd64 -it -w /src -v `pwd`:/src "trailofbits/
 
 # Mythril
 $ docker run --rm --platform linux/amd64  -it -w /src -v `pwd`:/src mythril/myth:0.24.8 scripts/mythril.sh
-```
-
-## Scripts
-
-```sh
-# Test account creation
-$ node ./scripts/makeAccounts.js 100
 ```
 
 ## Directories
