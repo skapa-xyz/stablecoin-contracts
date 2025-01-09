@@ -87,7 +87,7 @@ class HardhatDeploymentHelper {
 
     const contract = await this.hre.upgrades.deployProxy(factory, initializationArgs, {
       unsafeAllow: ["constructor", "state-variable-immutable"],
-      constructorArgs: constructorArgs,
+      constructorArgs,
       redeployImplementation: "always",
       timeout: 3000000,
     });
@@ -110,9 +110,15 @@ class HardhatDeploymentHelper {
 
     console.log(`Upgrading ${name} contract...`);
 
+    // On the Filecoin node, deployment information becomes unavailable over time,
+    // so the contract needs to be forcefully imported.
+    await this.hre.upgrades.forceImport(deploymentState[name].address, factory, {
+      constructorArgs,
+    });
+
     const contract = await this.hre.upgrades.upgradeProxy(deploymentState[name].address, factory, {
       unsafeAllow: ["constructor", "state-variable-immutable"],
-      constructorArgs: constructorArgs,
+      constructorArgs,
       timeout: 3000000,
     });
     await contract.deployTransaction.wait();

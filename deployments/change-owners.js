@@ -1,5 +1,3 @@
-const { TestHelper: th, TimeValues: timeVals } = require("../utils/testHelpers.js");
-const { dec, toBN } = th;
 const HardhatDeploymentHelper = require("../utils/hardhatDeploymentHelpers.js");
 const hre = require("hardhat");
 
