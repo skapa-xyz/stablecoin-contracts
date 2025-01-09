@@ -2,18 +2,22 @@ const { TestHelper: th } = require("../../utils/testHelpers.js");
 const dec = th.dec;
 
 const externalAddrs = {
-  // https://docs.tellor.io/tellor/integration/reference-page
-  TELLOR_MASTER: "0x88dF592F8eb5D7Bd38bFeF7dEb0fBc02cf3778a0",
-  // https://uniswap.org/docs/v2/smart-contracts/factory/
-  UNISWAP_V2_FACTORY: "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f",
-  UNISWAP_V2_ROUTER02: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
-  // https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
-  WRAPPED_NATIVE_TOKEN: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+  // https://docs.tellor.io/tellor/the-basics/contracts-reference#mainnet-3
+  TELLOR_MASTER: "0x8cFc184c877154a8F9ffE0fe75649dbe5e2DBEbf",
+  // https://docs.pyth.network/price-feeds/contract-addresses/evm
+  PYTH_PRICE_FEED: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
+  PYTH_PRICE_ID: "0x150ac9b959aee0051e4091f0ef5216d941f590e1c5e7f91cf7635b5c11628c0e",
+  // https://github.com/sushiswap/v2-core/tree/master/deployments/filecoin
+  UNISWAP_V2_FACTORY: "0x9B3336186a38E1b6c21955d112dbb0343Ee061eE",
+  UNISWAP_V2_ROUTER02: "0x46B3fDF7b5CDe91Ac049936bF0bDb12c5d22202e",
+  // https://filfox.info/en/address/0x60E1773636CF5E4A227d9AC24F20fEca034ee25A
+  WRAPPED_NATIVE_TOKEN: "0x60E1773636CF5E4A227d9AC24F20fEca034ee25A",
 };
 
 const walletAddrs = {
-  ADMIN: "0xb8a9faDA75c6d891fB77a7988Ff9BaD9e485Ca1C", // to be passed to ProtocolToken as the multisig address
-  DEPLOYER: "0xa850535D3628CD4dFEB528dC85cfA93051Ff2984", // Mainnet REAL deployment address
+  ADMIN: "0xff000000000000000000000000000000002fe5ee",
+  DEPLOYER: "0x4F122d7FCE7971E38801aF5d96fcD4ed83EFD654",
+  MULTISIG: "0xff000000000000000000000000000000002fe5ee",
 };
 
 const allocationAmounts = {

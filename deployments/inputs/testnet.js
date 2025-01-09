@@ -4,10 +4,10 @@ const dec = th.dec;
 const externalAddrs = {
   // https://docs.tellor.io/tellor/the-basics/contracts-reference#calibration
   TELLOR_MASTER: "0xb2CB696fE5244fB9004877e58dcB680cB86Ba444",
-  // Pyth
+  // https://docs.pyth.network/price-feeds/contract-addresses/evm
   PYTH_PRICE_FEED: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
   PYTH_PRICE_ID: "0x150ac9b959aee0051e4091f0ef5216d941f590e1c5e7f91cf7635b5c11628c0e",
-  // https://uniswap.org/docs/v2/smart-contracts/factory/
+  // https://github.com/sushiswap/v2-core/tree/master/deployments/filecoin
   UNISWAP_V2_FACTORY: undefined,
   UNISWAP_V2_ROUTER02: undefined,
   // https://calibration.filfox.info/en/address/0xaC26a4Ab9cF2A8c5DBaB6fb4351ec0F4b07356c4
@@ -17,6 +17,7 @@ const externalAddrs = {
 const walletAddrs = {
   ADMIN: "0xe96D28Fe3E959FE7721624B56e2A4d40C3213D3d",
   DEPLOYER: "0xDBA767F3DFF3835BEf5dE1eDEe91A9901402AB21",
+  MULTISIG: "0xff0000000000000000000000000000000001AEBc",
 };
 
 const allocationAmounts = {

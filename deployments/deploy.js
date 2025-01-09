@@ -52,7 +52,6 @@ async function main(configParams) {
   ];
 
   const addressList = await mdh.computeContractAddresses(proxyContractList.length * 2 + 1);
-  console.log("addressList:", addressList);
 
   if (isFirstDeployment) {
     addressList.shift(); // skip first contract
@@ -67,8 +66,6 @@ async function main(configParams) {
     }
     return acc;
   }, {});
-
-  console.log("cpContracts:", cpContracts);
 
   // Deploy core logic contracts
   const coreContracts = await mdh.deployProtocolCore(

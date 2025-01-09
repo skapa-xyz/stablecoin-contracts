@@ -12,7 +12,7 @@ USDFC is a USD-pegged stablecoin minted using Filecoin as collateral on the File
 
 ```sh
 # localhost
-$ npx hardhat node --fork <NODE_URL>
+$ npx hardhat node --fork "<NODE_URL>"
 $ npx hardhat run --network localhost deployments/deploy.js
 
 # testnet
@@ -23,17 +23,14 @@ $ npx hardhat run --network testnet deployments/deploy-mock-price-feed.js
 $ npx hardhat run --network mainnet deployments/deploy.js
 ```
 
-## Token Allocation
+## Scripts
 
 ```sh
-# localhost
-$ hpx hardhat run --network localhost deployments/allocate.js
+# Token Allocation
+$ npx hardhat run --network "<NETWORK_NAME>" deployments/allocate.js
 
-# testnet
-$ npx hardhat run --network testnet deployments/allocate.js
-
-# mainnet
-$ npx hardhat run --network mainnet deployments/allocate.js
+# Change contract owners
+$ npx hardhat run --network "<NETWORK_NAME>" deployments/change-owners.js
 ```
 
 ## Tests
