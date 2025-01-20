@@ -4,23 +4,14 @@ require("@nomiclabs/hardhat-etherscan");
 require("@openzeppelin/hardhat-upgrades");
 require("solidity-coverage");
 require("hardhat-gas-reporter");
+require("dotenv").config();
 
-const accounts = require("./accountsList.js");
-const accountsList = accounts.accountsList;
-
-const fs = require("fs");
-const getSecret = (secretKey, defaultValue = "") => {
-  const SECRETS_FILE = "./secrets.js";
-  let secret = defaultValue;
-  if (fs.existsSync(SECRETS_FILE)) {
-    const { secrets } = require(SECRETS_FILE);
-    if (secrets[secretKey]) {
-      secret = secrets[secretKey];
-    }
-  }
-
-  return secret;
-};
+const accounts = [
+  process.env.DEPLOYER_PRIVATEKEY ||
+    "0x60ddfe7f579ab6867cbe7a2dc03853dc141d7a4ab6dbefc0dae2d2b1bd4e487f",
+];
+const testAccounts = require("./accountsList.js");
+const testAccountsList = testAccounts.accountsList;
 
 module.exports = {
   paths: {
@@ -51,7 +42,7 @@ module.exports = {
   },
   networks: {
     hardhat: {
-      accounts: accountsList,
+      accounts: testAccountsList,
       gas: 10000000, // tx gas limit
       blockGasLimit: 15000000,
       gasPrice: 20000000000,
@@ -61,39 +52,20 @@ module.exports = {
     localhost: {
       url: "http://127.0.0.1:8545",
       chainId: 31337,
-      accounts: [
-        getSecret(
-          "TESTNET_DEPLOYER_PRIVATEKEY",
-          "0x60ddfe7f579ab6867cbe7a2dc03853dc141d7a4ab6dbefc0dae2d2b1bd4e487f",
-        ),
-      ],
+      accounts,
     },
     mainnet: {
-      url: getSecret("RPC_ENDPOINT"),
-      gasPrice: process.env.GAS_PRICE ? parseInt(process.env.GAS_PRICE) : 20000000000,
-      accounts: [
-        getSecret(
-          "DEPLOYER_PRIVATEKEY",
-          "0x60ddfe7f579ab6867cbe7a2dc03853dc141d7a4ab6dbefc0dae2d2b1bd4e487f",
-        ),
-        getSecret(
-          "ACCOUNT2_PRIVATEKEY",
-          "0x3ec7cedbafd0cb9ec05bf9f7ccfa1e8b42b3e3a02c75addfccbfeb328d1b383b",
-        ),
-      ],
+      url: process.env.RPC_ENDPOINT,
+      gasPrice: process.env.GAS_PRICE ? parseInt(process.env.GAS_PRICE) : "auto",
+      accounts,
     },
     testnet: {
-      url: getSecret("TESTNET_RPC_ENDPOINT"),
-      accounts: [
-        getSecret(
-          "TESTNET_DEPLOYER_PRIVATEKEY",
-          "0x60ddfe7f579ab6867cbe7a2dc03853dc141d7a4ab6dbefc0dae2d2b1bd4e487f",
-        ),
-      ],
+      url: process.env.RPC_ENDPOINT,
+      accounts,
     },
   },
   etherscan: {
-    apiKey: getSecret("ETHERSCAN_API_KEY"),
+    apiKey: process.env.ETHERSCAN_API_KEY,
   },
   mocha: { timeout: 12000000 },
   rpc: {

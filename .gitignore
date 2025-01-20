@@ -23,7 +23,7 @@ node_modules
 # Exported function gas costs and test outputs
 /gasTest/outputs
 
-/secrets.js
+/.env
 /deployments/outputs/localhost.json
 
 .vscode

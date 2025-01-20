@@ -5,8 +5,9 @@ USDFC is a USD-pegged stablecoin minted using Filecoin as collateral on the File
 ## Quick Start
 
 1. Use established node version by running `nvm use`
-2. Install repository dependencies by running `npm install`
-3. Execute `npm run test` to run the tests.
+2. Refer to `.env.sample` and create `.env`.
+3. Install repository dependencies by running `npm install`
+4. Execute `npm run test` to run the tests.
 
 ## Deployment
 
@@ -17,11 +18,11 @@ $ npx hardhat run --network mainnet deployments/deploy.js
 ## Scripts
 
 ```sh
+# Set a mock contract as PriceFeed
+$ npx hardhat run --network testnet deployments/deploy-mock-price-feed.js
+
 # Allocate tokens
 $ npx hardhat run --network mainnet deployments/allocate.js
-
-# Set a mock contract as PriceFeed
-$ npx hardhat run --network mainnet deployments/deploy-mock-price-feed.js
 
 # Change contract owners
 $ npx hardhat run --network mainnet deployments/change-owners.js

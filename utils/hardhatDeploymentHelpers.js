@@ -119,6 +119,7 @@ class HardhatDeploymentHelper {
     const contract = await this.hre.upgrades.upgradeProxy(deploymentState[name].address, factory, {
       unsafeAllow: ["constructor", "state-variable-immutable"],
       constructorArgs,
+      redeployImplementation: "always",
       timeout: 3000000,
     });
     await contract.deployTransaction.wait();
@@ -131,6 +132,29 @@ class HardhatDeploymentHelper {
     this.saveDeployment(deploymentState);
 
     return contract;
+  }
+
+  async prepareUpgradeProxy(factory, name, deploymentState, constructorArgs = []) {
+    if (!deploymentState[name] || !deploymentState[name].address) {
+      throw new Error(`No deployment state for contract ${name}!!`);
+    }
+
+    console.log(`Preparing upgrade for ${name} contract...`);
+
+    const tx = await this.hre.upgrades.prepareUpgrade(deploymentState[name].address, factory, {
+      unsafeAllow: ["constructor", "state-variable-immutable"],
+      constructorArgs,
+      redeployImplementation: "always",
+      timeout: 3000000,
+      getTxResponse: true,
+    });
+    const receipt = await tx.wait();
+
+    deploymentState[name].txHashes.push(tx.hash);
+
+    this.saveDeployment(deploymentState);
+
+    return receipt;
   }
 
   async deployOracleWrappers(deploymentState) {

@@ -20,6 +20,14 @@ const walletAddrs = {
   MULTISIG: "0xff000000000000000000000000000000002fe5ee",
 };
 
+const walletF1Addrs = {
+  DEPLOYER: "f1aqzr246253hz6vbkoyz7kxmvoul7g3nzfte54mq",
+};
+
+const walletF2Addrs = {
+  MULTISIG: "f2xip7mhxv6cheomcvrodqs77n77oojcusvrgvcba",
+};
+
 const allocationAmounts = {
   ADMIN: dec(6_700_000, 18),
   UNIPOOL: dec(100_000, 18),
@@ -78,6 +86,8 @@ const ETHERSCAN_BASE_URL = "https://etherscan.io/address";
 module.exports = {
   externalAddrs,
   walletAddrs,
+  walletF1Addrs,
+  walletF2Addrs,
   allocationAmounts,
   annualAllocationSettings,
   beneficiaries,

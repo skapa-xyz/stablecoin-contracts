@@ -20,6 +20,14 @@ const walletAddrs = {
   MULTISIG: "0xff0000000000000000000000000000000001AEBc",
 };
 
+const walletF1Addrs = {
+  DEPLOYER: "t1meo2ogyes4cy26dfvp7pjotmozapliirat3jvvy",
+};
+
+const walletF2Addrs = {
+  MULTISIG: "t2b3v3bp55krpaqz24fxmlgggbz3gaik6fv5f7ryy",
+};
+
 const allocationAmounts = {
   ADMIN: dec(6_700_000, 18),
   UNIPOOL: dec(100_000, 18),
@@ -39,8 +47,8 @@ const beneficiaries = {
   TEST_INVESTOR_E: "0x89ff871dbcd0a456fe92db98d190c38bc10d1cc1",
 };
 
-const GAS_COMPENSATION = dec(2, 18); // 2 USDFC
-const MIN_NET_DEBT = dec(18, 18); // 18 USDFC
+const GAS_COMPENSATION = dec(20, 18); // 20 USDFC
+const MIN_NET_DEBT = dec(180, 18); // 180 USDFC
 const BOOTSTRAP_PERIOD = 1 * 24 * 60 * 60; // 1 day
 const PRICE_FEED_TIMEOUT = 24 * 60 * 60; // 1 day
 const ETHERSCAN_BASE_URL = undefined;
@@ -48,6 +56,8 @@ const ETHERSCAN_BASE_URL = undefined;
 module.exports = {
   externalAddrs,
   walletAddrs,
+  walletF1Addrs,
+  walletF2Addrs,
   allocationAmounts,
   annualAllocationSettings,
   beneficiaries,
