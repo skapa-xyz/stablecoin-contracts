@@ -12,7 +12,6 @@ import "./Interfaces/IProtocolTokenStaking.sol";
 import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "./Dependencies/OpenZeppelin/utils/ReentrancyGuardUpgradeable.sol";
 import "./Dependencies/TroveBase.sol";
-import "./Dependencies/console.sol";
 
 contract BorrowerOperations is
     TroveBase,

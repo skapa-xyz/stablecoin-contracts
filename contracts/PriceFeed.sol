@@ -10,7 +10,6 @@ import "./Dependencies/AggregatorV3Interface.sol";
 import "./Dependencies/CheckContract.sol";
 import "./Dependencies/BaseMath.sol";
 import "./Dependencies/ProtocolMath.sol";
-import "./Dependencies/console.sol";
 
 /*
  * PriceFeed for mainnet deployment, to be connected to Pyth's live aggregator reference contract,

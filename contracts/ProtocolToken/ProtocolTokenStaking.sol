@@ -9,7 +9,6 @@ import "../Dependencies/BaseMath.sol";
 import "../Dependencies/CheckContract.sol";
 import "../Dependencies/ProtocolMath.sol";
 import "../Interfaces/IProtocolTokenStaking.sol";
-import "../Dependencies/console.sol";
 
 contract ProtocolTokenStaking is
     IProtocolTokenStaking,

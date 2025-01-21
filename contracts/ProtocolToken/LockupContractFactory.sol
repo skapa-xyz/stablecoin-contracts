@@ -7,7 +7,6 @@ import "../Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "../Dependencies/CheckContract.sol";
 import "../Interfaces/ILockupContractFactory.sol";
 import "./LockupContract.sol";
-import "../Dependencies/console.sol";
 
 /*
  * The LockupContractFactory deploys LockupContracts - its main purpose is to keep a registry of valid deployed

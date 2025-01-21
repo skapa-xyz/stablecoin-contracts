@@ -6,7 +6,6 @@ import "../Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "../Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "../Dependencies/CheckContract.sol";
 import "../Interfaces/IProtocolToken.sol";
-import "../Dependencies/console.sol";
 
 /*
 * Based upon OpenZeppelin's ERC20 contract:

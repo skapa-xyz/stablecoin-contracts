@@ -17,7 +17,6 @@ import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/ProtocolBase.sol";
 import "./Dependencies/ProtocolSafeMath128.sol";
 import "./Dependencies/CheckContract.sol";
-import "./Dependencies/console.sol";
 
 /*
  * The Stability Pool holds debt tokens deposited by Stability Pool depositors.

@@ -10,7 +10,6 @@ import "../Dependencies/CheckContract.sol";
 import "../Interfaces/IProtocolToken.sol";
 import "./Interfaces/ILPTokenWrapper.sol";
 import "./Interfaces/IUnipool.sol";
-import "../Dependencies/console.sol";
 
 // Adapted from: https://github.com/Synthetixio/Unipool/blob/master/contracts/Unipool.sol
 // Some more useful references:

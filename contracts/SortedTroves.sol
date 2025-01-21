@@ -4,11 +4,9 @@ pragma solidity 0.7.6;
 
 import "./Interfaces/ISortedTroves.sol";
 import "./Interfaces/ITroveManager.sol";
-import "./Interfaces/IBorrowerOperations.sol";
 import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/CheckContract.sol";
-import "./Dependencies/console.sol";
 
 /*
  * A sorted doubly linked list with nodes sorted in descending order.

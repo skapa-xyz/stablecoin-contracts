@@ -3,8 +3,6 @@
 pragma solidity 0.7.6;
 
 import "./ProtocolBase.sol";
-import "./BaseMath.sol";
-import "./ProtocolMath.sol";
 import "../Interfaces/IActivePool.sol";
 import "../Interfaces/IDefaultPool.sol";
 import "../Interfaces/ITroveBase.sol";

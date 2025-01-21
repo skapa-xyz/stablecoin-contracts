@@ -3,7 +3,6 @@
 pragma solidity 0.7.6;
 
 import "./OpenZeppelin/math/SafeMath.sol";
-import "./console.sol";
 
 library ProtocolMath {
     using SafeMath for uint;

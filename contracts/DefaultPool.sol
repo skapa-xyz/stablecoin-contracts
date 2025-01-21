@@ -6,7 +6,6 @@ import "./Interfaces/IDefaultPool.sol";
 import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/CheckContract.sol";
-import "./Dependencies/console.sol";
 
 /*
  * The Default Pool holds the FIL and debt (but not debt tokens) from liquidations that have been redistributed

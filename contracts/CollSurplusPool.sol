@@ -6,7 +6,6 @@ import "./Interfaces/ICollSurplusPool.sol";
 import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
 import "./Dependencies/OpenZeppelin/math/SafeMath.sol";
 import "./Dependencies/CheckContract.sol";
-import "./Dependencies/console.sol";
 
 contract CollSurplusPool is OwnableUpgradeable, CheckContract, ICollSurplusPool {
     using SafeMath for uint256;
