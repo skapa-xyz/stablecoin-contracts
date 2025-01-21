@@ -2,41 +2,27 @@ const deploymentHelper = require("../utils/testDeploymentHelpers.js");
 const testHelpers = require("../utils/testHelpers.js");
 const th = testHelpers.TestHelper;
 
-const { dec, toBN } = th;
+const { dec, toBN, assertRevert } = th;
 
 contract("PriceFeed", async () => {
   let priceFeedTestnet;
   let priceFeed;
-  let invalidAddressPriceFeed;
   let mockChainlink;
 
   let mockTellor;
   let tellorCaller;
 
   beforeEach(async () => {
-    const nonPayableFactory = await deploymentHelper.getFactory("NonPayable");
     const priceFeedTestnetFactory = await deploymentHelper.getFactory("PriceFeedTestnet");
     const priceFeedTesterFactory = await deploymentHelper.getFactory("PriceFeedTester");
     const mockChainlinkFactory = await deploymentHelper.getFactory("MockAggregator");
     const mockTellorFactory = await deploymentHelper.getFactory("MockTellor");
     const tellorCallerFactory = await deploymentHelper.getFactory("TellorCaller");
 
-    const dumbContract = await nonPayableFactory.deploy();
     priceFeedTestnet = await priceFeedTestnetFactory.deploy();
     mockChainlink = await mockChainlinkFactory.deploy();
     mockTellor = await mockTellorFactory.deploy();
     tellorCaller = await tellorCallerFactory.deploy(mockTellor.address);
-
-    priceFeed = await deploymentHelper.deployProxy(
-      priceFeedTesterFactory,
-      [mockChainlink.address, tellorCaller.address],
-      [th.PRICE_FEED_TIMEOUT],
-    );
-    invalidAddressPriceFeed = await deploymentHelper.deployProxy(
-      priceFeedTesterFactory,
-      [dumbContract.address, dumbContract.address],
-      [th.PRICE_FEED_TIMEOUT],
-    );
 
     // Set Chainlink latest and prev round Id's to non-zero
     await mockChainlink.setLatestRoundId(3);
@@ -50,6 +36,12 @@ contract("PriceFeed", async () => {
     const now = await th.getLatestBlockTimestamp(web3);
     await mockChainlink.setUpdateTime(now);
     await mockTellor.setUpdateTime(now);
+
+    priceFeed = await deploymentHelper.deployProxy(
+      priceFeedTesterFactory,
+      [mockChainlink.address, tellorCaller.address],
+      [th.PRICE_FEED_TIMEOUT],
+    );
   });
 
   describe("PriceFeed internal testing contract", async (accounts) => {
@@ -65,11 +57,19 @@ contract("PriceFeed", async () => {
   });
 
   describe("Mainnet PriceFeed setup", async (accounts) => {
-    it("status should be bothOraclesUntrusted on contract with wrong chainlink address set", async () => {
-      await invalidAddressPriceFeed.fetchPrice();
-      const status = await invalidAddressPriceFeed.status();
+    it("PriceFeed deployment should fail with wrong chainlink address set", async () => {
+      const nonPayableFactory = await deploymentHelper.getFactory("NonPayable");
+      const priceFeedTesterFactory = await deploymentHelper.getFactory("PriceFeedTester");
 
-      assert.equal(status.toString(), "2");
+      const dumbContract = await nonPayableFactory.deploy();
+
+      await assertRevert(
+        deploymentHelper.deployProxy(
+          priceFeedTesterFactory,
+          [dumbContract.address, dumbContract.address],
+          [th.PRICE_FEED_TIMEOUT],
+        ),
+      );
     });
   });
 

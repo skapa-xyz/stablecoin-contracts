@@ -89,6 +89,11 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
         // Get an initial price from Chainlink to serve as first reference for lastGoodPrice
         ChainlinkResponse memory chainlinkResponse = _getCurrentChainlinkResponse();
 
+        require(
+            !_chainlinkIsBroken(chainlinkResponse) && !_chainlinkIsFrozen(chainlinkResponse),
+            "PriceFeed: Chainlink must be working and current"
+        );
+
         _storeChainlinkPrice(chainlinkResponse);
     }
 
