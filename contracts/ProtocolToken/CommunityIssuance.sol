@@ -35,12 +35,7 @@ contract CommunityIssuance is ICommunityIssuance, OwnableUpgradeable, CheckContr
      */
     uint public constant ISSUANCE_FACTOR = 999998681227695000;
 
-    /*
-     * The community ProtocolToken supply cap is the starting balance of the Community Issuance contract.
-     * It should be minted to this contract by ProtocolToken, when the token is deployed.
-     *
-     * Set to 32M (slightly less than 1/3) of total ProtocolToken supply.
-     */
+    // The community ProtocolToken supply cap is the current balance of the Community Issuance contract.
     uint public override protocolTokenSupplyCap;
 
     IProtocolToken public protocolToken;
