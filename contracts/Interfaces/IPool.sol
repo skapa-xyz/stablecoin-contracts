@@ -6,7 +6,6 @@ pragma solidity 0.7.6;
 interface IPool {
     // --- Events ---
 
-    event FILBalanceUpdated(uint _newBalance);
     event DebtTokenBalanceUpdated(uint _newBalance);
     event ActivePoolAddressChanged(address _newActivePoolAddress);
     event DefaultPoolAddressChanged(address _newDefaultPoolAddress);
