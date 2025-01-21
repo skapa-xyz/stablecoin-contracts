@@ -31,7 +31,7 @@ contract TroveManager is TroveBase, OwnableUpgradeable, ReentrancyGuardUpgradeab
 
     // --- Data structures ---
 
-    uint public constant SECONDS_IN_ONE_MINUTE = 60;
+    uint private constant SECONDS_IN_ONE_MINUTE = 60;
     /*
      * Half-life of 12h. 12h = 720 min
      * (1/2) = d^720 => d = (1/2)^(1/720)
