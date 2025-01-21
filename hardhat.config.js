@@ -12,6 +12,7 @@ const accounts = [
 ];
 const testAccounts = require("./accountsList.js");
 const testAccountsList = testAccounts.accountsList;
+const rpcEndpoint = process.env.RPC_ENDPOINT || "";
 
 module.exports = {
   paths: {
@@ -55,12 +56,12 @@ module.exports = {
       accounts,
     },
     mainnet: {
-      url: process.env.RPC_ENDPOINT,
+      url: rpcEndpoint,
       gasPrice: process.env.GAS_PRICE ? parseInt(process.env.GAS_PRICE) : "auto",
       accounts,
     },
     testnet: {
-      url: process.env.RPC_ENDPOINT,
+      url: rpcEndpoint,
       accounts,
     },
   },
