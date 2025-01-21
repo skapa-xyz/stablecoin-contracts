@@ -20,7 +20,6 @@ contract TellorCaller is ITellorCaller {
 
     bytes32 public immutable btcQueryId;
     uint256 public constant DISPUTE_BUFFER = 20 minutes;
-    uint256 public constant STALENESS_AGE = 12 hours;
 
     ITellor public immutable tellor;
 
@@ -43,7 +42,7 @@ contract TellorCaller is ITellorCaller {
         override
         returns (bool ifRetrieve, uint256 _value, uint256 timestamp)
     {
-        // retrieve the most recent 20+ minute old btc price.
+        // retrieve the most recent 20+ minute old price.
         // the buffer allows time for a bad value to be disputed
         (bool _ifRetrieve, bytes memory _data, uint256 _timestamp) = tellor.getDataBefore(
             btcQueryId,
@@ -56,9 +55,6 @@ contract TellorCaller is ITellorCaller {
 
         // decode the value from bytes to uint256
         _value = abi.decode(_data, (uint256));
-
-        // check whether value is too old
-        require(block.timestamp.sub(_timestamp) <= STALENESS_AGE, "TellorCaller: StalePrice");
 
         // return the value and timestamp
         return (true, _value, _timestamp);
