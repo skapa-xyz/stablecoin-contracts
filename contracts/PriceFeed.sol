@@ -371,7 +371,7 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
         uint percentPriceDifference = maxPrice.sub(minPrice).mul(DECIMAL_PRECISION).div(minPrice);
 
         /*
-         * Return true if the relative price difference is <= 3%: if so, we assume both oracles are probably reporting
+         * Return true if the relative price difference is <= 5%: if so, we assume both oracles are probably reporting
          * the honest market price, as it is unlikely that both have been broken/hacked and are still in-sync.
          */
         return percentPriceDifference <= MAX_PRICE_DIFFERENCE_BETWEEN_ORACLES;
