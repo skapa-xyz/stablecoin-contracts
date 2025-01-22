@@ -130,36 +130,39 @@ contract DebtToken is OwnableUpgradeable, CheckContract, IDebtToken {
         return _totalSupply;
     }
 
-    function balanceOf(address account) external view override returns (uint256) {
-        return _balances[account];
+    function balanceOf(address _account) external view override returns (uint256) {
+        return _balances[_account];
     }
 
-    function transfer(address recipient, uint256 amount) external override returns (bool) {
-        _requireValidRecipient(recipient);
-        _transfer(msg.sender, recipient, amount);
+    function transfer(address _recipient, uint256 _amount) external override returns (bool) {
+        _requireValidRecipient(_recipient);
+        _transfer(msg.sender, _recipient, _amount);
         return true;
     }
 
-    function allowance(address owner, address spender) external view override returns (uint256) {
-        return _allowances[owner][spender];
+    function allowance(address _owner, address _spender) external view override returns (uint256) {
+        return _allowances[_owner][_spender];
     }
 
-    function approve(address spender, uint256 amount) external override returns (bool) {
-        _approve(msg.sender, spender, amount);
+    function approve(address _spender, uint256 _amount) external override returns (bool) {
+        _approve(msg.sender, _spender, _amount);
         return true;
     }
 
     function transferFrom(
-        address sender,
-        address recipient,
-        uint256 amount
+        address _sender,
+        address _recipient,
+        uint256 _amount
     ) external override returns (bool) {
-        _requireValidRecipient(recipient);
-        _transfer(sender, recipient, amount);
+        _requireValidRecipient(_recipient);
+        _transfer(_sender, _recipient, _amount);
         _approve(
-            sender,
+            _sender,
             msg.sender,
-            _allowances[sender][msg.sender].sub(amount, "ERC20: transfer amount exceeds allowance")
+            _allowances[_sender][msg.sender].sub(
+                _amount,
+                "ERC20: transfer amount exceeds allowance"
+            )
         );
         return true;
     }
@@ -175,32 +178,39 @@ contract DebtToken is OwnableUpgradeable, CheckContract, IDebtToken {
     }
 
     function permit(
-        address owner,
-        address spender,
-        uint amount,
-        uint deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
+        address _owner,
+        address _spender,
+        uint _amount,
+        uint _deadline,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
     ) external override {
-        require(deadline >= block.timestamp, "DebtToken: expired deadline");
+        require(_deadline >= block.timestamp, "DebtToken: expired deadline");
         bytes32 digest = keccak256(
             abi.encodePacked(
                 "\x19\x01",
                 domainSeparator(),
                 keccak256(
-                    abi.encode(_PERMIT_TYPEHASH, owner, spender, amount, _nonces[owner]++, deadline)
+                    abi.encode(
+                        _PERMIT_TYPEHASH,
+                        _owner,
+                        _spender,
+                        _amount,
+                        _nonces[_owner]++,
+                        _deadline
+                    )
                 )
             )
         );
-        address recoveredAddress = ecrecover(digest, v, r, s);
-        require(recoveredAddress == owner, "DebtToken: invalid signature");
-        _approve(owner, spender, amount);
+        address recoveredAddress = ecrecover(digest, _v, _r, _s);
+        require(recoveredAddress == _owner, "DebtToken: invalid signature");
+        _approve(_owner, _spender, _amount);
     }
 
-    function nonces(address owner) external view override returns (uint256) {
+    function nonces(address _owner) external view override returns (uint256) {
         // FOR EIP 2612
-        return _nonces[owner];
+        return _nonces[_owner];
     }
 
     // --- Internal operations ---
@@ -222,37 +232,43 @@ contract DebtToken is OwnableUpgradeable, CheckContract, IDebtToken {
     // --- Internal operations ---
     // Warning: sanity checks (for sender and recipient) should have been done before calling these internal functions
 
-    function _transfer(address sender, address recipient, uint256 amount) internal {
-        require(sender != address(0), "ERC20: transfer from the zero address");
-        require(recipient != address(0), "ERC20: transfer to the zero address");
+    function _transfer(address _sender, address _recipient, uint256 _amount) internal {
+        require(_sender != address(0), "ERC20: transfer from the zero address");
+        require(_recipient != address(0), "ERC20: transfer to the zero address");
 
-        _balances[sender] = _balances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
-        _balances[recipient] = _balances[recipient].add(amount);
-        emit Transfer(sender, recipient, amount);
+        _balances[_sender] = _balances[_sender].sub(
+            _amount,
+            "ERC20: transfer amount exceeds balance"
+        );
+        _balances[_recipient] = _balances[_recipient].add(_amount);
+        emit Transfer(_sender, _recipient, _amount);
     }
 
-    function _mint(address account, uint256 amount) internal {
-        require(account != address(0), "ERC20: mint to the zero address");
+    function _mint(address _account, uint256 _amount) internal {
+        require(_account != address(0), "ERC20: mint to the zero address");
 
-        _totalSupply = _totalSupply.add(amount);
-        _balances[account] = _balances[account].add(amount);
-        emit Transfer(address(0), account, amount);
+        _totalSupply = _totalSupply.add(_amount);
+        _balances[_account] = _balances[_account].add(_amount);
+        emit Transfer(address(0), _account, _amount);
     }
 
-    function _burn(address account, uint256 amount) internal {
-        require(account != address(0), "ERC20: burn from the zero address");
+    function _burn(address _account, uint256 _amount) internal {
+        require(_account != address(0), "ERC20: burn from the zero address");
 
-        _balances[account] = _balances[account].sub(amount, "ERC20: burn amount exceeds balance");
-        _totalSupply = _totalSupply.sub(amount);
-        emit Transfer(account, address(0), amount);
+        _balances[_account] = _balances[_account].sub(
+            _amount,
+            "ERC20: burn amount exceeds balance"
+        );
+        _totalSupply = _totalSupply.sub(_amount);
+        emit Transfer(_account, address(0), _amount);
     }
 
-    function _approve(address owner, address spender, uint256 amount) internal {
-        require(owner != address(0), "ERC20: approve from the zero address");
-        require(spender != address(0), "ERC20: approve to the zero address");
+    function _approve(address _owner, address _spender, uint256 _amount) internal {
+        require(_owner != address(0), "ERC20: approve from the zero address");
+        require(_spender != address(0), "ERC20: approve to the zero address");
 
-        _allowances[owner][spender] = amount;
-        emit Approval(owner, spender, amount);
+        _allowances[_owner][_spender] = _amount;
+        emit Approval(_owner, _spender, _amount);
     }
 
     // --- 'require' functions ---
