@@ -29,7 +29,6 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
 
     // Use to convert a price answer to an 18-digit precision uint
     uint public constant TARGET_DIGITS = 18;
-    uint public constant TELLOR_DIGITS = 18;
 
     // Maximum time period allowed since Chainlink's latest round data timestamp, beyond which Chainlink is considered frozen.
     uint public immutable TIMEOUT;
@@ -362,11 +361,12 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
             uint256(_chainlinkResponse.answer),
             _chainlinkResponse.decimals
         );
-        uint scaledTellorPrice = _scaleTellorPriceByDigits(_tellorResponse.value);
+        // No need to scale Tellor price, as it is already in 18-digit precision
+        uint tellorPrice = _tellorResponse.value;
 
         // Get the relative price difference between the oracles. Use the lower price as the denominator, i.e. the reference for the calculation.
-        uint minPrice = ProtocolMath._min(scaledTellorPrice, scaledChainlinkPrice);
-        uint maxPrice = ProtocolMath._max(scaledTellorPrice, scaledChainlinkPrice);
+        uint minPrice = ProtocolMath._min(tellorPrice, scaledChainlinkPrice);
+        uint maxPrice = ProtocolMath._max(tellorPrice, scaledChainlinkPrice);
         uint percentPriceDifference = maxPrice.sub(minPrice).mul(DECIMAL_PRECISION).div(minPrice);
 
         /*
@@ -397,10 +397,6 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
         return price;
     }
 
-    function _scaleTellorPriceByDigits(uint _price) internal pure returns (uint) {
-        return _price.mul(10 ** (TARGET_DIGITS - TELLOR_DIGITS));
-    }
-
     function _changeStatus(Status _status) internal {
         status = _status;
         emit PriceFeedStatusChanged(_status);
@@ -412,10 +408,11 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
     }
 
     function _storeTellorPrice(TellorResponse memory _tellorResponse) internal returns (uint) {
-        uint scaledTellorPrice = _scaleTellorPriceByDigits(_tellorResponse.value);
-        _storePrice(scaledTellorPrice);
+        // No need to scale Tellor price, as it is already in 18-digit precision
+        uint tellorPrice = _tellorResponse.value;
+        _storePrice(tellorPrice);
 
-        return scaledTellorPrice;
+        return tellorPrice;
     }
 
     function _storeChainlinkPrice(
