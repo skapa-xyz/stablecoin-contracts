@@ -33,7 +33,6 @@ contract LockupContractFactory is ILockupContractFactory, OwnableUpgradeable, Ch
     address public protocolTokenAddress;
 
     mapping(address => address) public lockupContractToDeployer;
-    mapping(address => address) public beneficiaryToLockupContract;
 
     // --- Functions ---
 
@@ -59,7 +58,6 @@ contract LockupContractFactory is ILockupContractFactory, OwnableUpgradeable, Ch
         );
 
         lockupContractToDeployer[address(lockupContract)] = msg.sender;
-        beneficiaryToLockupContract[_beneficiary] = address(lockupContract);
         emit LockupContractDeployedThroughFactory(
             address(lockupContract),
             _beneficiary,

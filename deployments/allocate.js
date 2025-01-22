@@ -71,7 +71,10 @@ async function main(configParams) {
         lockupContractFactory.deployLockupContract(investorAddr, oneYearFromDeployment),
       );
 
-      const address = await lockupContractFactory.beneficiaryToLockupContract(investorAddr);
+      const address = txReceipt.events.find(
+        (e) => e.event === "LockupContractDeployedThroughFactory",
+      ).args._lockupContractAddress;
+
       lockupContracts[investor] = new ethers.Contract(
         address,
         lockupContractEthersFactory.interface,
