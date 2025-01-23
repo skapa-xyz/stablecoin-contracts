@@ -33,6 +33,9 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
     // Maximum time period allowed since Chainlink's latest round data timestamp, beyond which Chainlink is considered frozen.
     uint public immutable TIMEOUT;
 
+    // Maximum deviation allowed between two consecutive Chainlink oracle prices. 18-digit precision.
+    uint public constant MAX_PRICE_DEVIATION_FROM_PREVIOUS_ROUND = 5e17; // 50%
+
     /*
      * The maximum relative price difference between two oracle responses allowed in order for the PriceFeed
      * to return to using the Chainlink oracle. 18-digit precision.
@@ -153,6 +156,34 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
                 }
 
                 // If Tellor is working, use it
+                return _storeTellorPrice(tellorResponse);
+            }
+
+            // If Chainlink price has changed by > 50% between the latest round and the last good price, compare it to Tellor's price
+            if (_chainlinkPriceChangeAboveMax(chainlinkResponse)) {
+                // If Tellor is broken, both oracles are untrusted, and return last good price
+                if (_tellorIsBroken(tellorResponse)) {
+                    _changeStatus(Status.bothOraclesUntrusted);
+                    return lastGoodPrice;
+                }
+
+                // If Tellor is frozen, switch to Tellor and return last good price
+                if (_tellorIsFrozen(tellorResponse)) {
+                    _changeStatus(Status.usingTellorChainlinkUntrusted);
+                    return lastGoodPrice;
+                }
+
+                /*
+                 * If Tellor is live and both oracles have a similar price, conclude that Chainlink's large price deviation between
+                 * two consecutive rounds was likely a legitmate market price movement, and so continue using Chainlink
+                 */
+                if (_bothOraclesSimilarPrice(chainlinkResponse, tellorResponse)) {
+                    return _storeChainlinkPrice(chainlinkResponse);
+                }
+
+                // If Tellor is live but the oracles differ too much in price, conclude that Chainlink's initial price deviation was
+                // an oracle failure. Switch to Tellor, and use Tellor price
+                _changeStatus(Status.usingTellorChainlinkUntrusted);
                 return _storeTellorPrice(tellorResponse);
             }
 
@@ -283,6 +314,13 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
                 return _storeChainlinkPrice(chainlinkResponse);
             }
 
+            // If Chainlink is live but deviated >50% from the last good price and Tellor is still untrusted,
+            // switch to bothOraclesUntrusted and return the last good price
+            if (_chainlinkPriceChangeAboveMax(chainlinkResponse)) {
+                _changeStatus(Status.bothOraclesUntrusted);
+                return lastGoodPrice;
+            }
+
             // Otherwise if Chainlink is live and deviated <50% from it's previous price and Tellor is still untrusted,
             // return Chainlink price (no status change)
             return _storeChainlinkPrice(chainlinkResponse);
@@ -313,6 +351,28 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
 
     function _chainlinkIsFrozen(ChainlinkResponse memory _response) internal view returns (bool) {
         return block.timestamp.sub(_response.timestamp) > TIMEOUT;
+    }
+
+    function _chainlinkPriceChangeAboveMax(
+        ChainlinkResponse memory _response
+    ) internal view returns (bool) {
+        uint currentScaledPrice = _scaleChainlinkPriceByDigits(
+            uint256(_response.answer),
+            _response.decimals
+        );
+
+        uint minPrice = ProtocolMath._min(currentScaledPrice, lastGoodPrice);
+        uint maxPrice = ProtocolMath._max(currentScaledPrice, lastGoodPrice);
+
+        /*
+         * Use the larger price as the denominator:
+         * - If price decreased, the percentage deviation is in relation to the the previous price.
+         * - If price increased, the percentage deviation is in relation to the current price.
+         */
+        uint percentDeviation = maxPrice.sub(minPrice).mul(DECIMAL_PRECISION).div(maxPrice);
+
+        // Return true if price has more than doubled, or more than halved.
+        return percentDeviation > MAX_PRICE_DEVIATION_FROM_PREVIOUS_ROUND;
     }
 
     function _tellorIsBroken(TellorResponse memory _response) internal view returns (bool) {
