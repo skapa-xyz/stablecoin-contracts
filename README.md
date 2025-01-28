@@ -29,6 +29,9 @@ $ npx hardhat run --network mainnet deployments/change-owners.js
 
 # Upgrade contracts
 $ UPGRADE_CONTRACTS=SortedTroves,TroveManager npx hardhat run --network mainnet deployments/upgrade-contracts.js
+
+# Verify contracts on Filfox
+$ npx hardhat verify-filfox --network mainnet
 ```
 
 ## Tests

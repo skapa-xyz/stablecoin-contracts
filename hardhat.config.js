@@ -6,6 +6,8 @@ require("solidity-coverage");
 require("hardhat-gas-reporter");
 require("dotenv").config();
 
+require("./tasks/verify-filfox.js");
+
 const accounts = [
   process.env.DEPLOYER_PRIVATEKEY ||
     "0x60ddfe7f579ab6867cbe7a2dc03853dc141d7a4ab6dbefc0dae2d2b1bd4e487f",
