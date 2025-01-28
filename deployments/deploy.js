@@ -15,7 +15,6 @@ async function main(configParams) {
   const mdh = new HardhatDeploymentHelper(configParams, deployerWallet);
 
   const deploymentState = mdh.loadPreviousDeployment();
-  const isFirstDeployment = Object.keys(deploymentState).length === 0;
 
   console.log(`deployer address: ${deployerWallet.address}`);
   assert.equal(deployerWallet.address, configParams.walletAddrs.DEPLOYER);
@@ -51,10 +50,13 @@ async function main(configParams) {
     "protocolToken",
   ];
 
-  const addressList = await mdh.computeContractAddresses(proxyContractList.length * 2 + 1);
+  const addressList = await mdh.computeContractAddresses(proxyContractList.length * 2 + 2);
+  const isFirstDeployment = await mdh.isFirstDeployment();
 
   if (isFirstDeployment) {
-    addressList.shift(); // skip first contract
+    // skip nonces for ProxyAdmin
+    addressList.shift();
+    addressList.shift();
   }
 
   const cpContracts = proxyContractList.reduce((acc, contract) => {

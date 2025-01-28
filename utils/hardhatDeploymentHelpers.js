@@ -1,5 +1,6 @@
 const fs = require("fs");
 const { getContractAddress } = require("@ethersproject/address");
+const { Manifest } = require("@openzeppelin/upgrades-core");
 
 const ZERO_ADDRESS = "0x" + "0".repeat(40);
 const maxBytes32 = "0x" + "f".repeat(64);
@@ -530,6 +531,14 @@ class HardhatDeploymentHelper {
         );
       }
     }
+  }
+
+  async isFirstDeployment() {
+    const { provider } = this.hre.network;
+    const manifest = await Manifest.forNetwork(provider);
+    const admin = await manifest.getAdmin();
+
+    return !admin;
   }
 }
 
