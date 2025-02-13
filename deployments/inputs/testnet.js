@@ -48,8 +48,8 @@ const beneficiaries = {
 };
 
 const GAS_COMPENSATION = dec(20, 18); // 20 USDFC
-const MIN_NET_DEBT = dec(180, 18); // 180 USDFC
-const BOOTSTRAP_PERIOD = 1 * 24 * 60 * 60; // 1 day
+const MIN_NET_DEBT = dec(200, 18); // 200 USDFC
+const BOOTSTRAP_PERIOD = 24 * 60 * 60; // 1 day
 const PRICE_FEED_TIMEOUT = 24 * 60 * 60; // 1 day
 const ETHERSCAN_BASE_URL = undefined;
 
