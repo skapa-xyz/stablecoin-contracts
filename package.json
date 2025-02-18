@@ -4,6 +4,7 @@
   "description": "Secured Finance Stablecoin Contracts",
   "files": [
     "artifacts",
+    "cache",
     "contracts",
     "deployments/outputs"
   ],
