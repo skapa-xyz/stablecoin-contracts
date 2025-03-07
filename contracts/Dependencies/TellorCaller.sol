@@ -18,15 +18,18 @@ import "./ITellor.sol";
 contract TellorCaller is ITellorCaller {
     using SafeMath for uint256;
 
-    bytes32 public immutable btcQueryId;
+    bytes32 public immutable queryId;
     uint256 public constant DISPUTE_BUFFER = 20 minutes;
 
     ITellor public immutable tellor;
 
+    uint256 public lastStoredTimestamp;
+    uint256 public lastStoredPrice;
+
     constructor(address _tellorMasterAddress) {
         tellor = ITellor(_tellorMasterAddress);
         bytes memory _queryData = abi.encode("SpotPrice", abi.encode("fil", "usd"));
-        btcQueryId = keccak256(_queryData);
+        queryId = keccak256(_queryData);
     }
 
     /**
@@ -37,15 +40,14 @@ contract TellorCaller is ITellorCaller {
      * @return timestamp the value's timestamp
      */
     function getTellorCurrentValue()
-        public
-        view
+        external
         override
         returns (bool ifRetrieve, uint256 _value, uint256 timestamp)
     {
         // retrieve the most recent 20+ minute old price.
         // the buffer allows time for a bad value to be disputed
         (bool _ifRetrieve, bytes memory _data, uint256 _timestamp) = tellor.getDataBefore(
-            btcQueryId,
+            queryId,
             block.timestamp.sub(DISPUTE_BUFFER)
         );
 
@@ -56,7 +58,12 @@ contract TellorCaller is ITellorCaller {
         // decode the value from bytes to uint256
         _value = abi.decode(_data, (uint256));
 
-        // return the value and timestamp
-        return (true, _value, _timestamp);
+        if (_timestamp > lastStoredTimestamp) {
+            lastStoredTimestamp = _timestamp;
+            lastStoredPrice = _value;
+            return (true, _value, _timestamp);
+        } else {
+            return (true, lastStoredPrice, lastStoredTimestamp);
+        }
     }
 }

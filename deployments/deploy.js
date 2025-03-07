@@ -205,7 +205,8 @@ async function main(configParams) {
   console.log(`current Pyth timestamp: ${pythPriceResponse[3]}`);
 
   // Check Tellor price directly (through our TellorCaller)
-  let tellorPriceResponse = await oracleWrapperContracts.tellorCaller.getTellorCurrentValue(); // id == 1: the FIL-USD request ID
+  let tellorPriceResponse =
+    await oracleWrapperContracts.tellorCaller.callStatic.getTellorCurrentValue(); // id == 1: the FIL-USD request ID
   console.log(`current Tellor price: ${tellorPriceResponse[1]}`);
   console.log(`current Tellor timestamp: ${tellorPriceResponse[2]}`);
 

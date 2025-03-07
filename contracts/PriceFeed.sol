@@ -489,11 +489,7 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
 
     // --- Oracle response wrapper functions ---
 
-    function _getCurrentTellorResponse()
-        internal
-        view
-        returns (TellorResponse memory tellorResponse)
-    {
+    function _getCurrentTellorResponse() internal returns (TellorResponse memory tellorResponse) {
         try tellorCaller.getTellorCurrentValue() returns (
             bool ifRetrieve,
             uint256 value,
