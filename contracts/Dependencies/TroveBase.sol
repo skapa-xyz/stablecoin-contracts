@@ -64,4 +64,5 @@ contract TroveBase is ProtocolBase, CheckContract, ITroveBase {
 
         return TCR < CCR;
     }
+    uint256[48] private __gap;
 }

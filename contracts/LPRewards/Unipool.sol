@@ -46,6 +46,7 @@ contract LPTokenWrapper is ILPTokenWrapper {
         _balances[msg.sender] = _balances[msg.sender].sub(amount);
         uniToken.safeTransfer(msg.sender, amount);
     }
+    uint256[47] private __gap;
 }
 
 /*
