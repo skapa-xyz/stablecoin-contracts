@@ -76,7 +76,10 @@ contract BorrowerOperations is
 
     // --- Functions ---
 
-    constructor(uint _gasCompensation, uint _minNetDebt) TroveBase(_gasCompensation, _minNetDebt) {}
+    constructor(
+        uint _gasCompensation,
+        uint _minNetDebt
+    ) initializer TroveBase(_gasCompensation, _minNetDebt) {}
 
     // --- Dependency setters ---
 

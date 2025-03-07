@@ -188,7 +188,7 @@ contract TroveManager is TroveBase, OwnableUpgradeable, ReentrancyGuardUpgradeab
         uint _gasCompensation,
         uint _minNetDebt,
         uint _bootstrapPeriod
-    ) TroveBase(_gasCompensation, _minNetDebt) {
+    ) initializer TroveBase(_gasCompensation, _minNetDebt) {
         BOOTSTRAP_PERIOD = _bootstrapPeriod;
         deploymentStartTime = block.timestamp;
     }

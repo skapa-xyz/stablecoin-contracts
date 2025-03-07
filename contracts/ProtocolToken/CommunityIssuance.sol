@@ -45,6 +45,8 @@ contract CommunityIssuance is ICommunityIssuance, OwnableUpgradeable, CheckContr
     uint public totalProtocolTokenIssued;
     uint public supplyStartTime;
 
+    constructor() initializer {}
+
     // --- Functions ---
 
     function initialize(

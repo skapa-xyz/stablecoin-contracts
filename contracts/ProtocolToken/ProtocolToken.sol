@@ -84,6 +84,8 @@ contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
 
     address public protocolTokenStakingAddress;
 
+    constructor() initializer {}
+
     // --- Functions ---
 
     function initialize(

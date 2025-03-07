@@ -34,6 +34,8 @@ contract LockupContractFactory is ILockupContractFactory, OwnableUpgradeable, Ch
 
     mapping(address => address) public lockupContractToDeployer;
 
+    constructor() initializer {}
+
     // --- Functions ---
 
     function initialize(address _protocolTokenAddress) external initializer {

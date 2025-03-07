@@ -26,7 +26,7 @@ contract HintHelpers is ProtocolBase, OwnableUpgradeable, CheckContract {
     constructor(
         uint _gasCompensation,
         uint _minNetDebt
-    ) ProtocolBase(_gasCompensation, _minNetDebt) {}
+    ) initializer ProtocolBase(_gasCompensation, _minNetDebt) {}
 
     // --- Dependency setters ---
 

@@ -63,7 +63,7 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
     // The current status of the PricFeed, which determines the conditions for the next price fetch attempt
     Status public status;
 
-    constructor(uint _timeout) {
+    constructor(uint _timeout) initializer {
         TIMEOUT = _timeout;
     }
 

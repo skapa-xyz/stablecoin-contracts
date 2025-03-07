@@ -246,7 +246,7 @@ contract StabilityPool is
     constructor(
         uint _gasCompensation,
         uint _minNetDebt
-    ) ProtocolBase(_gasCompensation, _minNetDebt) {}
+    ) initializer ProtocolBase(_gasCompensation, _minNetDebt) {}
 
     // --- Contract setters ---
 

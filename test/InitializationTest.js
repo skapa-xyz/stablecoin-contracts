@@ -1,7 +1,7 @@
 const deploymentHelper = require("../utils/testDeploymentHelpers.js");
 const { TestHelper: th, MoneyValues: mv } = require("../utils/testHelpers.js");
 
-contract("All functions with onlyOwner modifier", async () => {
+contract("All initialize functions", async () => {
   let owner, alice, bob;
 
   let contracts;
@@ -12,6 +12,9 @@ contract("All functions with onlyOwner modifier", async () => {
   let stabilityPool;
   let defaultPool;
   let borrowerOperations;
+  let collSurplusPool;
+  let gasPool;
+  let hintHelpers;
 
   let protocolTokenStaking;
   let communityIssuance;
@@ -47,6 +50,9 @@ contract("All functions with onlyOwner modifier", async () => {
     stabilityPool = contracts.stabilityPool;
     defaultPool = contracts.defaultPool;
     borrowerOperations = contracts.borrowerOperations;
+    collSurplusPool = contracts.collSurplusPool;
+    gasPool = contracts.gasPool;
+    hintHelpers = contracts.hintHelpers;
 
     protocolTokenStaking = protocolTokenContracts.protocolTokenStaking;
     communityIssuance = protocolTokenContracts.communityIssuance;
@@ -54,73 +60,102 @@ contract("All functions with onlyOwner modifier", async () => {
     lockupContractFactory = protocolTokenContracts.lockupContractFactory;
   });
 
-  const testInitialize = async (contract, numberOfAddresses) => {
-    const protocolBaseFactory = await deploymentHelper.getFactory("ProtocolBase");
-    const dumbContract = await protocolBaseFactory.deploy(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
-    const params = Array(numberOfAddresses).fill(dumbContract.address);
+  const testInitialize = async (name, contract, numberOfAddresses, params) => {
+    if (!params) {
+      const protocolBaseFactory = await deploymentHelper.getFactory("ProtocolBase");
+      const dumbContract = await protocolBaseFactory.deploy(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
+      params = Array(numberOfAddresses).fill(dumbContract.address);
+    }
+    const implementationAddress = await hre.upgrades.erc1967.getImplementationAddress(
+      contract.address,
+    );
+    const implementationContract = await ethers.getContractAt(name, implementationAddress);
 
     // fails if called
     await th.assertRevert(contract.connect(owner).initialize(...params));
+    await th.assertRevert(implementationContract.connect(owner).initialize(...params));
   };
 
-  describe("TroveManager", async () => {
+  describe("ActivePool", async () => {
     it("initialize(): reverts when called", async () => {
-      await testInitialize(troveManager, 10);
+      await testInitialize("ActivePool", activePool, 4);
     });
   });
 
   describe("BorrowerOperations", async () => {
     it("initialize(): reverts when called", async () => {
-      await testInitialize(borrowerOperations, 10);
+      await testInitialize("BorrowerOperations", borrowerOperations, 10);
+    });
+  });
+
+  describe("CollSurplusPool", async () => {
+    it("initialize(): reverts when called", async () => {
+      await testInitialize("CollSurplusPool", collSurplusPool, 3);
     });
   });
 
   describe("DefaultPool", async () => {
     it("initialize(): reverts when called", async () => {
-      await testInitialize(defaultPool, 2);
+      await testInitialize("DefaultPool", defaultPool, 2);
+    });
+  });
+
+  describe("DebtToken", async () => {
+    it("initialize(): reverts when called", async () => {
+      await testInitialize("DebtToken", debtToken, 3);
+    });
+  });
+
+  describe("GasPool", async () => {
+    it("initialize(): reverts when called", async () => {
+      await testInitialize("GasPool", gasPool, 0);
+    });
+  });
+
+  describe("HintHelpers", async () => {
+    it("initialize(): reverts when called", async () => {
+      await testInitialize("HintHelpers", hintHelpers, 2);
     });
   });
 
   describe("StabilityPool", async () => {
     it("initialize(): reverts when called", async () => {
-      await testInitialize(stabilityPool, 7);
-    });
-  });
-
-  describe("ActivePool", async () => {
-    it("initialize(): reverts when called", async () => {
-      await testInitialize(activePool, 4);
+      await testInitialize("StabilityPool", stabilityPool, 7);
     });
   });
 
   describe("SortedTroves", async () => {
-    it("setParams(): reverts when called", async () => {
+    it("initialize(): reverts when called", async () => {
       const protocolBaseFactory = await deploymentHelper.getFactory("ProtocolBase");
       const dumbContract = await protocolBaseFactory.deploy(th.GAS_COMPENSATION, th.MIN_NET_DEBT);
       const params = [10000001, dumbContract.address, dumbContract.address];
 
-      // fails if called
-      await th.assertRevert(sortedTroves.initialize(...params));
+      await testInitialize("SortedTroves", sortedTroves, 3, params);
+    });
+  });
+
+  describe("TroveManager", async () => {
+    it("initialize(): reverts when called", async () => {
+      await testInitialize("TroveManager", troveManager, 10);
     });
   });
 
   describe("CommunityIssuance", async () => {
     it("initialize(): reverts when called", async () => {
       const params = [protocolToken.address, stabilityPool.address];
-      // fails if called
-      await th.assertRevert(communityIssuance.initialize(...params));
+      await testInitialize("CommunityIssuance", communityIssuance, 2, params);
     });
   });
 
   describe("ProtocolTokenStaking", async () => {
     it("initialize(): reverts when called", async () => {
-      await testInitialize(protocolTokenStaking, 5);
+      await testInitialize("ProtocolTokenStaking", protocolTokenStaking, 5);
     });
   });
 
   describe("LockupContractFactory", async () => {
     it("initialize(): reverts when called", async () => {
-      await th.assertRevert(lockupContractFactory.initialize(protocolToken.address));
+      testInitialize("LockupContractFactory", lockupContractFactory, 1, [protocolToken.address]);
     });
   });
 });

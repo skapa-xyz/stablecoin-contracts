@@ -16,6 +16,9 @@ import "./Dependencies/OpenZeppelin/access/OwnableUpgradeable.sol";
  */
 contract GasPool is OwnableUpgradeable {
     // do nothing, as the core contracts have permission to send to and burn from this address
+
+    constructor() initializer {}
+
     function initialize() external initializer {
         __Ownable_init();
     }

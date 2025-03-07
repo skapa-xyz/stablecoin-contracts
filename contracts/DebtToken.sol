@@ -62,6 +62,8 @@ contract DebtToken is OwnableUpgradeable, CheckContract, IDebtToken {
     address public stabilityPoolAddress;
     address public borrowerOperationsAddress;
 
+    constructor() initializer {}
+
     function initialize(
         address _troveManagerAddress,
         address _stabilityPoolAddress,

@@ -68,6 +68,8 @@ contract SortedTroves is OwnableUpgradeable, CheckContract, ISortedTroves {
 
     Data public data;
 
+    constructor() initializer {}
+
     // --- Dependency setters ---
 
     function initialize(

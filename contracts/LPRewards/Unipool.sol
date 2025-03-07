@@ -93,6 +93,8 @@ contract Unipool is LPTokenWrapper, OwnableUpgradeable, CheckContract, IUnipool 
     event Withdrawn(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward);
 
+    constructor() initializer {}
+
     function initialize() external initializer {
         __Ownable_init();
 

@@ -26,6 +26,8 @@ contract ActivePool is OwnableUpgradeable, CheckContract, IActivePool {
     uint256 internal FIL; // deposited filecoin tracker
     uint256 internal debt;
 
+    constructor() initializer {}
+
     // --- Contract setters ---
 
     function initialize(

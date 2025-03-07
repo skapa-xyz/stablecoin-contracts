@@ -46,6 +46,8 @@ contract ProtocolTokenStaking is
     address public borrowerOperationsAddress;
     address public activePoolAddress;
 
+    constructor() initializer {}
+
     // --- Functions ---
 
     function initialize(

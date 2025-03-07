@@ -24,6 +24,8 @@ contract DefaultPool is OwnableUpgradeable, CheckContract, IDefaultPool {
     uint256 internal FIL; // deposited FIL tracker
     uint256 internal debt; // debt
 
+    constructor() initializer {}
+
     // --- Dependency setters ---
 
     function initialize(

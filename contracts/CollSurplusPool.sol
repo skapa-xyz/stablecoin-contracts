@@ -21,6 +21,8 @@ contract CollSurplusPool is OwnableUpgradeable, CheckContract, ICollSurplusPool 
     // Collateral surplus claimable by trove owners
     mapping(address => uint) internal balances;
 
+    constructor() initializer {}
+
     // --- Contract setters ---
 
     function initialize(
