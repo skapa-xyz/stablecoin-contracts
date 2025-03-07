@@ -29,7 +29,6 @@ contract BorrowerWrappersScript is
     IPriceFeed immutable priceFeed;
     IERC20 immutable debtToken;
     IERC20 immutable protocolToken;
-    IProtocolTokenStaking immutable protocolTokenStaking;
 
     constructor(
         address _borrowerOperationsAddress,
@@ -61,7 +60,6 @@ contract BorrowerWrappersScript is
             _protocolTokenStakingAddress == address(protocolTokenStakingCached),
             "BorrowerWrappersScript: Wrong ProtocolTokenStaking address"
         );
-        protocolTokenStaking = protocolTokenStakingCached;
 
         address protocolTokenCached = address(protocolTokenStakingCached.protocolToken());
         checkContract(protocolTokenCached);

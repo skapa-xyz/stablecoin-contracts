@@ -6,14 +6,14 @@ import "../Dependencies/CheckContract.sol";
 import "../Interfaces/IProtocolTokenStaking.sol";
 
 contract ProtocolStakingScript is CheckContract {
-    IProtocolTokenStaking immutable protocolStakingStaking;
+    IProtocolTokenStaking immutable protocolTokenStaking;
 
     constructor(address _protocolTokenStakingAddress) {
         checkContract(_protocolTokenStakingAddress);
-        protocolStakingStaking = IProtocolTokenStaking(_protocolTokenStakingAddress);
+        protocolTokenStaking = IProtocolTokenStaking(_protocolTokenStakingAddress);
     }
 
     function stake(uint _tokenAmount) external {
-        protocolStakingStaking.stake(_tokenAmount);
+        protocolTokenStaking.stake(_tokenAmount);
     }
 }
