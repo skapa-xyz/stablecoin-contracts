@@ -8,36 +8,22 @@ import "../Dependencies/CheckContract.sol";
 import "../Interfaces/IProtocolToken.sol";
 
 /*
-* Based upon OpenZeppelin's ERC20 contract:
-* https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol
-*  
-* and their EIP2612 (ERC20Permit / ERC712) functionality:
-* https://github.com/OpenZeppelin/openzeppelin-contracts/blob/53516bc555a454862470e7860a9b5254db4d00f5/contracts/token/ERC20/ERC20Permit.sol
-* 
-*
-*  --- Functionality added specific to the ProtocolToken ---
-* 
-* 1) Transfer protection: blacklist of addresses that are invalid recipients (i.e. core contracts) in external 
-* transfer() and transferFrom() calls. The purpose is to protect users from losing tokens by mistakenly sending ProtocolToken directly to a core contract,
-* when they should rather call the right function.
-*
-* 2) sendToProtocolTokenStaking(): callable only by core contracts, which move ProtocolToken tokens from user -> ProtocolTokenStaking contract.
-*
-* 3) Supply hard-capped at 100 million
-*
-* 4) CommunityIssuance addresses are set at deployment
-*
-* 5) The bug bounties / hackathons allocation of 2 million tokens is minted at deployment to an EOA
-
-* 6) 32 million tokens are minted at deployment to the CommunityIssuance contract
-*
-* 7) The LP rewards allocation of (1 + 1/3) million tokens is minted at deployent to a Staking contract
-*
-* 8) (64 + 2/3) million tokens are minted at deployment to the multisig
-** 
-* After one year has passed since deployment of the ProtocolToken, the restrictions on multisig operations are lifted
-* and the multisig has the same rights as any other address.
-*/
+ * Based upon OpenZeppelin's ERC20 contract:
+ * https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol
+ *
+ * and their EIP2612 (ERC20Permit / ERC712) functionality:
+ * https://github.com/OpenZeppelin/openzeppelin-contracts/blob/53516bc555a454862470e7860a9b5254db4d00f5/contracts/token/ERC20/ERC20Permit.sol
+ *
+ *
+ *  --- Functionality added specific to the ProtocolToken ---
+ *
+ * 1) Transfer protection: blacklist of addresses that are invalid recipients (i.e. core contracts) in external
+ * transfer() and transferFrom() calls. The purpose is to protect users from losing tokens by mistakenly sending ProtocolToken directly to a core contract,
+ * when they should rather call the right function.
+ *
+ * 2) sendToProtocolTokenStaking(): callable only by core contracts, which move ProtocolToken tokens from user -> ProtocolTokenStaking contract.
+ *
+ */
 
 contract ProtocolToken is OwnableUpgradeable, CheckContract, IProtocolToken {
     using SafeMath for uint256;

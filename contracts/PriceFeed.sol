@@ -24,7 +24,7 @@ contract PriceFeed is OwnableUpgradeable, CheckContract, BaseMath, IPriceFeed {
 
     string public constant NAME = "PriceFeed";
 
-    AggregatorV3Interface public priceAggregator; // Mainnet Chainlink aggregator
+    AggregatorV3Interface public priceAggregator;
     ITellorCaller public tellorCaller; // Wrapper contract that calls the Tellor system
 
     // Use to convert a price answer to an 18-digit precision uint
