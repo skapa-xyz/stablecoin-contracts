@@ -132,8 +132,11 @@ contract("PriceFeed", async () => {
     let price = await priceFeed.lastGoodPrice();
     assert.equal(price.toString(), dec(123, 18));
 
+    const now = await th.getLatestBlockTimestamp(web3);
+
     // Tellor price is 10 at 6-digit precision
     await mockTellor.setPrice(dec(10, 8));
+    await mockTellor.setUpdateTime(now);
     await priceFeed.fetchPrice();
     price = await priceFeed.lastGoodPrice();
     // Check protocol PriceFeed gives 10, with 18 digit precision
@@ -141,6 +144,7 @@ contract("PriceFeed", async () => {
 
     // Tellor price is 1e9 at 6-digit precision
     await mockTellor.setPrice(dec(1, 27));
+    await mockTellor.setUpdateTime(now + 1);
     await priceFeed.fetchPrice();
     price = await priceFeed.lastGoodPrice();
     // Check protocol PriceFeed gives 1e9, with 18 digit precision
@@ -148,6 +152,7 @@ contract("PriceFeed", async () => {
 
     // Tellor price is 0.0001 at 6-digit precision
     await mockTellor.setPrice(dec(1, 14));
+    await mockTellor.setUpdateTime(now + 2);
     await priceFeed.fetchPrice();
     price = await priceFeed.lastGoodPrice();
     // Check protocol PriceFeed gives 0.0001 with 18 digit precision
@@ -156,6 +161,7 @@ contract("PriceFeed", async () => {
 
     // Tellor price is 1234.56789 at 6-digit precision
     await mockTellor.setPrice(dec("1234567890000000000000"));
+    await mockTellor.setUpdateTime(now + 3);
     await priceFeed.fetchPrice();
     price = await priceFeed.lastGoodPrice();
     // Check protocol PriceFeed gives 0.0001 with 18 digit precision
