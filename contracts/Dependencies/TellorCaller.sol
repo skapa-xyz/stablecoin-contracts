@@ -19,7 +19,7 @@ contract TellorCaller is ITellorCaller {
     using SafeMath for uint256;
 
     bytes32 public immutable queryId;
-    uint256 public constant DISPUTE_BUFFER = 20 minutes;
+    uint256 public constant DISPUTE_BUFFER = 15 minutes;
 
     ITellor public immutable tellor;
 
