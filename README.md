@@ -1,3 +1,14 @@
+```
+   !!;      _!!    -^<T?"_`   !!!!!!^_,      "!!!!!!!!'    ~^/*=_,
+   BB4      2BB  .8QQ2TZMQR'  BBU{YyqQQ8l'  .qBmYYYYYY~ `JOBgtv2MQ8"
+   BB4      2BB  pBBr    `:   BB1     ,aB8' .qBt        6BZ_     ;"
+   BB4      2BB   qWBN}*"-    BB1       QBR .qBa!!!!!_ gBB
+   BB4      2BB    `:iL8BBO'  BB1       QB0 .qB6TTTTT! gBB
+   9BQ-    -gBk  >".    _BBN  BB1     :yBR~ .qBt       `0B4_     `~
+   ,PBQyvvwQQo. ,UQQpvv[QB8'  BBavvvv8B85_  .qBt        -aWBW7vtRQ8;
+     ~"cTTc;-     :_/TTT=,    TTTTTT?"~.     /T"          `_/TTT",.
+```
+
 # Stablecoin Contracts - USDFC
 
 USDFC is a USD-pegged stablecoin minted using Filecoin as collateral on the Filecoin Virtual Machine (FVM).
@@ -72,3 +83,8 @@ $ docker run --rm --platform linux/amd64  -it -w /src -v `pwd`:/src mythril/myth
 - `gasTest` - Non-assertive tests that return gas costs for protocol operations under various scenarios
 - `fuzzTests` - Echidna tests, and naive "random operation" tests
 - `utils` - external Hardhat and node scripts - deployment helpers, gas calculators, etc
+
+## Audits
+
+- [Hexens | Jan 2025](./audits/2025-01-Hexens.pdf)
+- [Decurity | Mar 2025](./audits/2025-03-Decurity.pdf)
