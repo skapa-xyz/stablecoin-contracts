@@ -15,28 +15,20 @@ const externalAddrs = {
 };
 
 const walletAddrs = {
-  ADMIN: "0xe96D28Fe3E959FE7721624B56e2A4d40C3213D3d",
+  FOUNDATION: "0xe96D28Fe3E959FE7721624B56e2A4d40C3213D3d",
   DEPLOYER: "0xDBA767F3DFF3835BEf5dE1eDEe91A9901402AB21",
-  MULTISIG: "0xff0000000000000000000000000000000001AEBc",
-};
-
-const walletF1Addrs = {
-  DEPLOYER: "t1meo2ogyes4cy26dfvp7pjotmozapliirat3jvvy",
-};
-
-const walletF2Addrs = {
-  MULTISIG: "t2b3v3bp55krpaqz24fxmlgggbz3gaik6fv5f7ryy",
+  MULTISIG: "0x15Cd07428b06b6313c2A2212b9Bc6c417A878933",
 };
 
 const allocationAmounts = {
-  ADMIN: dec(6_700_000, 18),
+  FOUNDATION: dec(6_700_000, 18),
   UNIPOOL: dec(100_000, 18),
   COMMUNITY_ISSUANCE: dec(3_200_000, 18),
 };
 
 const annualAllocationSettings = {
   RATE: dec(4, 16), // 4%
-  RECIPIENT: walletAddrs.ADMIN,
+  RECIPIENT: walletAddrs.FOUNDATION,
 };
 
 const beneficiaries = {
@@ -56,8 +48,6 @@ const ETHERSCAN_BASE_URL = undefined;
 module.exports = {
   externalAddrs,
   walletAddrs,
-  walletF1Addrs,
-  walletF2Addrs,
   allocationAmounts,
   annualAllocationSettings,
   beneficiaries,

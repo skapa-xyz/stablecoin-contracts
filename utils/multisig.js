@@ -1,22 +1,16 @@
-const { FilecoinClient } = require("@blitslabs/filecoin-js-signer");
-const { CoinType, bigintToArray, delegatedFromEthAddress } = require("@glif/filecoin-address");
-const BigNumber = require("bignumber.js");
-const { HttpJsonRpcConnector, LotusClient } = require("filecoin.js");
-const { createProposeMessage } = require("filecoin.js/builds/dist/utils/msig");
+const { default: SafeApiKit } = require("@safe-global/api-kit");
+const { default: Safe } = require("@safe-global/protocol-kit");
+const { utils } = require("ethers");
 
-const METHOD_TYPES = {
-  INVOKE_EVM: 3844450837,
-};
 const PRIVATE_CONSTRUCTOR_SYMBOL = Symbol("private");
 
 class MultisigProposal {
-  #filecoinClient;
+  #safeAddress;
+  #txServiceUrl;
   #signer;
-  #privateKey;
-  #multisigWallet;
-  #lotusClient;
-  #transactions = [];
-  #coinType;
+  #safeService;
+  #safeSdk;
+  #safeTransactions;
 
   constructor(symbol) {
     // Prevents outside initialization to ensure the class is always initialized via the static create method
@@ -25,96 +19,71 @@ class MultisigProposal {
     }
   }
 
-  static async create(
-    signerF1Addr,
-    signerPrivateKey,
-    multisigWalletF2Addr,
-    rpcEndpoint,
-    isTestnet,
-  ) {
-    const proposal = new MultisigProposal(PRIVATE_CONSTRUCTOR_SYMBOL);
-    await proposal.#init(
-      signerF1Addr,
-      signerPrivateKey,
-      multisigWalletF2Addr,
-      rpcEndpoint,
-      isTestnet,
-    );
+  static async create(adapter, safeAddress) {
+    console.log("safeAddress:", safeAddress);
 
+    const proposal = new MultisigProposal(PRIVATE_CONSTRUCTOR_SYMBOL);
+    await proposal.#init(adapter, safeAddress);
     return proposal;
   }
 
-  async #init(signerF1Addr, signerPrivateKey, multisigWalletF2Addr, rpcEndpoint, isTestnet) {
-    if (!signerPrivateKey) {
-      throw Error("signerPrivateKey is not set");
+  async #init(adapter, safeAddress) {
+    if (!process.env.SAFE_API_URL) {
+      throw Error("SAFE_API_URL is not set");
     }
 
-    if (!rpcEndpoint) {
-      throw Error("rpcEndpoint is not set");
+    const signer = await adapter.getSignerAddress();
+    if (!signer) {
+      throw Error("Signer address is not found");
     }
 
-    this.#signer = signerF1Addr;
-    this.#privateKey = signerPrivateKey;
-    this.#multisigWallet = multisigWalletF2Addr;
-    this.#filecoinClient = new FilecoinClient(rpcEndpoint);
-    this.#lotusClient = new LotusClient(new HttpJsonRpcConnector({ url: rpcEndpoint }));
-    this.#coinType = isTestnet ? CoinType.TEST : CoinType.MAIN;
+    this.#safeAddress = safeAddress;
+    this.#txServiceUrl = process.env.SAFE_API_URL;
+    this.#signer = signer;
+    this.#safeService = new SafeApiKit({
+      ethAdapter: adapter,
+      txServiceUrl: this.#txServiceUrl,
+    });
+
+    this.#safeSdk = await Safe.create({
+      ethAdapter: adapter,
+      safeAddress: this.#safeAddress,
+    });
+    this.#safeTransactions = [];
   }
 
   async add(to, data) {
-    this.#transactions.push({
+    this.#safeTransactions.push({
       to,
       data,
+      value: "0",
     });
   }
 
   async submit() {
-    if (this.#transactions.length === 0) {
+    if (this.#safeTransactions.length === 0) {
       console.warn("Skipped proposal submission due to no update");
       return;
     }
 
-    const addressList = [];
+    const safeTransaction = await this.#safeSdk.createTransaction({
+      safeTransactionData: this.#safeTransactions,
+    });
 
-    for (const transaction of this.#transactions) {
-      const f410Address = delegatedFromEthAddress(transaction.to, this.#coinType);
-      const lookupId = await this.#lotusClient.state.lookupId(f410Address);
+    const safeTxHash = await this.#safeSdk.getTransactionHash(safeTransaction);
+    const senderSignature = await this.#safeSdk.signTransactionHash(safeTxHash);
 
-      addressList.push({
-        "ETH Address": transaction.to,
-        "F410 Address": f410Address,
-        "Lookup ID": lookupId,
-      });
+    await this.#safeService.proposeTransaction({
+      safeAddress: this.#safeAddress,
+      safeTransactionData: safeTransaction.data,
+      safeTxHash,
+      senderAddress: utils.getAddress(this.#signer),
+      senderSignature: senderSignature.data,
+    });
 
-      const message = await createProposeMessage(
-        this.#multisigWallet,
-        this.#signer,
-        lookupId,
-        "0",
-        METHOD_TYPES.INVOKE_EVM,
-        bigintToArray(transaction.data),
-      );
+    const tx = await this.#safeService.getTransaction(safeTxHash);
 
-      const response = await this.#filecoinClient.tx.sendMessage(
-        {
-          To: message.To,
-          From: message.From,
-          Value: message.Value ?? new BigNumber(0),
-          GasLimit: message.GasLimit ?? 0,
-          GasFeeCap: message.GasFeeCap ?? new BigNumber(0),
-          GasPremium: message.GasPremium ?? new BigNumber(0),
-          Method: message.Method ?? 0,
-          Params: message.Params ?? "",
-          Version: message.Version ?? 0,
-          Nonce: message.Nonce ?? 0,
-        },
-        this.#privateKey,
-      );
-
-      console.log(`Submitted proposals at ${response["/"]}`);
-    }
-
-    console.table(addressList);
+    console.log(`Submitted proposals at ${tx.safeTxHash}`);
   }
 }
 

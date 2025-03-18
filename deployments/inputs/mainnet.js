@@ -15,28 +15,20 @@ const externalAddrs = {
 };
 
 const walletAddrs = {
-  ADMIN: "0xff000000000000000000000000000000002fe5ee",
+  FOUNDATION: "0xE452eB7FEB81E939f3D71Ab440Ba7544e20044b9",
   DEPLOYER: "0x4F122d7FCE7971E38801aF5d96fcD4ed83EFD654",
-  MULTISIG: "0xff000000000000000000000000000000002fe5ee",
-};
-
-const walletF1Addrs = {
-  DEPLOYER: "f1aqzr246253hz6vbkoyz7kxmvoul7g3nzfte54mq",
-};
-
-const walletF2Addrs = {
-  MULTISIG: "f2xip7mhxv6cheomcvrodqs77n77oojcusvrgvcba",
+  MULTISIG: "0x874AEd75aB58Ba84d5008cfcBf9b9c7B5Eb17d57",
 };
 
 const allocationAmounts = {
-  ADMIN: dec(6_700_000, 18),
+  FOUNDATION: dec(6_700_000, 18),
   UNIPOOL: dec(100_000, 18),
   COMMUNITY_ISSUANCE: dec(3_200_000, 18),
 };
 
 const annualAllocationSettings = {
   RATE: dec(4, 16), // 4%
-  RECIPIENT: walletAddrs.ADMIN,
+  RECIPIENT: walletAddrs.FOUNDATION,
 };
 
 // Beneficiaries for lockup contracts.
@@ -86,8 +78,6 @@ const ETHERSCAN_BASE_URL = "https://etherscan.io/address";
 module.exports = {
   externalAddrs,
   walletAddrs,
-  walletF1Addrs,
-  walletF2Addrs,
   allocationAmounts,
   annualAllocationSettings,
   beneficiaries,

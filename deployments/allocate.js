@@ -23,9 +23,13 @@ async function main(configParams) {
   );
 
   // Allocate tokens to the admin, community issuance, and unipool
-  const accounts = [configParams.walletAddrs.ADMIN, unipool.address, communityIssuance.address];
+  const accounts = [
+    configParams.walletAddrs.FOUNDATION,
+    unipool.address,
+    communityIssuance.address,
+  ];
   const amounts = [
-    configParams.allocationAmounts.ADMIN,
+    configParams.allocationAmounts.FOUNDATION,
     configParams.allocationAmounts.UNIPOOL,
     configParams.allocationAmounts.COMMUNITY_ISSUANCE,
   ];

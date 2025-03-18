@@ -1,6 +1,7 @@
 const hre = require("hardhat");
 const ProxyAdmin = require("@openzeppelin/upgrades-core/artifacts/@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol/ProxyAdmin.json");
 require("dotenv").config();
+const { EthersAdapter } = require("@safe-global/protocol-kit");
 
 const HardhatDeploymentHelper = require("../utils/hardhatDeploymentHelpers.js");
 const { MultisigProposal } = require("../utils/multisig.js");
@@ -27,13 +28,12 @@ async function main(configParams) {
     HintHelpers: constructorBaseArgs,
   };
 
-  const proposal = await MultisigProposal.create(
-    configParams.walletF1Addrs.DEPLOYER,
-    process.env.MULTISIG_SIGNER_PRIVATEKEY,
-    configParams.walletF2Addrs.MULTISIG,
-    process.env.RPC_ENDPOINT,
-    hre.network.name !== "mainnet",
-  );
+  const adapter = new EthersAdapter({
+    ethers: ethers,
+    signerOrProvider: deployer,
+  });
+  const proposal = await MultisigProposal.create(adapter, multisig);
+
   const proxyAdminFactory = await ethers.getContractFactory(ProxyAdmin.abi, ProxyAdmin.bytecode);
 
   for (const name of contractNames) {
