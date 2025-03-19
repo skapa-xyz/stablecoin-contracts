@@ -2,6 +2,8 @@ const { TestHelper: th, TimeValues: timeVals } = require("../utils/testHelpers.j
 const { dec, toBN } = th;
 const HardhatDeploymentHelper = require("../utils/hardhatDeploymentHelpers.js");
 const hre = require("hardhat");
+const { UniswapV2Factory } = require("./ABIs/UniswapV2Factory.js");
+const { UniswapV2Pair } = require("./ABIs/UniswapV2Pair.js");
 
 async function main(configParams) {
   const date = new Date();
@@ -10,22 +12,25 @@ async function main(configParams) {
   const mdh = new HardhatDeploymentHelper(configParams, deployerWallet);
   const deploymentState = mdh.loadPreviousDeployment();
 
-  const [protocolToken, communityIssuance, lockupContractFactory, unipool] = await Promise.all(
-    ["ProtocolToken", "CommunityIssuance", "LockupContractFactory", "Unipool"].map(async (name) => {
-      const factory = await ethers.getContractFactory(name, deployerWallet);
-      const deploymentKey = name.charAt(0).toLocaleLowerCase() + name.slice(1);
-      return new ethers.Contract(
-        deploymentState[deploymentKey].address,
-        factory.interface,
-        deployerWallet,
-      );
-    }),
-  );
+  const [debtToken, protocolToken, communityIssuance, lockupContractFactory, uniPool] =
+    await Promise.all(
+      ["DebtToken", "ProtocolToken", "CommunityIssuance", "LockupContractFactory", "Unipool"].map(
+        async (name) => {
+          const factory = await ethers.getContractFactory(name, deployerWallet);
+          const deploymentKey = name.charAt(0).toLocaleLowerCase() + name.slice(1);
+          return new ethers.Contract(
+            deploymentState[deploymentKey].address,
+            factory.interface,
+            deployerWallet,
+          );
+        },
+      ),
+    );
 
-  // Allocate tokens to the admin, community issuance, and unipool
+  // Allocate tokens to the admin, community issuance, and uni pool
   const accounts = [
     configParams.walletAddrs.FOUNDATION,
-    unipool.address,
+    uniPool.address,
     communityIssuance.address,
   ];
   const amounts = [
@@ -40,7 +45,7 @@ async function main(configParams) {
   console.log("Token allocation:");
   console.table({
     admin: { address: accounts[0], amount: convertFromFullAmount(amounts[0]) },
-    unipool: { address: accounts[1], amount: convertFromFullAmount(amounts[1]) },
+    uniPool: { address: accounts[1], amount: convertFromFullAmount(amounts[1]) },
     communityIssuance: { address: accounts[2], amount: convertFromFullAmount(amounts[2]) },
   });
 
@@ -52,6 +57,34 @@ async function main(configParams) {
 
   const oneYearFromDeployment = (Number(supplyStartTime) + timeVals.SECONDS_IN_ONE_YEAR).toString();
   console.log(`time oneYearFromDeployment: ${oneYearFromDeployment}`);
+
+  // Connect Unipool to ProtocolToken and the DebtToken-WFIL pair address, with a 6 week duration
+  const uniswapV2Factory = new ethers.Contract(
+    configParams.externalAddrs.UNISWAP_V2_FACTORY,
+    UniswapV2Factory.abi,
+    deployerWallet,
+  );
+  const DebtTokenWFILPairAddr = await uniswapV2Factory.getPair(
+    debtToken.address,
+    configParams.externalAddrs.WRAPPED_NATIVE_TOKEN,
+  );
+
+  console.log(`DebtToken-WFIL pair contract address: ${DebtTokenWFILPairAddr}`);
+  assert.notEqual(DebtTokenWFILPairAddr, th.ZERO_ADDRESS);
+
+  await mdh.sendAndWaitForTransaction(
+    uniPool.setParams(protocolToken.address, DebtTokenWFILPairAddr, timeVals.SECONDS_IN_SIX_WEEKS),
+  );
+
+  const DebtTokenFILPair = await new ethers.Contract(
+    DebtTokenWFILPairAddr,
+    UniswapV2Pair.abi,
+    deployerWallet,
+  );
+
+  const reserves = await DebtTokenFILPair.getReserves();
+  th.logBN("DebtToken-FIL Pair's current debt token reserves", reserves[0]);
+  th.logBN("DebtToken-FIL Pair's current FIL reserves", reserves[1]);
 
   // Deploy LockupContracts - one for each beneficiary
   const lockupContracts = {};

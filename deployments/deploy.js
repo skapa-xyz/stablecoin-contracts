@@ -147,38 +147,6 @@ async function main(configParams) {
       );
       assert.equal(WFILDebtTokenPairAddr, DebtTokenWFILPairAddr);
     }
-
-    // Deploy Unipool for DebtToken-WFIL
-    await mdh.sendAndWaitForTransaction(
-      uniswapV2Factory.createPair(
-        configParams.externalAddrs.WRAPPED_NATIVE_TOKEN,
-        coreContracts.debtToken.address,
-      ),
-    );
-
-    // Check Uniswap Pair DebtToken-WFIL pair after pair creation (forwards and backwards should have same address)
-    DebtTokenWFILPairAddr = await uniswapV2Factory.getPair(
-      coreContracts.debtToken.address,
-      configParams.externalAddrs.WRAPPED_NATIVE_TOKEN,
-    );
-    assert.notEqual(DebtTokenWFILPairAddr, th.ZERO_ADDRESS);
-    WFILDebtTokenPairAddr = await uniswapV2Factory.getPair(
-      configParams.externalAddrs.WRAPPED_NATIVE_TOKEN,
-      coreContracts.debtToken.address,
-    );
-    console.log(
-      `DebtToken-WFIL pair contract address after Uniswap pair creation: ${DebtTokenWFILPairAddr}`,
-    );
-    assert.equal(WFILDebtTokenPairAddr, DebtTokenWFILPairAddr);
-
-    // Connect Unipool to ProtocolToken and the DebtToken-WFIL pair address, with a 6 week duration
-    const LPRewardsDuration = timeVals.SECONDS_IN_SIX_WEEKS;
-    await mdh.connectUnipool(
-      unipool,
-      protocolTokenContracts,
-      DebtTokenWFILPairAddr,
-      LPRewardsDuration,
-    );
   }
 
   // Log ProtocolToken and Unipool addresses
@@ -282,11 +250,6 @@ async function main(configParams) {
   // // Check deployer has DebtToken
   // let deployerDebtTokenBal = await coreContracts.debtToken.balanceOf(deployerWallet.address)
   // th.logBN("deployer's debt token balance", deployerDebtTokenBal)
-
-  // // Check Uniswap pool has the debt token and WFIL tokens
-  const DebtTokenFILPair = uniswapExits
-    ? await new ethers.Contract(DebtTokenWFILPairAddr, UniswapV2Pair.abi, deployerWallet)
-    : undefined;
 
   // const token0Addr = await DebtTokenFILPair.token0()
   // const token1Addr = await DebtTokenFILPair.token1()
@@ -508,13 +471,6 @@ async function main(configParams) {
   // th.logBN('deployer debt token bal after withdrawing staking gains', deployerDebtTokenBal)
 
   // // --- System stats  ---
-
-  // Uniswap DebtToken-FIL pool size
-  if (uniswapExits) {
-    let reserves = await DebtTokenFILPair.getReserves();
-    th.logBN("DebtToken-FIL Pair's current debt token reserves", reserves[0]);
-    th.logBN("DebtToken-FIL Pair's current FIL reserves", reserves[1]);
-  }
 
   // Number of troves
   const numTroves = await coreContracts.troveManager.getTroveOwnersCount();
