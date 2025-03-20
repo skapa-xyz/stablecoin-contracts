@@ -313,28 +313,6 @@ class HardhatDeploymentHelper {
       cpContracts.borrowerOperations,
     ]);
 
-    if (!this.configParams.ETHERSCAN_BASE_URL) {
-      console.log("No Etherscan Url defined, skipping verification");
-    } else {
-      await this.verifyContract("priceFeed", deploymentState);
-      await this.verifyContract("sortedTroves", deploymentState);
-      await this.verifyContract("troveManager", deploymentState);
-      await this.verifyContract("activePool", deploymentState);
-      await this.verifyContract("stabilityPool", deploymentState);
-      await this.verifyContract("gasPool", deploymentState);
-      await this.verifyContract("defaultPool", deploymentState);
-      await this.verifyContract("collSurplusPool", deploymentState);
-      await this.verifyContract("borrowerOperations", deploymentState);
-      await this.verifyContract("hintHelpers", deploymentState);
-      await this.verifyContract("tellorCaller", deploymentState, [tellorMasterAddr]);
-      await this.verifyContract("pythCaller", deploymentState, [
-        pythPriceFeedAddr,
-        pythPriceId,
-        "FIL / USD",
-      ]);
-      await this.verifyContract("debtToken", deploymentState, debtTokenParams);
-    }
-
     const coreContracts = {
       priceFeed,
       sortedTroves,
@@ -396,15 +374,6 @@ class HardhatDeploymentHelper {
       ],
     );
 
-    if (!this.configParams.ETHERSCAN_BASE_URL) {
-      console.log("No Etherscan Url defined, skipping verification");
-    } else {
-      await this.verifyContract("protocolTokenStaking", deploymentState);
-      await this.verifyContract("lockupContractFactory", deploymentState);
-      await this.verifyContract("communityIssuance", deploymentState);
-      await this.verifyContract("protocolToken", deploymentState, protocolTokenParams);
-    }
-
     const protocolTokenContracts = {
       protocolTokenStaking,
       lockupContractFactory,
@@ -418,12 +387,6 @@ class HardhatDeploymentHelper {
     const unipoolFactory = await this.getFactory("Unipool");
     const unipool = await this.loadOrDeployProxy(unipoolFactory, "unipool", deploymentState);
 
-    if (!this.configParams.ETHERSCAN_BASE_URL) {
-      console.log("No Etherscan Url defined, skipping verification");
-    } else {
-      await this.verifyContract("unipool", deploymentState);
-    }
-
     return unipool;
   }
 
@@ -436,12 +399,6 @@ class HardhatDeploymentHelper {
       deploymentState,
       multiTroveGetterParams,
     );
-
-    if (!this.configParams.ETHERSCAN_BASE_URL) {
-      console.log("No Etherscan Url defined, skipping verification");
-    } else {
-      await this.verifyContract("multiTroveGetter", deploymentState, multiTroveGetterParams);
-    }
 
     return multiTroveGetter;
   }
@@ -462,37 +419,6 @@ class HardhatDeploymentHelper {
           duration,
         ),
       ));
-  }
-
-  // --- Verify on Ethrescan ---
-  async verifyContract(name, deploymentState, constructorArguments = []) {
-    if (!deploymentState[name] || !deploymentState[name].address) {
-      console.error(`  --> No deployment state for contract ${name}!!`);
-      return;
-    }
-    if (deploymentState[name].verification) {
-      console.log(`Contract ${name} already verified`);
-      return;
-    }
-
-    try {
-      await this.hre.run("verify:verify", {
-        address: deploymentState[name].address,
-        constructorArguments,
-      });
-    } catch (error) {
-      // if it was already verified, it’s like a success, so let’s move forward and save it
-      if (error.name !== "NomicLabsHardhatPluginError") {
-        console.error(`Error verifying: ${error.name}`);
-        console.error(error);
-        return;
-      }
-    }
-
-    deploymentState[name].verification =
-      `${this.configParams.ETHERSCAN_BASE_URL}/${deploymentState[name].address}#code`;
-
-    this.saveDeployment(deploymentState);
   }
 
   // --- Helpers ---

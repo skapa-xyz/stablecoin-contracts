@@ -1,6 +1,5 @@
 require("@nomiclabs/hardhat-truffle5");
 require("@nomiclabs/hardhat-ethers");
-require("@nomiclabs/hardhat-etherscan");
 require("@openzeppelin/hardhat-upgrades");
 require("solidity-coverage");
 require("hardhat-gas-reporter");
@@ -66,9 +65,6 @@ module.exports = {
       url: rpcEndpoint,
       accounts,
     },
-  },
-  etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
   },
   mocha: { timeout: 12000000 },
   rpc: {

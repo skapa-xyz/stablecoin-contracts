@@ -125,15 +125,6 @@ async function main(configParams) {
 
       mdh.saveDeployment(deploymentState);
     }
-
-    // verify
-    if (configParams.ETHERSCAN_BASE_URL) {
-      await mdh.verifyContract(investor, deploymentState, [
-        protocolToken.address,
-        investorAddr,
-        oneYearFromDeployment,
-      ]);
-    }
   }
 
   // --- Lockup Contracts ---
