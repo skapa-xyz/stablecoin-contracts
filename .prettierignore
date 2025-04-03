@@ -4,3 +4,4 @@ bin/
 cache/
 package-lock.json
 deployments/outputs/*.json
+tasks/utils/buildInfo/

@@ -37,7 +37,7 @@ const verifyContract = async (
   const res = await axios.post(API_URLS[network], body, opts);
 
   if (res.data.success) {
-    console.log("verified:", name);
+    console.log("Verified:", name);
   } else {
     if (res.data.errorCode === 6) {
       console.log("Contract already verified:", name);
@@ -98,7 +98,7 @@ task("verify-filfox", "Verify and register contracts on Filfox").setAction(
 
         await verifyContract(
           networkName,
-          `${fileName}_Proxy`,
+          `${fileName} (Proxy)`,
           proxyContractAddress,
           undefined,
           "v0.8.9+commit.e5eed63a",
@@ -110,7 +110,7 @@ task("verify-filfox", "Verify and register contracts on Filfox").setAction(
 
       await verifyContract(
         networkName,
-        isUpgradeable ? `${fileName}_Implementation` : fileName,
+        isUpgradeable ? `${fileName} (Implementation)` : fileName,
         contractAddress,
         100,
         "v0.7.6+commit.7338295f",

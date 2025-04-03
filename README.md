@@ -43,6 +43,9 @@ $ UPGRADE_CONTRACTS=SortedTroves,TroveManager npx hardhat run --network mainnet 
 
 # Verify contracts on Filfox
 $ npx hardhat verify-filfox --network mainnet
+
+# Verify contracts on Starboard
+$ npx hardhat verify-starboard --network mainnet
 ```
 
 ## Tests

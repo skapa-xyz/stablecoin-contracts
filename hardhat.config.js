@@ -6,6 +6,7 @@ require("hardhat-gas-reporter");
 require("dotenv").config();
 
 require("./tasks/verify-filfox.js");
+require("./tasks/verify-starboard.js");
 
 const accounts = [
   process.env.DEPLOYER_PRIVATEKEY ||
