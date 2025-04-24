@@ -14,7 +14,8 @@
   "priceFeed": {
     "address": "0xde054E1F2c94C11FEd5106F8f588fde9C3B30B87",
     "txHashes": [
-      "0xbcf8541e14fa29c54fee561c3d4915e38a3e1373ccefbc91ae29ceb07056f67b"
+      "0xbcf8541e14fa29c54fee561c3d4915e38a3e1373ccefbc91ae29ceb07056f67b",
+      "0x81b2220a08ed0aa720117e1716fa53a146990546f8b65498f6629f707cc78754"
     ]
   },
   "sortedTroves": {
@@ -111,6 +112,12 @@
     "address": "0x808D71D48bc50567B62DE23d488b51a75e4bf179",
     "txHashes": [
       "0x92a5d9e3c3534fc42adefd0b60588c2a77428116fc0e3c8ba1033f5e4e408bdb"
+    ]
+  },
+  "mockAggregator": {
+    "address": "0x8B58C729B09F67701c52255A8e99E3805749953b",
+    "txHashes": [
+      "0xc2db3d60659680f3ecb3dac974cf8a960872daaaad0543132bb5cd58020cffdd"
     ]
   }
 }
