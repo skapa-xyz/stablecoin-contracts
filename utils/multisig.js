@@ -20,8 +20,6 @@ class MultisigProposal {
   }
 
   static async create(adapter, safeAddress) {
-    console.log("safeAddress:", safeAddress);
-
     const proposal = new MultisigProposal(PRIVATE_CONSTRUCTOR_SYMBOL);
     await proposal.#init(adapter, safeAddress);
     return proposal;

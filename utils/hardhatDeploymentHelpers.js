@@ -142,6 +142,12 @@ class HardhatDeploymentHelper {
 
     console.log(`Preparing upgrade for ${name} contract...`);
 
+    // On the Filecoin node, deployment information becomes unavailable over time,
+    // so the contract needs to be forcefully imported.
+    await this.hre.upgrades.forceImport(deploymentState[name].address, factory, {
+      constructorArgs,
+    });
+
     const tx = await this.hre.upgrades.prepareUpgrade(deploymentState[name].address, factory, {
       unsafeAllow: ["constructor", "state-variable-immutable"],
       constructorArgs,
