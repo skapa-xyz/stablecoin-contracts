@@ -1,0 +1,149 @@
+{
+  "version": "1",
+  "language": "Solidity",
+  "compiler": {
+    "version": "0.7.6"
+  },
+  "sources": {
+    "contracts/MultiTroveGetter.sol": {
+      "keccak256": "0x9335887eb4087c6d1ce1ed556d0c42265e7e14e548644672c392e6661a24a16a",
+      "license": "MIT",
+      "urls": []
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": true,
+      "runs": 100,
+      "details": {
+        "peephole": true,
+        "jumpdestRemover": true,
+        "orderLiterals": false,
+        "deduplicate": false,
+        "cse": false,
+        "constantOptimizer": false,
+        "yul": true
+      }
+    },
+    "evmVersion": "istanbul",
+    "metadata": {
+      "useLiteralContent": true,
+      "bytecodeHash": "ipfs"
+    },
+    "compilationTarget": {
+      "contracts/MultiTroveGetter.sol": "MultiTroveGetter"
+    }
+  },
+  "output": {
+    "abi": [
+      {
+        "inputs": [
+          {
+            "internalType": "contract ITroveManager",
+            "name": "_troveManager",
+            "type": "address"
+          },
+          {
+            "internalType": "contract ISortedTroves",
+            "name": "_sortedTroves",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "int256",
+            "name": "_startIdx",
+            "type": "int256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_count",
+            "type": "uint256"
+          }
+        ],
+        "name": "getMultipleSortedTroves",
+        "outputs": [
+          {
+            "components": [
+              {
+                "internalType": "address",
+                "name": "owner",
+                "type": "address"
+              },
+              {
+                "internalType": "uint256",
+                "name": "debt",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "coll",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "stake",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "snapshotFIL",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "snapshotDebt",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct MultiTroveGetter.CombinedTroveData[]",
+            "name": "_troves",
+            "type": "tuple[]"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "sortedTroves",
+        "outputs": [
+          {
+            "internalType": "contract ISortedTroves",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "troveManager",
+        "outputs": [
+          {
+            "internalType": "contract ITroveManager",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ],
+    "userdoc": {
+      "kind": "user",
+      "methods": {},
+      "version": 1
+    },
+    "devdoc": {
+      "kind": "dev",
+      "methods": {},
+      "version": 1
+    }
+  }
+}

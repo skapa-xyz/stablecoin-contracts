@@ -1,0 +1,234 @@
+{
+  "version": "1",
+  "language": "Solidity",
+  "compiler": {
+    "version": "0.7.6"
+  },
+  "sources": {
+    "contracts/Proxy/BorrowerOperationsScript.sol": {
+      "keccak256": "0xc50ca9863981c61bb6939d5aeeb2bc86f67cfb3f71f70a7bddd62cee040021fb",
+      "license": "MIT",
+      "urls": []
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": true,
+      "runs": 100,
+      "details": {
+        "peephole": true,
+        "jumpdestRemover": true,
+        "orderLiterals": false,
+        "deduplicate": false,
+        "cse": false,
+        "constantOptimizer": false,
+        "yul": true
+      }
+    },
+    "evmVersion": "istanbul",
+    "metadata": {
+      "useLiteralContent": true,
+      "bytecodeHash": "ipfs"
+    },
+    "compilationTarget": {
+      "contracts/Proxy/BorrowerOperationsScript.sol": "BorrowerOperationsScript"
+    }
+  },
+  "output": {
+    "abi": [
+      {
+        "inputs": [
+          {
+            "internalType": "contract IBorrowerOperations",
+            "name": "_borrowerOperations",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "_upperHint",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "_lowerHint",
+            "type": "address"
+          }
+        ],
+        "name": "addColl",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "_maxFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_collWithdrawal",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_debtChange",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "isDebtIncrease",
+            "type": "bool"
+          },
+          {
+            "internalType": "address",
+            "name": "_upperHint",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "_lowerHint",
+            "type": "address"
+          }
+        ],
+        "name": "adjustTrove",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "claimCollateral",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "closeTrove",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "_maxFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_debtTokenAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "_upperHint",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "_lowerHint",
+            "type": "address"
+          }
+        ],
+        "name": "openTrove",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "_amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "_upperHint",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "_lowerHint",
+            "type": "address"
+          }
+        ],
+        "name": "repayDebtToken",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "_amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "_upperHint",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "_lowerHint",
+            "type": "address"
+          }
+        ],
+        "name": "withdrawColl",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "_maxFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "_upperHint",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "_lowerHint",
+            "type": "address"
+          }
+        ],
+        "name": "withdrawDebtToken",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      }
+    ],
+    "userdoc": {
+      "kind": "user",
+      "methods": {},
+      "version": 1
+    },
+    "devdoc": {
+      "kind": "dev",
+      "methods": {},
+      "version": 1
+    }
+  }
+}

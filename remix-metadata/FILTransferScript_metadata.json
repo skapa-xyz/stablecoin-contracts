@@ -1,0 +1,75 @@
+{
+  "version": "1",
+  "language": "Solidity",
+  "compiler": {
+    "version": "0.7.6"
+  },
+  "sources": {
+    "contracts/Proxy/FILTransferScript.sol": {
+      "keccak256": "0xce91fb01a7be55654e14893a55e06a929bb15d7e3c92a893a848b9aa93a794ea",
+      "license": "MIT",
+      "urls": []
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": true,
+      "runs": 100,
+      "details": {
+        "peephole": true,
+        "jumpdestRemover": true,
+        "orderLiterals": false,
+        "deduplicate": false,
+        "cse": false,
+        "constantOptimizer": false,
+        "yul": true
+      }
+    },
+    "evmVersion": "istanbul",
+    "metadata": {
+      "useLiteralContent": true,
+      "bytecodeHash": "ipfs"
+    },
+    "compilationTarget": {
+      "contracts/Proxy/FILTransferScript.sol": "FILTransferScript"
+    }
+  },
+  "output": {
+    "abi": [
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "_recipient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_amount",
+            "type": "uint256"
+          }
+        ],
+        "name": "transferFIL",
+        "outputs": [
+          {
+            "internalType": "bool",
+            "name": "",
+            "type": "bool"
+          }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      }
+    ],
+    "userdoc": {
+      "kind": "user",
+      "methods": {},
+      "version": 1
+    },
+    "devdoc": {
+      "kind": "dev",
+      "methods": {},
+      "version": 1
+    }
+  }
+}

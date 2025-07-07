@@ -1,0 +1,437 @@
+{
+  "version": "1",
+  "language": "Solidity",
+  "compiler": {
+    "version": "0.7.6"
+  },
+  "sources": {
+    "contracts/HintHelpers.sol": {
+      "keccak256": "0xefc273c00f70b91e2f4f74296067953cbcc1889c4775f83d6f6a08fa9a3dc390",
+      "license": "MIT",
+      "urls": []
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": true,
+      "runs": 100,
+      "details": {
+        "peephole": true,
+        "jumpdestRemover": true,
+        "orderLiterals": false,
+        "deduplicate": false,
+        "cse": false,
+        "constantOptimizer": false,
+        "yul": true
+      }
+    },
+    "evmVersion": "istanbul",
+    "metadata": {
+      "useLiteralContent": true,
+      "bytecodeHash": "ipfs"
+    },
+    "compilationTarget": {
+      "contracts/HintHelpers.sol": "HintHelpers"
+    }
+  },
+  "output": {
+    "abi": [
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "_gasCompensation",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_minNetDebt",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "previousOwner",
+            "type": "address"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "newOwner",
+            "type": "address"
+          }
+        ],
+        "name": "OwnershipTransferred",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": false,
+            "internalType": "address",
+            "name": "_sortedTrovesAddress",
+            "type": "address"
+          }
+        ],
+        "name": "SortedTrovesAddressChanged",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": false,
+            "internalType": "address",
+            "name": "_troveManagerAddress",
+            "type": "address"
+          }
+        ],
+        "name": "TroveManagerAddressChanged",
+        "type": "event"
+      },
+      {
+        "inputs": [],
+        "name": "BORROWING_FEE_FLOOR",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "CCR",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "DECIMAL_PRECISION",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "GAS_COMPENSATION",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "MCR",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "MIN_NET_DEBT",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "NAME",
+        "outputs": [
+          {
+            "internalType": "string",
+            "name": "",
+            "type": "string"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "PERCENT_DIVISOR",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "_100pct",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "_coll",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_debt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_price",
+            "type": "uint256"
+          }
+        ],
+        "name": "computeCR",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "pure",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "_coll",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_debt",
+            "type": "uint256"
+          }
+        ],
+        "name": "computeNominalCR",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "pure",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "_CR",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_numTrials",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_inputRandomSeed",
+            "type": "uint256"
+          }
+        ],
+        "name": "getApproxHint",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "hintAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "diff",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "latestRandomSeed",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "_debtTokenAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_price",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_maxIterations",
+            "type": "uint256"
+          }
+        ],
+        "name": "getRedemptionHints",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "firstRedemptionHint",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "partialRedemptionHintNICR",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "truncatedDebtTokenAmount",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "_sortedTrovesAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "_troveManagerAddress",
+            "type": "address"
+          }
+        ],
+        "name": "initialize",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "owner",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "renounceOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "sortedTroves",
+        "outputs": [
+          {
+            "internalType": "contract ISortedTroves",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "newOwner",
+            "type": "address"
+          }
+        ],
+        "name": "transferOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "troveManager",
+        "outputs": [
+          {
+            "internalType": "contract ITroveManager",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ],
+    "userdoc": {
+      "kind": "user",
+      "methods": {},
+      "version": 1
+    },
+    "devdoc": {
+      "kind": "dev",
+      "methods": {},
+      "version": 1
+    }
+  }
+}

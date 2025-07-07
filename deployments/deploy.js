@@ -25,9 +25,6 @@ async function main(configParams) {
   deployerFILBalance = await ethers.provider.getBalance(deployerWallet.address);
   console.log(`deployer's FIL balance before deployments: ${deployerFILBalance}`);
 
-  const oracleWrapperContracts = await mdh.deployOracleWrappers(deploymentState);
-  await mdh.logContractObjects(oracleWrapperContracts);
-
   // Computed contracts address
   // Note: This contract list order is the same as the order in which the contracts are deployed.
   // This is necessary for the deployment helper to compute the correct addresses.
@@ -50,7 +47,21 @@ async function main(configParams) {
     "protocolToken",
   ];
 
-  const addressList = await mdh.computeContractAddresses(proxyContractList.length * 2 + 2);
+  // Count how many contracts need to be deployed
+  let contractsToDeployCount = 0;
+  for (const contract of proxyContractList) {
+    if (!deploymentState[contract]) {
+      contractsToDeployCount++;
+    }
+  }
+
+  // Deploy oracle wrappers AFTER counting but BEFORE computing addresses
+  const oracleWrapperContracts = await mdh.deployOracleWrappers(deploymentState);
+  await mdh.logContractObjects(oracleWrapperContracts);
+
+  // NOW compute addresses after oracle deployment so nonce is correct
+  // Each proxy deployment uses 2 transactions (implementation + proxy)
+  const addressList = await mdh.computeContractAddresses(contractsToDeployCount * 2 + 2);
   const isFirstDeployment = await mdh.isFirstDeployment();
 
   if (isFirstDeployment) {
@@ -59,12 +70,17 @@ async function main(configParams) {
     addressList.shift();
   }
 
+  // Create a copy to track position in addressList
+  let addressIndex = 0;
+
   const cpContracts = proxyContractList.reduce((acc, contract) => {
     if (deploymentState[contract]) {
+      // Use existing deployed address
       acc[contract] = deploymentState[contract].address;
     } else {
-      addressList.shift(); // skip implementation contract
-      acc[contract] = addressList.shift();
+      // Use computed address for new deployment
+      addressIndex++; // skip implementation contract
+      acc[contract] = addressList[addressIndex++];
     }
     return acc;
   }, {});

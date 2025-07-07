@@ -1,0 +1,80 @@
+{
+  "pythCaller": {
+    "address": "0x5A5cdf80dd48CBe64f854e79E875c243424c8941",
+    "txHashes": [
+      "0x5183dcef82062f054f270ca8b52f9216c69995f9ccd6bbe725cb859593a8f0e0"
+    ]
+  },
+  "tellorCaller": {
+    "address": "0x00ADDae8F3a99D4b1bcd2FaA7bBF76e9cbCD55E8",
+    "txHashes": [
+      "0xd93d98777789332d7bbd5e4051443d57dc53c35fb744fc78d9f405c171c32776"
+    ]
+  },
+  "priceFeed": {
+    "address": "0xF7699aBa55cC8459F05beD95d2B6f89a8d7d9aFa",
+    "txHashes": [
+      "0x65dcf1a32dfad936ec1b6bf2cf9a1d4c09605f160d1534be050c00271514d608"
+    ]
+  },
+  "sortedTroves": {
+    "address": "0x1f4f6a670FAC79CAe7783d7C126C6dd6AB331D4a",
+    "txHashes": [
+      "0xe16a702c80cf8ba43f3265e306493238cc53bda2ff8a73d4d17240f01875c086"
+    ]
+  },
+  "troveManager": {
+    "address": "0x1BdBB33505c2829835393B7f1b3Ec015Adc2B466",
+    "txHashes": [
+      "0x7ecf82f656585353dab7749e44344547ef166966495f519e986a01f635cfa481"
+    ]
+  },
+  "activePool": {
+    "address": "0x67b80821c9389f5613d0e7f1cd00aFb62D7B4a72",
+    "txHashes": [
+      "0x1531cd58fba9b2101f7ef46bb377282dca89faaee45f952c0d34fd2e14216362"
+    ]
+  },
+  "stabilityPool": {
+    "address": "0xCCEE6D77CA3BEf1e7d6671DA676c7E4E53152Fb4",
+    "txHashes": [
+      "0xfc3e0be0effe9dfbacf76e56895354b0d10d0a927e69273fb87e3d7b81bf795c"
+    ]
+  },
+  "gasPool": {
+    "address": "0x17C2FC862E590569C02564E629d0D97ff51A7EED",
+    "txHashes": [
+      "0x85fa327348c3070ba5369eaf2cb2760cab16cdda571ee8f939f5682360d08518"
+    ]
+  },
+  "defaultPool": {
+    "address": "0x72fF8043839FC1Fdf18E2d4f4aEd280274D26E40",
+    "txHashes": [
+      "0x2eee95bbeb94f29075bf6a9f9032606a4d489f683a0da915cc5bbff68d35dc3e"
+    ]
+  },
+  "collSurplusPool": {
+    "address": "0xEb383535885Ee18464e850742a03AFc7c90F3018",
+    "txHashes": [
+      "0x76510e1b010a3746adb4314fd585c042493a2ae8819d6ab65d9a396b792190a3"
+    ]
+  },
+  "borrowerOperations": {
+    "address": "0x9814bfb62897d9aa88c9F848316C1B1fd707B8B8",
+    "txHashes": [
+      "0xbc5a3111756a80706154b451f9d54ab68ebcbf73198209963e695a5a0b7e0fe4"
+    ]
+  },
+  "hintHelpers": {
+    "address": "0xB99bEDF0D108C29A0592a60c65C3eCb14fd360Fe",
+    "txHashes": [
+      "0x9212bdcbb64f621a0a5437129729fcab9774ffe188da860361edfcdead0dc475"
+    ]
+  },
+  "debtToken": {
+    "address": "0x599D1CCA253c4456B6EE676909B5F2aD5B5a557b",
+    "txHashes": [
+      "0xec8d6f0446e7509afc1f86b08cafd070b2b11ec1bf573125e3432a2c4a6401e0"
+    ]
+  }
+}
