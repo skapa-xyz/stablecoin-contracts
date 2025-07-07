@@ -1,0 +1,14 @@
+{
+  "name": "x402 for Filecoin",
+  "tagline": "Programmatic payments with USDFC",
+  "description": "EIP-3009 support added to USDFC to enable x402.org on Filecoin, with WeatherXM Pro API proxy based demo",
+  "team": [
+    {
+      "name": "Adrian Lanzafame",
+      "email": "lanzafame@skapa.xyz"
+    }
+  ],
+  "demo_url": "https://github.com/skapa-xyz/pl-genesis-hackathon-demo",
+  "video_url": "https://youtu.be/saGkZIkSEmA",
+  "technologies": ["MCP", "Filecoin", "FEVM", "USDFC"]
+}
